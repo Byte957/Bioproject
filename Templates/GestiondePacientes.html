@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Pacientes</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: 
+        linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
+        url('https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat fixed;
+      padding: 20px;
+    }
+
+    /* Barra de navegación superior */
+    .navbar {
+      background-color: #ffffff;
+      border-radius: 20px;
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 
+        0 15px 30px rgba(0, 0, 0, 0.3),
+        0 5px 10px rgba(0, 0, 0, 0.15);
+      margin-bottom: 25px;
+      max-width: 1200px;
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .nav-logo {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+    }
+
+    .nav-sublogo {
+      height: 28px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .nav-slogan {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      color: #555555;
+      text-transform: uppercase;
+      border-left: 2px solid #e0e0e0;
+      padding-left: 14px;
+    }
+
+    .navbar-content {
+      flex: 1;
+      /* Espacio reservado para los enlaces del navbar */
+    }
+
+    /* Contenedor principal de dos columnas */
+    .dashboard-container {
+      display: flex;
+      gap: 25px;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      flex: 1;
+      align-items: flex-start;
+    }
+
+    /* Tarjetas blancas flotantes con efecto 3D */
+    .card {
+      background-color: #ffffff;
+      border-radius: 24px;
+      border: none;
+      box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.35),
+        0 10px 15px rgba(0, 0, 0, 0.15);
+      padding: 30px;
+    }
+
+    /* Columna Izquierda: Filtros y Lista de Pacientes */
+    .left-panel {
+      flex: 1.1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filters-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .filter-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-item label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 6px;
+      margin-left: 4px;
+    }
+
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 14px;
+      padding-left: 4px;
+    }
+
+    /* Lista con scroll vertical */
+    .patient-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 490px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    .patient-list::-webkit-scrollbar {
+      width: 7px;
+    }
+
+    .patient-list::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    .patient-list::-webkit-scrollbar-thumb {
+      background: #43a047;
+      border-radius: 10px;
+    }
+
+    .patient-item {
+      padding: 12px 14px;
+      background-color: #ffffff;
+      border: 1.5px solid #2e7d32;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      color: #333333;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .patient-item:hover {
+      background-color: #e8f5e9;
+      transform: translateX(4px);
+      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
+    }
+
+    /* Columna Derecha: Formulario de Gestión de Pacientes */
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 5px;
+      margin-left: 4px;
+    }
+
+    /* Inputs y Selects */
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="date"],
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #1b5e20;
+      box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
+    }
+
+    select {
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url('data:image/svg+xml;utf8,<svg fill="%232e7d32" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 35px;
+    }
+
+    /* Prefijo +56 de teléfono */
+    .phone-input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .phone-prefix {
+      width: 75px !important;
+      text-align: center;
+      background-color: #f7f7f7 !important;
+      font-weight: 600;
+    }
+
+    /* Botones de acción */
+    .form-buttons {
+      display: flex;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .btn-submit {
+      background: linear-gradient(135deg, #43a047, #2e7d32);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.25);
+    }
+
+    .btn-submit:hover {
+      background: linear-gradient(135deg, #388e3c, #1b5e20);
+      transform: translateY(-1px);
+    }
+
+    .btn-cancel {
+      background-color: #f5f5f5;
+      color: #333333;
+      border: 1.5px solid #cccccc;
+    }
+
+    .btn-cancel:hover {
+      background-color: #e8e8e8;
+      border-color: #b0b0b0;
+      transform: translateY(-1px);
+    }
+
+    /* Responsive */
+    @media (max-width: 900px) {
+      .dashboard-container {
+        flex-direction: column;
+      }
+      .navbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .filters-row {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barra Superior (Navbar)[cite: 5] -->
+  <header class="navbar">
+    <div class="brand-section">
+      <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
+      <img src="tu-sublogo-texto.png" alt="Biotechnica" class="nav-sublogo">
+      <span class="nav-slogan">Slogan</span>
+    </div>
+    <nav class="navbar-content">
+      <!-- Navbar vacío listo para rellenar después[cite: 4, 5] -->
+    </nav>
+  </header>
+
+  <!-- Contenedor Principal[cite: 5] -->
+  <main class="dashboard-container">
+
+    <!-- Panel Izquierdo: Filtros y Lista de Atenciones[cite: 5] -->
+    <section class="card left-panel">
+      <div class="filters-row">
+        <!-- Filtrar por Nombre: Combobox[cite: 4, 5] -->
+        <div class="filter-item">
+          <label for="filtro-nombre">Filtrar por Nombre</label>
+          <select id="filtro-nombre" name="filtro-nombre">
+            <option value="">Seleccione Nombre...</option>
+            <option value="1">Paciente 1</option>
+            <option value="2">Paciente 2</option>
+          </select>
+        </div>
+
+        <!-- Filtrar por Edad: Calendario[cite: 4, 5] -->
+        <div class="filter-item">
+          <label for="filtro-edad-calendario">Filtrar por Edad</label>
+          <input type="date" id="filtro-edad-calendario" name="filtro-edad-calendario">
+        </div>
+      </div>
+
+      <h2 class="section-title">Atenciones Registradas</h2>
+      <div class="patient-list">
+        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
+        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
+        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
+        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
+        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
+        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
+        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
+        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
+        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
+        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
+      </div>
+    </section>
+
+    <!-- Panel Derecho: Formulario de Gestión de Pacientes[cite: 5] -->
+    <section class="card right-panel">
+      <h1 class="panel-header-title">Gestionar Paciente: RUN</h1>
+      
+      <form onsubmit="event.preventDefault();">
+        <div class="form-group">
+          <label for="nombre-paciente">Nombre Paciente</label>
+          <input type="text" id="nombre-paciente" name="nombre-paciente" placeholder="Primer nombre" required>
+        </div>
+
+        <div class="form-group">
+          <label for="segundo-nombre">Segundo Nombre Paciente</label>
+          <input type="text" id="segundo-nombre" name="segundo-nombre" placeholder="Segundo nombre">
+        </div>
+
+        <div class="form-group">
+          <label for="tercer-nombre">Tercer Nombre Paciente</label>
+          <input type="text" id="tercer-nombre" name="tercer-nombre" placeholder="Tercer nombre (opcional)">
+        </div>
+
+        <div class="form-group">
+          <label for="apellido-paterno">Apellido Paterno</label>
+          <input type="text" id="apellido-paterno" name="apellido-paterno" placeholder="Apellido paterno" required>
+        </div>
+
+        <div class="form-group">
+          <label for="apellido-materno">Apellido Materno</label>
+          <input type="text" id="apellido-materno" name="apellido-materno" placeholder="Apellido materno">
+        </div>
+
+        <!-- Fecha de Nacimiento: Calendario[cite: 4, 5] -->
+        <div class="form-group">
+          <label for="fecha-nacimiento">Fecha de Nacimiento</label>
+          <input type="date" id="fecha-nacimiento" name="fecha-nacimiento" required>
+        </div>
+
+        <div class="form-group">
+          <label for="correo-contacto">Correo de Contacto</label>
+          <input type="email" id="correo-contacto" name="correo-contacto" placeholder="correo@ejemplo.com" required>
+        </div>
+
+        <!-- Número de Contacto con prefijo +56[cite: 5] -->
+        <div class="form-group">
+          <label for="telefono-contacto">Numero de Contacto</label>
+          <div class="phone-input-group">
+            <input type="text" class="phone-prefix" value="+56" readonly>
+            <input type="tel" id="telefono-contacto" name="telefono-contacto" placeholder="9 1234 5678" required>
+          </div>
+        </div>
+
+        <div class="form-buttons">
+          <button type="submit" class="btn btn-submit">Agregar/Editar</button>
+          <button type="button" class="btn btn-cancel">Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+  </main>
+
+</body>
+</html>

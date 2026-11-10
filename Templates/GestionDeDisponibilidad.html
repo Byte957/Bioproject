@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Disponibilidad</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: 
+        linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
+        url('https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat fixed;
+      padding: 20px;
+    }
+
+    /* Barra de navegación superior */
+    .navbar {
+      background-color: #ffffff;
+      border-radius: 20px;
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 
+        0 15px 30px rgba(0, 0, 0, 0.3),
+        0 5px 10px rgba(0, 0, 0, 0.15);
+      margin-bottom: 25px;
+      max-width: 1320px;
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .nav-logo {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+    }
+
+    .nav-sublogo {
+      height: 28px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .nav-slogan {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      color: #555555;
+      text-transform: uppercase;
+      border-left: 2px solid #e0e0e0;
+      padding-left: 14px;
+    }
+
+    .navbar-content {
+      flex: 1;
+    }
+
+    /* Contenedor principal de dos columnas */
+    .dashboard-container {
+      display: flex;
+      gap: 25px;
+      max-width: 1320px;
+      width: 100%;
+      margin: 0 auto;
+      flex: 1;
+      align-items: flex-start;
+    }
+
+    /* Tarjetas blancas flotantes con efecto 3D */
+    .card {
+      background-color: #ffffff;
+      border-radius: 24px;
+      border: none;
+      box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.35),
+        0 10px 15px rgba(0, 0, 0, 0.15);
+      padding: 30px;
+    }
+
+    /* Columna Izquierda: Filtro y Tabla */
+    .left-panel {
+      flex: 1.5;
+      display: flex;
+      flex-direction: column;
+      min-width: 0; /* Previene desbordamiento en flexbox */
+    }
+
+    .filters-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .filter-item {
+      flex: 0 0 240px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-item label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 6px;
+      margin-left: 4px;
+    }
+
+    /* Contenedor scrollable vertical y horizontal para la matriz semanal */
+    .schedule-table-wrapper {
+      width: 100%;
+      max-height: 490px;
+      overflow-x: auto;
+      overflow-y: auto;
+      border: 1.5px solid #2e7d32;
+      border-radius: 12px;
+      background: #ffffff;
+    }
+
+    .schedule-table-wrapper::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+
+    .schedule-table-wrapper::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    .schedule-table-wrapper::-webkit-scrollbar-thumb {
+      background: #43a047;
+      border-radius: 10px;
+    }
+
+    .schedule-table {
+      width: 100%;
+      min-width: 880px; /* Asegura el scroll horizontal de Lunes a Domingo */
+      border-collapse: separate;
+      border-spacing: 0;
+      text-align: center;
+      font-size: 0.82rem;
+    }
+
+    .schedule-table th,
+    .schedule-table td {
+      border-right: 1px solid #d0e1d4;
+      border-bottom: 1px solid #d0e1d4;
+      padding: 9px 8px;
+      min-width: 105px;
+      height: 38px;
+    }
+
+    /* Encabezado fijo superior al scrollear hacia abajo */
+    .schedule-table thead th {
+      background-color: #f4fbf5;
+      color: #2e7d32;
+      font-weight: 700;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    /* Columna de horas fija al scrollear hacia los lados */
+    .schedule-table th.time-header {
+      background-color: #e8f5e9;
+      width: 115px;
+      min-width: 115px;
+      position: sticky;
+      left: 0;
+      top: 0;
+      z-index: 4;
+      border-right: 2px solid #2e7d32;
+    }
+
+    .schedule-table td.time-cell {
+      background-color: #fafafa;
+      font-weight: 600;
+      color: #555555;
+      position: sticky;
+      left: 0;
+      z-index: 1;
+      border-right: 2px solid #2e7d32;
+      white-space: nowrap;
+    }
+
+    .slot-cell {
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .slot-cell:hover {
+      background-color: #e8f5e9;
+    }
+
+    .slot-cell.occupied {
+      background-color: #ffebee;
+      color: #c62828;
+      font-weight: 600;
+      font-size: 0.75rem;
+    }
+
+    /* Columna Derecha: Formulario Gestionar Disponibilidad */
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 320px;
+    }
+
+    .panel-header-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 20px;
+    }
+
+    /* Cuadro de Información Médico */
+    .info-card-block {
+      border: 1.5px solid #2e7d32;
+      border-radius: 12px;
+      padding: 14px;
+      background-color: #fcfcfc;
+      margin-bottom: 16px;
+    }
+
+    .block-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #2e7d32;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-card-block p {
+      font-size: 0.85rem;
+      color: #444444;
+      line-height: 1.4;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 5px;
+      margin-left: 4px;
+    }
+
+    /* Inputs y Selects */
+    input[type="date"],
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #1b5e20;
+      box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
+    }
+
+    select {
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url('data:image/svg+xml;utf8,<svg fill="%232e7d32" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 35px;
+    }
+
+    /* Botones de acción */
+    .form-buttons {
+      display: flex;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .btn-submit {
+      background: linear-gradient(135deg, #43a047, #2e7d32);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.25);
+    }
+
+    .btn-submit:hover {
+      background: linear-gradient(135deg, #388e3c, #1b5e20);
+      transform: translateY(-1px);
+    }
+
+    .btn-cancel {
+      background-color: #f5f5f5;
+      color: #333333;
+      border: 1.5px solid #cccccc;
+    }
+
+    .btn-cancel:hover {
+      background-color: #e8e8e8;
+      border-color: #b0b0b0;
+      transform: translateY(-1px);
+    }
+
+    @media (max-width: 950px) {
+      .dashboard-container {
+        flex-direction: column;
+      }
+      .navbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .filter-item {
+        flex: 1;
+      }
+      .left-panel, .right-panel {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barra Superior (Navbar) -->
+  <header class="navbar">
+    <div class="brand-section">
+      <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
+      <img src="tu-sublogo-texto.png" alt="Biotechnica" class="nav-sublogo">
+      <span class="nav-slogan">Slogan</span>
+    </div>
+    <nav class="navbar-content">
+      <!-- Navbar reutilizable -->
+    </nav>
+  </header>
+
+  <!-- Contenedor Principal -->
+  <main class="dashboard-container">
+
+    <!-- Panel Izquierdo: Filtro por Fecha y Tabla de Horarios Scrolleable en 2D[cite: 12] -->
+    <section class="card left-panel">
+      <div class="filters-row">
+        <!-- Filtrar por Fecha: Calendario (cuadro)[cite: 4, 12] -->
+        <div class="filter-item">
+          <label for="filtro-fecha">Filtrar por Fecha</label>
+          <input type="date" id="filtro-fecha" name="filtro-fecha">
+        </div>
+      </div>
+
+      <!-- Tabla de Bloques de 20 Minutos de 07:00 a 12:00 (Lunes a Domingo)[cite: 12] -->
+      <div class="schedule-table-wrapper">
+        <table class="schedule-table">
+          <thead>
+            <tr>
+              <th class="time-header">Hora</th>
+              <th>Lunes</th>
+              <th>Martes</th>
+              <th>Miércoles</th>
+              <th>Jueves</th>
+              <th>Viernes</th>
+              <th>Sábado</th>
+              <th>Domingo</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="time-cell">7:00 - 7:20</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">7:20 - 7:40</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">7:40 - 8:00</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">8:00 - 8:20</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell occupied">Ocupado</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">8:20 - 8:40</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell occupied">Ocupado</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">8:40 - 9:00</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell occupied">Ocupado</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">9:00 - 9:20</td>
+              <td class="slot-cell occupied">Ocupado</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">9:20 - 9:40</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell occupied">Ocupado</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">9:40 - 10:00</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">10:00 - 10:20</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">10:20 - 10:40</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">10:40 - 11:00</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">11:00 - 11:20</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell occupied">Ocupado</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">11:20 - 11:40</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+            <tr>
+              <td class="time-cell">11:40 - 12:00</td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+              <td class="slot-cell"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Panel Derecho: Formulario Gestionar Disponibilidad[cite: 12] -->
+    <section class="card right-panel">
+      <h1 class="panel-header-title">Gestionar Disponibilidad</h1>
+      
+      <!-- Cuadro de Información Médico[cite: 12] -->
+      <div class="info-card-block">
+        <div class="block-title">Información Medico</div>
+        <p>Dr. Nombre Médico - Especialidad - RUN / ID Médico</p>
+      </div>
+
+      <form onsubmit="event.preventDefault();">
+        <!-- Inicio de Reserva: Combobox (triángulo hacia abajo)[cite: 4, 12] -->
+        <div class="form-group">
+          <label for="inicio-reserva">Inicio de Reserva</label>
+          <select id="inicio-reserva" name="inicio-reserva" required>
+            <option value="" disabled selected>Seleccione bloque de inicio...</option>
+            <option value="07:00">7:00</option>
+            <option value="07:20">7:20</option>
+            <option value="07:40">7:40</option>
+            <option value="08:00">8:00</option>
+            <option value="08:20">8:20</option>
+            <option value="08:40">8:40</option>
+            <option value="09:00">9:00</option>
+            <option value="09:20">9:20</option>
+            <option value="09:40">9:40</option>
+            <option value="10:00">10:00</option>
+            <option value="10:20">10:20</option>
+            <option value="10:40">10:40</option>
+            <option value="11:00">11:00</option>
+            <option value="11:20">11:20</option>
+            <option value="11:40">11:40</option>
+          </select>
+        </div>
+
+        <!-- Fin de Reserva: Combobox (triángulo hacia abajo)[cite: 4, 12] -->
+        <div class="form-group">
+          <label for="fin-reserva">Fin de Reserva</label>
+          <select id="fin-reserva" name="fin-reserva" required>
+            <option value="" disabled selected>Seleccione bloque de término...</option>
+            <option value="07:20">7:20</option>
+            <option value="07:40">7:40</option>
+            <option value="08:00">8:00</option>
+            <option value="08:20">8:20</option>
+            <option value="08:40">8:40</option>
+            <option value="09:00">9:00</option>
+            <option value="09:20">9:20</option>
+            <option value="09:40">9:40</option>
+            <option value="10:00">10:00</option>
+            <option value="10:20">10:20</option>
+            <option value="10:40">10:40</option>
+            <option value="11:00">11:00</option>
+            <option value="11:20">11:20</option>
+            <option value="11:40">11:40</option>
+            <option value="12:00">12:00</option>
+          </select>
+        </div>
+
+        <!-- Motivo Reserva: Combobox (triángulo hacia abajo)[cite: 4, 12] -->
+        <div class="form-group">
+          <label for="motivo-reserva">Motivo Reserva</label>
+          <select id="motivo-reserva" name="motivo-reserva" required>
+            <option value="" disabled selected>Seleccione motivo...</option>
+            <option value="consulta">Consulta Médica</option>
+            <option value="procedimiento">Procedimiento</option>
+            <option value="control">Control</option>
+            <option value="bloqueo">Bloqueo Horario / No disponible</option>
+          </select>
+        </div>
+
+        <!-- Botones: Editar y Cancelar[cite: 12] -->
+        <div class="form-buttons">
+          <button type="submit" class="btn btn-submit">Editar</button>
+          <button type="button" class="btn btn-cancel">Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+  </main>
+
+</body>
+</html>
