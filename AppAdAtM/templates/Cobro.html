@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cobro</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: 
+        linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
+        url('https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat fixed;
+      padding: 20px;
+    }
+
+    /* Barra de navegación superior */
+    .navbar {
+      background-color: #ffffff;
+      border-radius: 20px;
+      padding: 12px 28px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      box-shadow: 
+        0 15px 30px rgba(0, 0, 0, 0.3),
+        0 5px 10px rgba(0, 0, 0, 0.15);
+      margin-bottom: 25px;
+      max-width: 1200px;
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .brand-section {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+
+    .nav-logo {
+      width: 48px;
+      height: 48px;
+      object-fit: contain;
+    }
+
+    .nav-sublogo {
+      height: 28px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .nav-slogan {
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 1.2px;
+      color: #555555;
+      text-transform: uppercase;
+      border-left: 2px solid #e0e0e0;
+      padding-left: 14px;
+    }
+
+    .navbar-content {
+      flex: 1;
+    }
+
+    /* Contenedor principal de dos columnas */
+    .dashboard-container {
+      display: flex;
+      gap: 25px;
+      max-width: 1200px;
+      width: 100%;
+      margin: 0 auto;
+      flex: 1;
+      align-items: flex-start;
+    }
+
+    /* Tarjetas blancas flotantes con efecto 3D */
+    .card {
+      background-color: #ffffff;
+      border-radius: 24px;
+      border: none;
+      box-shadow: 
+        0 20px 40px rgba(0, 0, 0, 0.35),
+        0 10px 15px rgba(0, 0, 0, 0.15);
+      padding: 30px;
+    }
+
+    /* Columna Izquierda: Formulario de Cobro */
+    .left-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 5px;
+      margin-left: 4px;
+    }
+
+    /* Inputs y Selects */
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #1b5e20;
+      box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
+    }
+
+    select {
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url('data:image/svg+xml;utf8,<svg fill="%232e7d32" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 35px;
+    }
+
+    /* Botones de acción */
+    .form-buttons {
+      display: flex;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .btn-submit {
+      background: linear-gradient(135deg, #43a047, #2e7d32);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.25);
+    }
+
+    .btn-submit:hover {
+      background: linear-gradient(135deg, #388e3c, #1b5e20);
+      transform: translateY(-1px);
+    }
+
+    .btn-cancel {
+      background-color: #f5f5f5;
+      color: #333333;
+      border: 1.5px solid #cccccc;
+    }
+
+    .btn-cancel:hover {
+      background-color: #e8e8e8;
+      border-color: #b0b0b0;
+      transform: translateY(-1px);
+    }
+
+    /* Columna Derecha: Resumen de Atención/Hospital */
+    .right-panel {
+      flex: 1.25;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .hospital-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1.5px solid #e0e0e0;
+    }
+
+    .hospital-header .sublogo-txt {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #2e7d32;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .hospital-header .info-txt {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #666666;
+    }
+
+    .prescription-scroll-container {
+      max-height: 490px;
+      overflow-y: auto;
+      padding-right: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .prescription-scroll-container::-webkit-scrollbar {
+      width: 7px;
+    }
+
+    .prescription-scroll-container::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    .prescription-scroll-container::-webkit-scrollbar-thumb {
+      background: #43a047;
+      border-radius: 10px;
+    }
+
+    .info-card-block {
+      border: 1.5px solid #2e7d32;
+      border-radius: 12px;
+      padding: 12px 14px;
+      background-color: #fcfcfc;
+    }
+
+    .block-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #2e7d32;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-card-block p {
+      font-size: 0.85rem;
+      color: #444444;
+      line-height: 1.4;
+    }
+
+    .description-text {
+      color: #666666;
+      margin-top: 4px;
+      font-style: italic;
+    }
+
+    .medication-card {
+      border: 1.5px solid #2e7d32;
+      border-radius: 12px;
+      padding: 14px;
+      background-color: #ffffff;
+      min-height: 80px;
+    }
+
+    .medication-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #2e7d32;
+      margin-bottom: 8px;
+    }
+
+    .medication-card-header .icon-tag {
+      font-size: 0.8rem;
+    }
+
+    .medication-content {
+      font-size: 0.85rem;
+      color: #555555;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-container {
+        flex-direction: column;
+      }
+      .navbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Barra Superior (Navbar)[cite: 13] -->
+  <header class="navbar">
+    <div class="brand-section">
+      <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
+      <img src="tu-sublogo-texto.png" alt="Biotechnica" class="nav-sublogo">
+      <span class="nav-slogan">Slogan</span>
+    </div>
+    <nav class="navbar-content">
+      <!-- Navbar reutilizable[cite: 13] -->
+    </nav>
+  </header>
+
+  <!-- Contenedor Principal[cite: 13] -->
+  <main class="dashboard-container">
+
+    <!-- Panel Izquierdo: Formulario de Cobro[cite: 13] -->
+    <section class="card left-panel">
+      <h1 class="panel-header-title">Cobro</h1>
+
+      <form onsubmit="event.preventDefault();">
+        <div class="form-group">
+          <label for="total">Total</label>
+          <input type="text" id="total" name="total" placeholder="$0" required>
+        </div>
+
+        <div class="form-group">
+          <label for="metodo-pago">Metodo de Pago</label>
+          <input type="text" id="metodo-pago" name="metodo-pago" placeholder="Efectivo, Débito, Crédito..." required>
+        </div>
+
+        <div class="form-group">
+          <label for="neto">Neto</label>
+          <input type="text" id="neto" name="neto" placeholder="$0" required>
+        </div>
+
+        <div class="form-group">
+          <label for="iva">IVA</label>
+          <input type="text" id="iva" name="iva" placeholder="19%" required>
+        </div>
+
+        <div class="form-group">
+          <label for="paciente">Paciente</label>
+          <input type="text" id="paciente" name="paciente" placeholder="Nombre completo del paciente" required>
+        </div>
+
+        <div class="form-group">
+          <label for="run">RUN</label>
+          <input type="text" id="run" name="run" placeholder="12.345.678-9" required>
+        </div>
+
+        <!-- Estado Atención: Combobox (triángulo hacia abajo)[cite: 4, 13] -->
+        <div class="form-group">
+          <label for="estado-atencion">Estado Atencion</label>
+          <select id="estado-atencion" name="estado-atencion" required>
+            <option value="" disabled selected>Seleccione estado...</option>
+            <option value="pagado">Pagado</option>
+            <option value="pendiente">Pendiente de Pago</option>
+            <option value="anulado">Anulado</option>
+          </select>
+        </div>
+
+        <!-- Botones de Acción: Cobrar y Cancelar[cite: 13] -->
+        <div class="form-buttons">
+          <button type="submit" class="btn btn-submit">Cobrar</button>
+          <button type="button" class="btn btn-cancel">Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+    <!-- Panel Derecho: Información Hospitalaria y de Atención[cite: 13] -->
+    <section class="card right-panel">
+      <!-- Encabezado Sublogo Hospital e Información Hospital[cite: 13] -->
+      <div class="hospital-header">
+        <span class="sublogo-txt">SubLogo Hospital</span>
+        <span class="info-txt">Informacion Hospital</span>
+      </div>
+
+      <!-- Contenedor scrollable con el detalle de la consulta[cite: 13] -->
+      <div class="prescription-scroll-container">
+        
+        <!-- Información Médico[cite: 13] -->
+        <div class="info-card-block">
+          <div class="block-title">Información Medico</div>
+          <p>Dr. Nombre Médico - Especialidad - RUN / Registro Médico</p>
+        </div>
+
+        <!-- Información Paciente[cite: 13] -->
+        <div class="info-card-block">
+          <div class="block-title">Información Paciente</div>
+          <p>Nombre Paciente - RUN: 12.345.678-9 - Edad: 32 años</p>
+        </div>
+
+        <!-- Información Atención / Descripción[cite: 13] -->
+        <div class="info-card-block">
+          <div class="block-title">Informacion Atencion</div>
+          <p class="description-text">Descripcion de la atención efectuada y servicios a facturar.</p>
+        </div>
+
+        <!-- Bloque Medicamento[cite: 13] -->
+        <div class="medication-card">
+          <div class="medication-card-header">
+            <span class="icon-tag">🗂️</span>
+            <span>Medicamento</span>
+          </div>
+          <div class="medication-content">
+            <p>Detalle de fármacos recetados o insumos clínicos utilizados.</p>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+</body>
+</html>
