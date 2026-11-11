@@ -7,30 +7,30 @@
   <title>Inicio de Sesión</title>
   <link rel="stylesheet" href="{% static 'AppAdAtM/css/estilos.css' %}">
 </head>
-<body>
+<body class="body-login">
 
   <div class="login-card">
     <div class="welcome-text">BIENVENIDO</div>
 
     <!-- Círculo / Isotipo superior del logo -->
-    <div class="logo-container">
+    <div class="logo-container-login">
       <img src="tu-logo-isotipo.png" alt="Logo Biothecnica">
     </div>
 
     <!-- Caja inferior / Nombre de marca del logo -->
-    <div class="sublogo-container">
+    <div class="sublogo-container-login">
       <img src="tu-sublogo-texto.png" alt="Biotechnica">
     </div>
 
     <div class="slogan">SLOGAN DE LA EMPRESA</div>
 
     <form onsubmit="event.preventDefault();">
-      <div class="form-group">
+      <div class="form-group-login">
         <label for="usuario">Usuario</label>
         <input type="text" id="usuario" name="usuario" placeholder="Ingresa tu usuario" required>
       </div>
 
-      <div class="form-group">
+      <div class="form-group-login">
         <label for="password">Contraseña</label>
         <input type="password" id="password" name="password" placeholder="••••••••" required>
       </div>
@@ -40,7 +40,7 @@
         <button type="button" class="btn btn-secondary">Registrarse</button>
       </div>
 
-      <a href="#" class="forgot-link">¿Olvidaste Tu Contraseña?</a>
+      <a href="{% url 'registrarse_usuario' %}" class="forgot-link">¿Olvidaste Tu Contraseña?</a>
     </form>
   </div>
 

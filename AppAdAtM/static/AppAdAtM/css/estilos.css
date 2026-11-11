@@ -5,7 +5,7 @@
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     }
 
-    body {
+    .body-login {
       min-height: 100vh;
       display: flex;
       justify-content: center;
@@ -40,7 +40,7 @@
     }
 
     /* Contenedor del isotipo circular */
-    .logo-container {
+    .logo-container-login {
       width: 115px;
       height: 115px;
       margin: 0 auto 12px;
@@ -56,7 +56,7 @@
     }
 
     /* Contenedor del nombre/sublogo */
-    .sublogo-container {
+    .sublogo-container-login {
       width: 80%;
       max-width: 250px;
       margin: 0 auto 10px;
@@ -77,7 +77,7 @@
     }
 
     /* Formulario e inputs */
-    .form-group {
+    .form-group-login {
       text-align: left;
       margin-bottom: 16px;
     }
@@ -91,7 +91,7 @@
       margin-left: 4px;
     }
 
-    .form-group input {
+    .form-group-login input {
       width: 100%;
       padding: 10px 14px;
       border-radius: 10px;
@@ -161,4 +161,458 @@
     .forgot-link:hover {
       color: #2e7d32;
       text-decoration: underline;
+    }
+    /* Contenedor principal de dos columnas */
+.registration-wrapper {
+  display: flex;
+  gap: 24px;
+  max-width: 1050px;
+  width: 100%;
+  align-items: stretch;
+}
+
+/* Tarjeta base y distribución de tarjetas */
+.card {
+  background-color: #ffffff;
+  border-radius: 28px;
+  border: none;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.35),
+    0 10px 15px rgba(0, 0, 0, 0.15);
+  padding: 35px;
+}
+
+.main-card {
+  flex: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.side-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  text-align: center;
+  min-width: 280px;
+}
+
+/* Sistema de grilla del formulario */
+.form-container {
+  width: 100%;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  column-gap: 25px;
+  row-gap: 16px;
+  width: 100%;
+}
+
+/* Campos especiales de teléfono */
+.phone-input-group {
+  display: flex;
+  gap: 8px;
+}
+
+.phone-prefix {
+  width: 75px !important;
+  text-align: center;
+  background-color: #f7f7f7 !important;
+  font-weight: 600;
+}
+
+/* Botón de registro específico */
+.btn-submit-container {
+  display: flex;
+  align-items: flex-end;
+}
+
+.btn-register {
+  width: 100%;
+  padding: 11px 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #43a047, #2e7d32);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.25);
+  transition: all 0.2s ease;
+}
+
+.btn-register:hover {
+  background: linear-gradient(135deg, #388e3c, #1b5e20);
+  transform: translateY(-1px);
+}
+
+/* Panel lateral informativo */
+.side-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #333333;
+  margin-bottom: 20px;
+}
+
+.text-box {
+  border: 1.5px solid #cccccc;
+  border-radius: 12px;
+  padding: 18px;
+  text-align: left;
+  font-size: 0.85rem;
+  color: #555555;
+  line-height: 1.5;
+  background-color: #fafafa;
+  min-height: 200px;
+}
+
+/* Media query responsive */
+@media (max-width: 860px) {
+  .registration-wrapper {
+    flex-direction: column;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .side-card {
+    min-width: 100%;
+  }
+}
+
+body {
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      /* Mismo fondo oscurecido */
+      background: 
+        linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
+        url('https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat;
+      padding: 30px 20px;
+    }
+
+        /* Contenedores de Logo y Sublogo */
+    .logo-container {
+      width: 100px;
+      height: 100px;
+      margin: 0 auto 10px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+     .sublogo-container {
+      width: 220px;
+      margin: 0 auto 25px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+.navbar {
+  background-color: #ffffff;
+  border-radius: 20px;
+  padding: 12px 28px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 
+    0 15px 30px rgba(0, 0, 0, 0.3),
+    0 5px 10px rgba(0, 0, 0, 0.15);
+  margin-bottom: 25px;
+  max-width: 1200px;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.brand-section {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.nav-logo {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.nav-sublogo {
+  height: 28px;
+  width: auto;
+  object-fit: contain;
+}
+
+.nav-slogan {
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: #555555;
+  text-transform: uppercase;
+  border-left: 2px solid #e0e0e0;
+  padding-left: 14px;
+}
+
+.navbar-content {
+  flex: 1;
+}
+.dashboard-container {
+  display: flex;
+  gap: 25px;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  flex: 1;
+  align-items: flex-start;
+}
+
+.left-panel {
+  flex: 1.1;
+  display: flex;
+  flex-direction: column;
+}
+
+.filters-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.filter-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-item label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 6px;
+  margin-left: 4px;
+}
+
+.section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #222222;
+  margin-bottom: 14px;
+  padding-left: 4px;
+}
+
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel-header-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #222222;
+  margin-bottom: 20px;
+}
+
+.user-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 490px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+.user-list::-webkit-scrollbar {
+  width: 7px;
+}
+
+.user-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.user-list::-webkit-scrollbar-thumb {
+  background: #43a047;
+  border-radius: 10px;
+}
+
+.user-item {
+  padding: 12px 14px;
+  background-color: #ffffff;
+  border: 1.5px solid #2e7d32;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: #333333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.user-item:hover {
+  background-color: #e8f5e9;
+  transform: translateX(4px);
+  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
+}
+.form-buttons {
+  display: flex;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.btn-submit {
+  background: linear-gradient(135deg, #43a047, #2e7d32);
+  color: #ffffff;
+  border: none;
+  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.25);
+}
+
+.btn-submit:hover {
+  background: linear-gradient(135deg, #388e3c, #1b5e20);
+  transform: translateY(-1px);
+}
+
+.btn-cancel {
+  background-color: #f5f5f5;
+  color: #333333;
+  border: 1.5px solid #cccccc;
+}
+
+.btn-cancel:hover {
+  background-color: #e8e8e8;
+  border-color: #b0b0b0;
+  transform: translateY(-1px);
+}
+select {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%232e7d32" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 35px;
+}
+
+    .body-RDA {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: 
+        linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
+        url('https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat fixed;
+      padding: 20px;
+    }
+
+    /* Inputs y Selects */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="date"],
+    select {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus,
+    select:focus {
+      border-color: #1b5e20;
+      box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
+    }
+
+    select {
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url('data:image/svg+xml;utf8,<svg fill="%232e7d32" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      padding-right: 35px;
+    }
+
+.nav-text {
+  font-size: 0.65rem;      /* Reducido de 0.50rem (equivale aprox. a 6.4px) */
+  font-weight: 700;
+  letter-spacing: 0.4px;   /* Reducido ligeramente para mantener la legibilidad */
+  color: #555555;
+  text-transform: uppercase;
+  border-left: 2px solid #e0e0e0;
+  padding-left: 2px;      /* Ajustado proporcionalmente al nuevo tamaño */
+}
+
+.nav-ul {
+  display: flex;             /* Pone los elementos en fila (horizontal) */
+  justify-content: flex-end; /* Alinea los elementos hacia la derecha */
+  list-style: none;          /* Quita los puntos de la lista */
+  margin: 0;                 /* Elimina márgenes por defecto */
+  padding: 0;                /* Elimina rellenos por defecto */
+  gap: 20px;                 /* Espacio entre cada enlace */
+}
+
+    /* Adaptabilidad a dispositivos medianos y pequeños */
+    @media (max-width: 900px) {
+      .dashboard-container {
+        flex-direction: column;
+      }
+      .navbar {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .filters-row {
+        flex-direction: column;
+      }
+    }
+
+        /* Columna Derecha: Formulario de Gestión */
+    .right-panel-GU {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header-title-GU  {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 20px;
+    }
+
+    .form-group-GU {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 14px;
+    }
+
+    .form-group-GU label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 6px;
+      margin-left: 4px;
     }
