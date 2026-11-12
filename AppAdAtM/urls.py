@@ -8,4 +8,9 @@ urlpatterns = [
     path('', views.registroatencion, name='registrar_atencion'),
     path('GestionarUsuario', views.gestionusuarios, name='gestionar_usuarios'),
     path('GestionarRecetasAtencion', views.gestionrecetas, name='gestionar_recetasatencion'),
+    path('GestionarPacientes', views.gestionpacientes, name='gestionar_pacientes'),
+    path('GestionarMedicos', views.gestionmedicos, name='gestionar_medicos'),
+    path('GestionarDisponibilidad', views.gestiondisponibilidad, name='gestionar_disponibilidad'),
+    path('GestionarAtencion', views.gestionatencion, name='gestionar_atencion'),
+    path('Cobros', views.cobro, name='gestionar_cobros'),
 ]

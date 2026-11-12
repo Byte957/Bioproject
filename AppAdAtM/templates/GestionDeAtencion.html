@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -5,339 +6,147 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Gestión de Atención</title>
   <style>
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
+    * .navbar,
+.dashboard-container {
+  max-width: 1200px;
+}
 
-    body {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      background: 
-        linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)),
-        url('https://images.unsplash.com/photo-1518531933037-91b2f5f229cc?auto=format&fit=crop&w=1920&q=80') center/cover no-repeat fixed;
-      padding: 20px;
-    }
+.left-panel {
+  flex: 1.1;
+  display: flex;
+  flex-direction: column;
+}
 
-    /* Barra de navegación superior */
-    .navbar {
-      background-color: #ffffff;
-      border-radius: 20px;
-      padding: 12px 28px;
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      box-shadow: 
-        0 15px 30px rgba(0, 0, 0, 0.3),
-        0 5px 10px rgba(0, 0, 0, 0.15);
-      margin-bottom: 25px;
-      max-width: 1200px;
-      width: 100%;
-      margin-left: auto;
-      margin-right: auto;
-    }
+.filters-row {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 22px;
+}
 
-    .brand-section {
-      display: flex;
-      align-items: center;
-      gap: 15px;
-    }
+.filter-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
 
-    .nav-logo {
-      width: 48px;
-      height: 48px;
-      object-fit: contain;
-    }
+.filter-item label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 6px;
+  margin-left: 4px;
+}
 
-    .nav-sublogo {
-      height: 28px;
-      width: auto;
-      object-fit: contain;
-    }
+.section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #222222;
+  margin-bottom: 14px;
+  padding-left: 4px;
+}
 
-    .nav-slogan {
-      font-size: 0.85rem;
-      font-weight: 700;
-      letter-spacing: 1.2px;
-      color: #555555;
-      text-transform: uppercase;
-      border-left: 2px solid #e0e0e0;
-      padding-left: 14px;
-    }
+.user-list {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 490px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
 
-    .navbar-content {
-      flex: 1;
-    }
+.user-list::-webkit-scrollbar { width: 7px; }
+.user-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+.user-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
 
-    /* Contenedor principal de dos columnas */
-    .dashboard-container {
-      display: flex;
-      gap: 25px;
-      max-width: 1200px;
-      width: 100%;
-      margin: 0 auto;
-      flex: 1;
-      align-items: flex-start;
-    }
+.user-item {
+  padding: 12px 14px;
+  background-color: #ffffff;
+  border: 1.5px solid #2e7d32;
+  border-radius: 10px;
+  font-size: 0.82rem;
+  color: #333333;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-    /* Tarjetas blancas flotantes con efecto 3D */
-    .card {
-      background-color: #ffffff;
-      border-radius: 24px;
-      border: none;
-      box-shadow: 
-        0 20px 40px rgba(0, 0, 0, 0.35),
-        0 10px 15px rgba(0, 0, 0, 0.15);
-      padding: 30px;
-    }
+.user-item:hover {
+  background-color: #e8f5e9;
+  transform: translateX(4px);
+  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
+}
 
-    /* Columna Izquierda: Filtros y Lista */
-    .left-panel {
-      flex: 1.1;
-      display: flex;
-      flex-direction: column;
-    }
+.right-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
 
-    .filters-row {
-      display: flex;
-      gap: 16px;
-      margin-bottom: 22px;
-    }
+.panel-header-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #222222;
+  margin-bottom: 20px;
+}
 
-    .filter-item {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
 
-    .filter-item label {
-      font-size: 0.85rem;
-      font-weight: 600;
-      color: #333333;
-      margin-bottom: 6px;
-      margin-left: 4px;
-    }
+.form-group label {
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 5px;
+  margin-left: 4px;
+}
 
-    .section-title {
-      font-size: 1.15rem;
-      font-weight: 700;
-      color: #222222;
-      margin-bottom: 14px;
-      padding-left: 4px;
-    }
+input[type="text"],
+input[type="time"],
+input[type="date"],
+select {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #2e7d32;
+  outline: none;
+  font-size: 0.9rem;
+  color: #333333;
+  background-color: #ffffff;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
 
-    /* Contenedor de lista con botón lateral de acción rápida (+) */
-    .list-wrapper {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-    }
+.form-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+}
 
-    .btn-add-action {
-      width: 44px;
-      height: 44px;
-      border-radius: 10px;
-      border: 1.5px solid #2e7d32;
-      background: #ffffff;
-      color: #2e7d32;
-      font-size: 1.4rem;
-      font-weight: bold;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: all 0.2s ease;
-      text-decoration: none;
-    }
+.btn {
+  flex: 1;
+  padding: 10px 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
 
-    .btn-add-action:hover {
-      background: #2e7d32;
-      color: #ffffff;
-      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.25);
-      transform: translateY(-1px);
-    }
-
-    /* Lista con scroll vertical */
-    .user-list {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-height: 490px;
-      overflow-y: auto;
-      padding-right: 8px;
-    }
-
-    .user-list::-webkit-scrollbar {
-      width: 7px;
-    }
-
-    .user-list::-webkit-scrollbar-track {
-      background: #f1f1f1;
-      border-radius: 10px;
-    }
-
-    .user-list::-webkit-scrollbar-thumb {
-      background: #43a047;
-      border-radius: 10px;
-    }
-
-    .user-item {
-      padding: 12px 14px;
-      background-color: #ffffff;
-      border: 1.5px solid #2e7d32;
-      border-radius: 10px;
-      font-size: 0.82rem;
-      color: #333333;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .user-item:hover {
-      background-color: #e8f5e9;
-      transform: translateX(4px);
-      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
-    }
-
-    /* Columna Derecha: Formulario de Gestión */
-    .right-panel {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-
-    .panel-header-title {
-      font-size: 1.45rem;
-      font-weight: 700;
-      color: #222222;
-      margin-bottom: 20px;
-    }
-
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      margin-bottom: 12px;
-    }
-
-    .form-group label {
-      font-size: 0.83rem;
-      font-weight: 600;
-      color: #333333;
-      margin-bottom: 5px;
-      margin-left: 4px;
-    }
-
-    /* Inputs y Selects */
-    input[type="text"],
-    input[type="time"],
-    input[type="date"],
-    select {
-      width: 100%;
-      padding: 8px 12px;
-      border-radius: 10px;
-      border: 1.5px solid #2e7d32;
-      outline: none;
-      font-size: 0.9rem;
-      color: #333333;
-      background-color: #ffffff;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-
-    input:focus,
-    select:focus {
-      border-color: #1b5e20;
-      box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.15);
-    }
-
-    select {
-      cursor: pointer;
-      appearance: none;
-      -webkit-appearance: none;
-      background-image: url('data:image/svg+xml;utf8,<svg fill="%232e7d32" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
-      background-repeat: no-repeat;
-      background-position: right 10px center;
-      padding-right: 35px;
-    }
-
-    /* Botones de acción */
-    .form-buttons {
-      display: flex;
-      gap: 12px;
-      margin-top: 18px;
-    }
-
-    .btn {
-      flex: 1;
-      padding: 10px 0;
-      font-size: 0.9rem;
-      font-weight: 600;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: center;
-    }
-
-    .btn-submit {
-      background: linear-gradient(135deg, #43a047, #2e7d32);
-      color: #ffffff;
-      border: none;
-      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.25);
-    }
-
-    .btn-submit:hover {
-      background: linear-gradient(135deg, #388e3c, #1b5e20);
-      transform: translateY(-1px);
-    }
-
-    .btn-secondary-action {
-      background-color: #ffffff;
-      color: #2e7d32;
-      border: 1.5px solid #2e7d32;
-    }
-
-    .btn-secondary-action:hover {
-      background-color: #e8f5e9;
-      transform: translateY(-1px);
-    }
-
-    .btn-cancel {
-      background-color: #f5f5f5;
-      color: #333333;
-      border: 1.5px solid #cccccc;
-    }
-
-    .btn-cancel:hover {
-      background-color: #e8e8e8;
-      border-color: #b0b0b0;
-      transform: translateY(-1px);
-    }
-
-    @media (max-width: 900px) {
-      .dashboard-container {
-        flex-direction: column;
-      }
-      .navbar {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-      .filters-row {
-        flex-direction: column;
-      }
-      .list-wrapper {
-        flex-direction: column;
-      }
-      .btn-add-action {
-        width: 100%;
-      }
-    }
+@media (max-width: 900px) {
+  .dashboard-container { flex-direction: column; }
+  .navbar { flex-direction: column; align-items: flex-start; }
+  .filters-row { flex-direction: column; }
+  .list-wrapper { flex-direction: column; }
+  .btn-add-action { width: 100%; }
+}
   </style>
+   <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
 </head>
 <body>
 
@@ -349,7 +158,16 @@
       <span class="nav-slogan">Slogan</span>
     </div>
     <nav class="navbar-content">
-      <!-- Navbar modular reutilizable[cite: 8] -->
+          <ul class="nav-ul"> 
+      <li><a href="#" class="nav-text">Registrar Atencion</a></li>      
+      <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
+      <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+      <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+      <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
+      <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+      <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
+      <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+    </ul>
     </nav>
   </header>
 

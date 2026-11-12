@@ -18,3 +18,15 @@ def gestionrecetas(request):
 
 def gestionpacientes(request):
   return render(request, "GestionDePacientes.html")
+
+def gestionmedicos(request):
+  return render(request, "GestionDeMedicos.html")
+
+def gestiondisponibilidad(request):
+  return render(request, "GestionDeDisponibilidad.html")
+
+def gestionatencion(request):
+  return render(request, "GestionDeAtencion.html")
+
+def cobro(request):
+  return render(request, "Cobro.html")
