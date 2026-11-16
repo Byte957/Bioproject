@@ -5,6 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Inicio de Sesión</title>
+   <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   
   <style>
     * {
@@ -190,11 +191,26 @@
     </div>
 
     <div class="slogan">SLOGAN DE LA EMPRESA</div>
+{% if messages %}
+  {% for message in messages %}
+    <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+      {{ message }}
+    </div>
+  {% endfor %}
+{% endif %}
+    
+    <form method="POST" action="">
+      {% csrf_token %}
 
-    <form onsubmit="event.preventDefault();">
+      {% if error %}
+        <div style="background:#ffebee; color:#c62828; padding:10px; border-radius:8px; margin-bottom:15px; font-size:0.85rem;">
+          {{ error }}
+        </div>
+      {% endif %}
+
       <div class="form-group">
-        <label for="usuario">Usuario</label>
-        <input type="text" id="usuario" name="usuario" placeholder="Ingresa tu usuario" required>
+        <label for="usuario">RUN</label>
+        <input class="validar-run" type="text" id="usuario" name="usuario" placeholder="12.345.678-9" required>
       </div>
 
       <div class="form-group">
@@ -204,10 +220,10 @@
 
       <div class="button-group">
         <button type="submit" class="btn btn-primary">Acceder</button>
-        <button type="button" class="btn btn-secondary">Registrarse</button>
+        <a class="btn btn-secondary" href="{% url 'registrarse_usuario' %}" style="text-decoration: none; display: flex; align-items: center; justify-content: center;">Registrarse</a>
       </div>
 
-      <a href="{% url 'registrarse_usuario' %}" class="forgot-link">¿Olvidaste Tu Contraseña?</a>
+      <a href="#" class="forgot-link">¿Olvidaste Tu Contraseña?</a>
     </form>
   </div>
 
