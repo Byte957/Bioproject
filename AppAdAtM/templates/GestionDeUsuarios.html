@@ -7,142 +7,165 @@
   <title>Gestión de Usuarios</title>
   <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   <style>
-    * .navbar,
-.dashboard-container {
-  max-width: 1200px;
-}
+    .navbar,
+    .dashboard-container {
+      max-width: 1200px;
+    }
 
-.left-panel {
-  flex: 1.1;
-  display: flex;
-  flex-direction: column;
-}
+    .left-panel {
+      flex: 1.1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.filters-row {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 22px;
-}
+    .filters-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
 
-.filter-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+    .filter-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.filter-item label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 6px;
-  margin-left: 4px;
-}
+    .filter-item label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 6px;
+      margin-left: 4px;
+    }
 
-.section-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #222222;
-  margin-bottom: 14px;
-  padding-left: 4px;
-}
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 14px;
+      padding-left: 4px;
+    }
 
-.user-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 480px;
-  overflow-y: auto;
-  padding-right: 8px;
-}
+    .user-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 480px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
 
-.user-list::-webkit-scrollbar { width: 7px; }
-.user-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-.user-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
+    .user-list::-webkit-scrollbar { width: 7px; }
+    .user-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    .user-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
 
-.user-item {
-  padding: 12px 16px;
-  background-color: #ffffff;
-  border: 1.5px solid #2e7d32;
-  border-radius: 10px;
-  font-size: 0.88rem;
-  color: #333333;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+    .user-item {
+      padding: 12px 16px;
+      background-color: #ffffff;
+      border: 1.5px solid #2e7d32;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      color: #333333;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-.user-item:hover {
-  background-color: #e8f5e9;
-  transform: translateX(4px);
-  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
-}
+    .user-item:hover,
+    .user-item.selected {
+      background-color: #e8f5e9;
+      transform: translateX(4px);
+      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
+      font-weight: 600;
+    }
 
-.right-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.panel-header-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #222222;
-  margin-bottom: 20px;
-}
+    .panel-header-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 20px;
+    }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 14px;
-}
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 14px;
+    }
 
-.form-group label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 6px;
-  margin-left: 4px;
-}
+    .form-group label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 6px;
+      margin-left: 4px;
+    }
 
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="date"],
-select {
-  width: 100%;
-  padding: 9px 12px;
-  border-radius: 10px;
-  border: 1.5px solid #2e7d32;
-  outline: none;
-  font-size: 0.9rem;
-  color: #333333;
-  background-color: #ffffff;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="date"],
+    select {
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
 
-.form-buttons {
-  display: flex;
-  gap: 14px;
-  margin-top: 18px;
-}
+    .form-buttons {
+      display: flex;
+      gap: 14px;
+      margin-top: 18px;
+    }
 
-.btn {
-  flex: 1;
-  padding: 11px 0;
-  font-size: 0.92rem;
-  font-weight: 600;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
+    .btn {
+      flex: 1;
+      padding: 11px 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
 
-@media (max-width: 900px) {
-  .dashboard-container { flex-direction: column; }
-  .navbar { flex-direction: column; align-items: flex-start; }
-  .filters-row { flex-direction: column; }
-}
+    .alert-msg {
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .alert-error {
+      background-color: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+
+    .alert-success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-container { flex-direction: column; }
+      .navbar { flex-direction: column; align-items: flex-start; }
+      .filters-row { flex-direction: column; }
+    }
   </style>
   <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
 </head>
@@ -156,63 +179,76 @@ select {
       <span class="nav-slogan">Slogan</span>
     </div>
     <nav class="navbar-content">
-          <ul class="nav-ul"> 
-      <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
-      <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
-      <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-      <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-      <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
-      <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-      <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
-      <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-    </ul>
+      <ul class="nav-ul"> 
+        <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
+        <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
+        <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+        <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+        <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
+        <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+        <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
+        <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+      </ul>
     </nav>
   </header>
 
   <!-- Contenedor de Gestión -->
   <main class="dashboard-container">
 
-    <!-- Panel Izquierdo: Filtros y Lista de Atenciones -->
+    <!-- Panel Izquierdo: Filtros y Lista de Usuarios -->
     <section class="card left-panel">
       <div class="filters-row">
-        <!-- Filtrar por Nombre: Combobox (triángulo hacia abajo) -->
         <div class="filter-item">
-          <label for="filtro-nombre">Filtrar por Nombre</label>
-          <select id="filtro-nombre" name="filtro-nombre">
-            <option value="">Seleccione Nombre...</option>
-            <option value="1">Usuario 1</option>
-            <option value="2">Usuario 2</option>
-          </select>
+          <label for="filtro-nombre">Buscar por Nombre o Correo</label>
+          <input type="text" id="filtro-nombre" placeholder="Escribe para filtrar...">
         </div>
 
-        <!-- Filtrar por Rol: Calendario (cuadrado / input date) -->
         <div class="filter-item">
-          <label for="filtro-rol-fecha">Filtrar por Rol</label>
-          <input type="date" id="filtro-rol-fecha" name="filtro-rol-fecha">
+          <label for="filtro-rol">Filtrar por Rol</label>
+          <select id="filtro-rol">
+            <option value="">Todos los roles</option>
+            {% for r in roles %}
+              <option value="{{ r.ID_Rol }}">{{ r.Nombre_Rol }}</option>
+            {% endfor %}
+          </select>
         </div>
       </div>
 
-      <h2 class="section-title">Atenciones Registradas</h2>
-      <div class="user-list">
-        <div class="user-item">Nombre Usuario - Apellido Usuario - Correo Usuario</div>
-        <div class="user-item">Nombre Usuario - Apellido Usuario - Correo Usuario</div>
-        <div class="user-item">Nombre Usuario - Apellido Usuario - Correo Usuario</div>
-        <div class="user-item">Nombre Usuario - Apellido Usuario - Correo Usuario</div>
-        <div class="user-item">Nombre Usuario - Apellido Usuario - Correo Usuario</div>
-        <div class="user-item">Nombre Usuario - Apellido Usuario - Correo Usuario</div>
-        <div class="user-item">Nombre Usuario - Apellido Usuario - Correo Usuario</div>
-        <div class="user-item">Nombre Usuario - Apellido Usuario - Correo Usuario</div>
-        <div class="user-item">Nombre Usuario - Apellido Usuario - Correo Usuario</div>
-        <div class="user-item">Nombre Usuario - Apellido Usuario - Correo Usuario</div>
+      <h2 class="section-title">Usuarios Registrados</h2>
+      <div class="user-list" id="lista-usuarios">
+        {% for u in usuarios %}
+          <div class="user-item"
+               data-id="{{ u.ID_Usuario }}"
+               data-nombre="{{ u.Nombre }}"
+               data-apellido="{{ u.Apellido }}"
+               data-correo="{{ u.Correo_Usuario }}"
+               data-rol="{{ u.Rol.ID_Rol }}"
+               data-estado="{{ u.Estado }}">
+            #{{ u.ID_Usuario }} - {{ u.Nombre }} {{ u.Apellido }} | {{ u.Correo_Usuario }} ({{ u.Rol.Nombre_Rol }} - {{ u.Estado }})
+          </div>
+        {% empty %}
+          <p style="color:#666; font-size:0.9rem; padding:10px;">No hay usuarios registrados todavía.</p>
+        {% endfor %}
       </div>
     </section>
 
     <!-- Panel Derecho: Formulario de Gestión de Usuario -->
     <section class="card right-panel">
-      <h1 class="panel-header-title">Gestionar Usuario: ID_Usuario</h1>
-      
-      <form onsubmit="event.preventDefault();">
-        
+      <h1 class="panel-header-title" id="titulo-formulario">Nuevo Usuario</h1>
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" action="">
+        {% csrf_token %}
+        <!-- Campo oculto: vacío = crear nuevo, con número = editar existente -->
+        <input type="hidden" id="usuario_id" name="usuario_id" value="">
+
         <div class="form-group">
           <label for="nombre">Nombre</label>
           <input type="text" id="nombre" name="nombre" placeholder="Nombre del usuario" required>
@@ -229,40 +265,109 @@ select {
         </div>
 
         <div class="form-group">
-          <label for="password">Contraseña</label>
+          <label for="password">Contraseña <small id="hint-password" style="font-weight:400; color:#666;"></small></label>
           <input type="password" id="password" name="password" placeholder="••••••••" required>
         </div>
 
-        <!-- Combobox Rol -->
         <div class="form-group">
           <label for="rol">Rol</label>
           <select id="rol" name="rol" required>
             <option value="" disabled selected>Seleccione un rol...</option>
-            <option value="admin">Administrador</option>
-            <option value="usuario">Usuario Estándar</option>
-            <option value="supervisor">Supervisor</option>
+            {% for r in roles %}
+              <option value="{{ r.ID_Rol }}">{{ r.Nombre_Rol }}</option>
+            {% endfor %}
           </select>
         </div>
 
-        <!-- Combobox Estado -->
         <div class="form-group">
           <label for="estado">Estado</label>
           <select id="estado" name="estado" required>
-            <option value="" disabled selected>Seleccione un estado...</option>
-            <option value="activo">Activo</option>
-            <option value="inactivo">Inactivo</option>
-            <option value="pendiente">Pendiente</option>
+            <option value="Activo" selected>Activo</option>
+            <option value="Inactivo">Inactivo</option>
           </select>
         </div>
 
         <div class="form-buttons">
-          <button type="submit" class="btn btn-submit">Agregar/Editar</button>
-          <button type="button" class="btn btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-submit" id="btn-guardar">Agregar Usuario</button>
+          <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
         </div>
       </form>
     </section>
 
   </main>
+
+  <script>
+    const items = document.querySelectorAll('.user-item');
+    const titulo = document.getElementById('titulo-formulario');
+    const inputId = document.getElementById('usuario_id');
+    const inputNombre = document.getElementById('nombre');
+    const inputApellido = document.getElementById('apellido');
+    const inputCorreo = document.getElementById('correo');
+    const inputPassword = document.getElementById('password');
+    const hintPassword = document.getElementById('hint-password');
+    const selectRol = document.getElementById('rol');
+    const selectEstado = document.getElementById('estado');
+    const btnGuardar = document.getElementById('btn-guardar');
+    const btnCancelar = document.getElementById('btn-cancelar');
+
+    // Al hacer clic en un usuario de la lista -> cargar en modo Edición
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        items.forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+
+        inputId.value = item.dataset.id;
+        inputNombre.value = item.dataset.nombre;
+        inputApellido.value = item.dataset.apellido;
+        inputCorreo.value = item.dataset.correo;
+        selectRol.value = item.dataset.rol;
+        selectEstado.value = item.dataset.estado;
+
+        // En edición la contraseña es opcional
+        inputPassword.value = '';
+        inputPassword.required = false;
+        hintPassword.textContent = '(Dejar vacío para mantener la actual)';
+
+        titulo.textContent = `Editando Usuario #${item.dataset.id}`;
+        btnGuardar.textContent = 'Guardar Cambios';
+      });
+    });
+
+    // Botón Cancelar -> limpiar y volver a modo Nuevo Usuario
+    btnCancelar.addEventListener('click', () => {
+      items.forEach(i => i.classList.remove('selected'));
+      inputId.value = '';
+      inputNombre.value = '';
+      inputApellido.value = '';
+      inputCorreo.value = '';
+      inputPassword.value = '';
+      inputPassword.required = true;
+      hintPassword.textContent = '';
+      selectRol.selectedIndex = 0;
+      selectEstado.value = 'Activo';
+
+      titulo.textContent = 'Nuevo Usuario';
+      btnGuardar.textContent = 'Agregar Usuario';
+    });
+
+    // Filtros en vivo (Nombre/Correo y Rol)
+    const filtroNombre = document.getElementById('filtro-nombre');
+    const filtroRol = document.getElementById('filtro-rol');
+
+    function filtrarLista() {
+      const texto = filtroNombre.value.toLowerCase();
+      const rolSeleccionado = filtroRol.value;
+
+      items.forEach(item => {
+        const coincideTexto = item.textContent.toLowerCase().includes(texto);
+        const coincideRol = !rolSeleccionado || item.dataset.rol === rolSeleccionado;
+        item.style.display = (coincideTexto && coincideRol) ? 'block' : 'none';
+      });
+    }
+
+    filtroNombre.addEventListener('input', filtrarLista);
+    filtroRol.addEventListener('change', filtrarLista);
+  </script>
 
 </body>
 </html>

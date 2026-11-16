@@ -7,127 +7,183 @@
   <title>Gestión de Pacientes</title>
   <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   <style>
-    *.navbar,
-.dashboard-container {
-  max-width: 1200px;
-}
+    .navbar,
+    .dashboard-container {
+      max-width: 1200px;
+    }
 
-.left-panel {
-  flex: 1.1;
-  display: flex;
-  flex-direction: column;
-}
+    .left-panel {
+      flex: 1.1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.filters-row {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 22px;
-}
+    .filters-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
 
-.filter-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+    .filter-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.filter-item label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 6px;
-  margin-left: 4px;
-}
+    .filter-item label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 6px;
+      margin-left: 4px;
+    }
 
-.section-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #222222;
-  margin-bottom: 14px;
-  padding-left: 4px;
-}
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 14px;
+      padding-left: 4px;
+    }
 
-.right-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+    .patient-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 540px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
 
-.panel-header-title {
-  font-size: 1.45rem;
-  font-weight: 700;
-  color: #222222;
-  margin-bottom: 20px;
-}
+    .patient-list::-webkit-scrollbar { width: 7px; }
+    .patient-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    .patient-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 12px;
-}
+    .patient-item {
+      padding: 12px 16px;
+      background-color: #ffffff;
+      border: 1.5px solid #2e7d32;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      color: #333333;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-.form-group label {
-  font-size: 0.83rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 5px;
-  margin-left: 4px;
-}
+    .patient-item:hover,
+    .patient-item.selected {
+      background-color: #e8f5e9;
+      transform: translateX(4px);
+      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
+      font-weight: 600;
+    }
 
-input[type="text"],
-input[type="email"],
-input[type="tel"],
-input[type="date"],
-select {
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1.5px solid #2e7d32;
-  outline: none;
-  font-size: 0.9rem;
-  color: #333333;
-  background-color: #ffffff;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.phone-input-group {
-  display: flex;
-  gap: 8px;
-}
+    .panel-header-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 20px;
+    }
 
-.phone-prefix {
-  width: 75px !important;
-  text-align: center;
-  background-color: #f7f7f7 !important;
-  font-weight: 600;
-}
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 12px;
+    }
 
-.form-buttons {
-  display: flex;
-  gap: 14px;
-  margin-top: 18px;
-}
+    .form-group label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 5px;
+      margin-left: 4px;
+    }
 
-.btn {
-  flex: 1;
-  padding: 10px 0;
-  font-size: 0.92rem;
-  font-weight: 600;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="date"],
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
 
-@media (max-width: 900px) {
-  .dashboard-container { flex-direction: column; }
-  .navbar { flex-direction: column; align-items: flex-start; }
-  .filters-row { flex-direction: column; }
-}
+    .phone-input-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .phone-prefix {
+      width: 75px !important;
+      text-align: center;
+      background-color: #f7f7f7 !important;
+      font-weight: 600;
+    }
+
+    .form-buttons {
+      display: flex;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .alert-msg {
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .alert-error {
+      background-color: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+
+    .alert-success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-container { flex-direction: column; }
+      .navbar { flex-direction: column; align-items: flex-start; }
+      .filters-row { flex-direction: column; }
+    }
   </style>
   <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
 </head>
 <body>
 
-  <!-- Barra Superior (Navbar)[cite: 5] -->
+  <!-- Barra Superior (Navbar) -->
   <header class="navbar">
     <div class="brand-section">
       <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
@@ -135,66 +191,78 @@ select {
       <span class="nav-slogan">Slogan</span>
     </div>
     <nav class="navbar-content">
-          <ul class="nav-ul"> 
-      <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
-      <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
-      <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-      <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-      <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
-      <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-      <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
-      <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-    </ul>
+      <ul class="nav-ul"> 
+        <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
+        <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
+        <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+        <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+        <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
+        <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+        <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
+        <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+      </ul>
     </nav>
   </header>
 
-  <!-- Contenedor Principal[cite: 5] -->
+  <!-- Contenedor Principal -->
   <main class="dashboard-container">
 
-    <!-- Panel Izquierdo: Filtros y Lista de Atenciones[cite: 5] -->
+    <!-- Panel Izquierdo: Filtros y Lista de Pacientes -->
     <section class="card left-panel">
       <div class="filters-row">
-        <!-- Filtrar por Nombre: Combobox[cite: 4, 5] -->
         <div class="filter-item">
-          <label for="filtro-nombre">Filtrar por Nombre</label>
-          <select id="filtro-nombre" name="filtro-nombre">
-            <option value="">Seleccione Nombre...</option>
-            <option value="1">Paciente 1</option>
-            <option value="2">Paciente 2</option>
-          </select>
+          <label for="filtro-nombre">Buscar por Nombre o RUN</label>
+          <input type="text" id="filtro-nombre" placeholder="Escribe nombre, apellido o RUN...">
         </div>
 
-        <!-- Filtrar por Edad: Calendario[cite: 4, 5] -->
         <div class="filter-item">
-          <label for="filtro-edad-calendario">Filtrar por Edad</label>
-          <input type="date" id="filtro-edad-calendario" name="filtro-edad-calendario">
+          <label for="filtro-fecha-nac">Filtrar por Fecha Nac.</label>
+          <input type="date" id="filtro-fecha-nac">
         </div>
       </div>
 
-      <h2 class="section-title">Atenciones Registradas</h2>
+      <h2 class="section-title">Pacientes Registrados</h2>
       <div class="patient-list">
-        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
-        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
-        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
-        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
-        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
-        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
-        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
-        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
-        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
-        <div class="patient-item">Primer Nombre Paciente - Primer Apellido Paciente - Seg Apellido Paciente- Edad Paciente</div>
+        {% for p in pacientes %}
+          <div class="patient-item"
+               data-id="{{ p.ID }}"
+               data-run="{{ p.RUN_Paciente }}"
+               data-nombre="{{ p.Nombre_Paciente }}"
+               data-segnombre="{{ p.SegNombre_Paciente }}"
+               data-ternombre="{{ p.TerNombre_Paciente }}"
+               data-apellidop="{{ p.ApellidoP }}"
+               data-apellidom="{{ p.ApellidoM }}"
+               data-fechanac="{{ p.Fecha_Nacimiento|date:'Y-m-d' }}"
+               data-correo="{{ p.CorreoContactoPaciente }}"
+               data-telefono="{{ p.NumeroContactoPaciente }}"
+               data-estado="{{ p.Estado }}">
+            {{ p.Nombre_Paciente }} {{ p.ApellidoP }} {{ p.ApellidoM }} - {{ p.edad }} años ({{ p.RUN_Paciente }})
+          </div>
+        {% empty %}
+          <p style="color:#666; font-size:0.9rem; padding:10px;">No hay pacientes registrados todavía.</p>
+        {% endfor %}
       </div>
     </section>
 
-    <!-- Panel Derecho: Formulario de Gestión de Pacientes[cite: 5] -->
+    <!-- Panel Derecho: Formulario de Gestión de Pacientes -->
     <section class="card right-panel">
-      <h1 class="panel-header-title">Gestionar Paciente: RUN</h1>
-      
-      <form onsubmit="event.preventDefault();">
+      <h1 class="panel-header-title" id="titulo-formulario">Nuevo Paciente</h1>
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" action="">
+        {% csrf_token %}
+        <input type="hidden" id="paciente_id" name="paciente_id" value="">
 
         <div class="form-group">
           <label for="run-paciente">RUN</label>
-          <input class="validar-run" type="text" id="run-paciente" name="run-paciente" placeholder="12.345.678-9" required>
+          <input class="validar-run" type="text" id="run-paciente" name="run-paciente" placeholder="11.111.111-1" required>
         </div>
 
         <div class="form-group">
@@ -222,7 +290,6 @@ select {
           <input type="text" id="apellido-materno" name="apellido-materno" placeholder="Apellido materno">
         </div>
 
-        <!-- Fecha de Nacimiento: Calendario[cite: 4, 5] -->
         <div class="form-group">
           <label for="fecha-nacimiento">Fecha de Nacimiento</label>
           <input type="date" id="fecha-nacimiento" name="fecha-nacimiento" required>
@@ -233,23 +300,109 @@ select {
           <input type="email" id="correo-contacto" name="correo-contacto" placeholder="correo@ejemplo.com" required>
         </div>
 
-        <!-- Número de Contacto con prefijo +56[cite: 5] -->
         <div class="form-group">
           <label for="telefono-contacto">Numero de Contacto</label>
           <div class="phone-input-group">
             <input type="text" class="phone-prefix" value="+56" readonly>
-            <input type="tel" id="telefono-contacto" name="telefono-contacto" placeholder="9 1234 5678" required>
+            <input class="solo-numeros" type="tel" id="telefono-contacto" name="telefono-contacto" placeholder="912345678" required>
           </div>
         </div>
 
+        <div class="form-group">
+          <label for="estado">Estado</label>
+          <select id="estado" name="estado" required>
+            <option value="Activo" selected>Activo</option>
+            <option value="Inactivo">Inactivo</option>
+          </select>
+        </div>
+
         <div class="form-buttons">
-          <button type="submit" class="btn btn-submit">Agregar/Editar</button>
-          <button type="button" class="btn btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-submit" id="btn-guardar">Agregar Paciente</button>
+          <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
         </div>
       </form>
     </section>
 
   </main>
+
+  <script>
+    const items = document.querySelectorAll('.patient-item');
+    const titulo = document.getElementById('titulo-formulario');
+    const inputId = document.getElementById('paciente_id');
+    const inputRun = document.getElementById('run-paciente');
+    const inputNombre = document.getElementById('nombre-paciente');
+    const inputSegNombre = document.getElementById('segundo-nombre');
+    const inputTerNombre = document.getElementById('tercer-nombre');
+    const inputApellidoP = document.getElementById('apellido-paterno');
+    const inputApellidoM = document.getElementById('apellido-materno');
+    const inputFechaNac = document.getElementById('fecha-nacimiento');
+    const inputCorreo = document.getElementById('correo-contacto');
+    const inputTelefono = document.getElementById('telefono-contacto');
+    const selectEstado = document.getElementById('estado');
+    const btnGuardar = document.getElementById('btn-guardar');
+    const btnCancelar = document.getElementById('btn-cancelar');
+
+    // Al hacer clic en un paciente de la lista -> cargar en modo Edición
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        items.forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+
+        inputId.value = item.dataset.id;
+        inputRun.value = item.dataset.run;
+        inputNombre.value = item.dataset.nombre;
+        inputSegNombre.value = item.dataset.segnombre;
+        inputTerNombre.value = item.dataset.ternombre;
+        inputApellidoP.value = item.dataset.apellidop;
+        inputApellidoM.value = item.dataset.apellidom;
+        inputFechaNac.value = item.dataset.fechanac;
+        inputCorreo.value = item.dataset.correo;
+        // Quitar el +56 al mostrarlo en el input porque ya está el prefijo al lado
+        inputTelefono.value = item.dataset.telefono.replace('+56', '');
+        selectEstado.value = item.dataset.estado || 'Activo';
+
+        titulo.textContent = `Gestionar Paciente: ${item.dataset.run}`;
+        btnGuardar.textContent = 'Guardar Cambios';
+      });
+    });
+
+    // Botón Cancelar -> limpiar y volver a modo Nuevo Paciente
+    btnCancelar.addEventListener('click', () => {
+      items.forEach(i => i.classList.remove('selected'));
+      inputId.value = '';
+      inputRun.value = '';
+      inputNombre.value = '';
+      inputSegNombre.value = '';
+      inputTerNombre.value = '';
+      inputApellidoP.value = '';
+      inputApellidoM.value = '';
+      inputFechaNac.value = '';
+      inputCorreo.value = '';
+      inputTelefono.value = '';
+      selectEstado.value = 'Activo';
+
+      titulo.textContent = 'Nuevo Paciente';
+      btnGuardar.textContent = 'Agregar Paciente';
+    });
+
+    // Filtros en vivo (Nombre/RUN y Fecha de Nacimiento)
+    const filtroNombre = document.getElementById('filtro-nombre');
+    const filtroFechaNac = document.getElementById('filtro-fecha-nac');
+
+    function filtrarPacientes() {
+      const texto = filtroNombre.value.toLowerCase();
+      const fecha = filtroFechaNac.value;
+
+      items.forEach(item => {
+        const coincideTexto = item.textContent.toLowerCase().includes(texto);
+        const coincideFecha = !fecha || item.dataset.fechanac === fecha;
+        item.style.display = (coincideTexto && coincideFecha) ? 'block' : 'none';
+      });
+    }
+
+    filtroNombre.addEventListener('input', filtrarPacientes);
+    filtroFechaNac.addEventListener('change', filtrarPacientes);
+  </script>
 
 </body>
 </html>

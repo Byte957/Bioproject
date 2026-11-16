@@ -7,160 +7,184 @@
   <title>Gestión de Médicos</title>
   <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   <style>
-    * .navbar,
-.dashboard-container {
-  max-width: 1200px;
-}
+    .navbar,
+    .dashboard-container {
+      max-width: 1200px;
+    }
 
-.left-panel {
-  flex: 1.1;
-  display: flex;
-  flex-direction: column;
-}
+    .left-panel {
+      flex: 1.1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.filters-row {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 22px;
-}
+    .filters-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
 
-.filter-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+    .filter-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.filter-item label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 6px;
-  margin-left: 4px;
-}
+    .filter-item label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 6px;
+      margin-left: 4px;
+    }
 
-.section-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #222222;
-  margin-bottom: 14px;
-  padding-left: 4px;
-}
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 14px;
+      padding-left: 4px;
+    }
 
-.user-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 490px;
-  overflow-y: auto;
-  padding-right: 8px;
-}
+    .user-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 580px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
 
-.user-list::-webkit-scrollbar { width: 7px; }
-.user-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-.user-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
+    .user-list::-webkit-scrollbar { width: 7px; }
+    .user-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    .user-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
 
-.user-item {
-  padding: 12px 14px;
-  background-color: #ffffff;
-  border: 1.5px solid #2e7d32;
-  border-radius: 10px;
-  font-size: 0.82rem;
-  color: #333333;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+    .user-item {
+      padding: 12px 14px;
+      background-color: #ffffff;
+      border: 1.5px solid #2e7d32;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      color: #333333;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-.user-item:hover {
-  background-color: #e8f5e9;
-  transform: translateX(4px);
-  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
-}
+    .user-item:hover,
+    .user-item.selected {
+      background-color: #e8f5e9;
+      transform: translateX(4px);
+      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
+      font-weight: 600;
+    }
 
-.right-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.panel-header-title {
-  font-size: 1.45rem;
-  font-weight: 700;
-  color: #222222;
-  margin-bottom: 20px;
-}
+    .panel-header-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 20px;
+    }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 12px;
-}
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 12px;
+    }
 
-.form-group label {
-  font-size: 0.83rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 5px;
-  margin-left: 4px;
-}
+    .form-group label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 5px;
+      margin-left: 4px;
+    }
 
-input[type="text"],
-input[type="email"],
-input[type="tel"],
-input[type="date"],
-select {
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1.5px solid #2e7d32;
-  outline: none;
-  font-size: 0.9rem;
-  color: #333333;
-  background-color: #ffffff;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="tel"],
+    input[type="date"],
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
 
-.phone-input-group {
-  display: flex;
-  gap: 8px;
-}
+    .phone-input-group {
+      display: flex;
+      gap: 8px;
+    }
 
-.phone-prefix {
-  width: 75px !important;
-  text-align: center;
-  background-color: #f7f7f7 !important;
-  font-weight: 600;
-}
+    .phone-prefix {
+      width: 75px !important;
+      text-align: center;
+      background-color: #f7f7f7 !important;
+      font-weight: 600;
+    }
 
-.form-buttons {
-  display: flex;
-  gap: 14px;
-  margin-top: 18px;
-}
+    .form-buttons {
+      display: flex;
+      gap: 14px;
+      margin-top: 18px;
+    }
 
-.btn {
-  flex: 1;
-  padding: 10px 0;
-  font-size: 0.92rem;
-  font-weight: 600;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
+    .btn {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
 
-@media (max-width: 900px) {
-  .dashboard-container { flex-direction: column; }
-  .navbar { flex-direction: column; align-items: flex-start; }
-  .filters-row { flex-direction: column; }
-}
+    .alert-msg {
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .alert-error {
+      background-color: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+
+    .alert-success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-container { flex-direction: column; }
+      .navbar { flex-direction: column; align-items: flex-start; }
+      .filters-row { flex-direction: column; }
+    }
   </style>
-   <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
+  <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
 </head>
 <body>
 
-  <!-- Barra Superior (Navbar)[cite: 6] -->
+  <!-- Barra Superior (Navbar) -->
   <header class="navbar">
     <div class="brand-section">
       <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
@@ -168,86 +192,98 @@ select {
       <span class="nav-slogan">Slogan</span>
     </div>
     <nav class="navbar-content">
-          <ul class="nav-ul"> 
-      <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
-      <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
-      <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-      <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-      <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
-      <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-      <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
-      <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-    </ul>
+      <ul class="nav-ul"> 
+        <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
+        <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
+        <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+        <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+        <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
+        <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+        <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
+        <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+      </ul>
     </nav>
   </header>
 
-  <!-- Contenedor Principal[cite: 6] -->
+  <!-- Contenedor Principal -->
   <main class="dashboard-container">
 
-    <!-- Panel Izquierdo: Filtros y Lista de Médicos[cite: 6] -->
+    <!-- Panel Izquierdo: Filtros y Lista de Médicos -->
     <section class="card left-panel">
       <div class="filters-row">
-        <!-- Filtrar por Nombre: Combobox (triángulo hacia abajo)[cite: 4, 6] -->
         <div class="filter-item">
-          <label for="filtro-nombre">Filtrar por Nombre</label>
-          <select id="filtro-nombre" name="filtro-nombre">
-            <option value="">Seleccione Nombre...</option>
-            <option value="1">Médico 1</option>
-            <option value="2">Médico 2</option>
-          </select>
+          <label for="filtro-nombre">Buscar por Nombre o RUN</label>
+          <input type="text" id="filtro-nombre" placeholder="Nombre, apellido o RUN...">
         </div>
 
-        <!-- Filtrar por Especialidad: Calendario (cuadrado)[cite: 4, 6] -->
         <div class="filter-item">
           <label for="filtro-especialidad">Filtrar por Especialidad</label>
-          <input type="date" id="filtro-especialidad" name="filtro-especialidad">
+          <input type="text" id="filtro-especialidad" placeholder="Ej. Cardiología...">
         </div>
       </div>
 
-      <h2 class="section-title">Atenciones Registradas</h2>
+      <h2 class="section-title">Médicos Registrados</h2>
       <div class="user-list">
-        <div class="user-item">Primer Nombre Medico- Primer Apellido Medico- Seg Apellido Medico- Especialidad</div>
-        <div class="user-item">Primer Nombre Medico- Primer Apellido Medico- Seg Apellido Medico- Especialidad</div>
-        <div class="user-item">Primer Nombre Medico- Primer Apellido Medico- Seg Apellido Medico- Especialidad</div>
-        <div class="user-item">Primer Nombre Medico- Primer Apellido Medico- Seg Apellido Medico- Especialidad</div>
-        <div class="user-item">Primer Nombre Medico- Primer Apellido Medico- Seg Apellido Medico- Especialidad</div>
-        <div class="user-item">Primer Nombre Medico- Primer Apellido Medico- Seg Apellido Medico- Especialidad</div>
-        <div class="user-item">Primer Nombre Medico- Primer Apellido Medico- Seg Apellido Medico- Especialidad</div>
-        <div class="user-item">Primer Nombre Medico- Primer Apellido Medico- Seg Apellido Medico- Especialidad</div>
-        <div class="user-item">Primer Nombre Medico- Primer Apellido Medico- Seg Apellido Medico- Especialidad</div>
-        <div class="user-item">Primer Nombre Medico- Primer Apellido Medico- Seg Apellido Medico- Especialidad</div>
+        {% for m in medicos %}
+          <div class="user-item"
+               data-id="{{ m.MatriculaProfesional }}"
+               data-matricula="{{ m.MatriculaProfesional }}"
+               data-run="{{ m.RUN_Medico }}"
+               data-nombre="{{ m.Nombre_Medico }}"
+               data-segnombre="{{ m.SegNombre_Medico }}"
+               data-ternombre="{{ m.TerNombre_Medico }}"
+               data-apellidop="{{ m.ApellidoP_Medico }}"
+               data-apellidom="{{ m.ApellidoM_Medico }}"
+               data-especialidad="{{ m.Especializacion|default:'' }}"
+               data-correo="{{ m.CorreoContactoMedico }}"
+               data-telefono="{{ m.NumeroContactoMedico }}"
+               data-estado="{{ m.Estado }}">
+            Mat. #{{ m.MatriculaProfesional }} - Dr(a). {{ m.Nombre_Medico }} {{ m.ApellidoP_Medico }} {{ m.ApellidoM_Medico }} - {{ m.Especializacion|default:'Sin especialidad' }} ({{ m.RUN_Medico }})
+          </div>
+        {% empty %}
+          <p style="color:#666; font-size:0.9rem; padding:10px;">No hay médicos registrados todavía.</p>
+        {% endfor %}
       </div>
     </section>
 
-    <!-- Panel Derecho: Formulario de Gestión de Médicos[cite: 6] -->
+    <!-- Panel Derecho: Formulario de Gestión de Médicos -->
     <section class="card right-panel">
-      <h1 class="panel-header-title">Gestionar Medico: RUN</h1>
-      
-      <form onsubmit="event.preventDefault();">
+      <h1 class="panel-header-title" id="titulo-formulario">Nuevo Médico</h1>
 
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" action="">
+        {% csrf_token %}
+        <input type="hidden" id="medico_id" name="medico_id" value="">
 
         <div class="form-group">
-          <label for="segundo-nombre-medico">Numero de Matricula</label>
-          <input type="text" id="segundo-nombre-medico" name="segundo-nombre-medico" placeholder="Segundo nombre">
+          <label for="numero-matricula">Número de Matrícula</label>
+          <input class="solo-numeros" type="text" id="numero-matricula" name="numero-matricula" placeholder="Ej. 123456" required>
         </div>
 
         <div class="form-group">
-          <label for="run-paciente">RUN</label>
-          <input class="validar-run" type="text" id="run-paciente" name="run-paciente" placeholder="12.345.678-9" required>
+          <label for="run-medico">RUN</label>
+          <input class="validar-run" type="text" id="run-medico" name="run-medico" placeholder="11.111.111-1" required>
         </div>
 
         <div class="form-group">
-          <label for="nombre-medico">Nombre Medico</label>
+          <label for="nombre-medico">Nombre Médico</label>
           <input type="text" id="nombre-medico" name="nombre-medico" placeholder="Primer nombre" required>
         </div>
 
         <div class="form-group">
-          <label for="segundo-nombre-medico">Segundo Nombre Medico</label>
+          <label for="segundo-nombre-medico">Segundo Nombre Médico</label>
           <input type="text" id="segundo-nombre-medico" name="segundo-nombre-medico" placeholder="Segundo nombre">
         </div>
 
         <div class="form-group">
-          <label for="tercer-nombre-medico">Tercer Nombre Medico</label>
+          <label for="tercer-nombre-medico">Tercer Nombre Médico</label>
           <input type="text" id="tercer-nombre-medico" name="tercer-nombre-medico" placeholder="Tercer nombre (opcional)">
         </div>
 
@@ -261,10 +297,9 @@ select {
           <input type="text" id="apellido-materno" name="apellido-materno" placeholder="Apellido materno">
         </div>
 
-        <!-- Especialización: Calendario (cuadro)[cite: 4, 6] -->
         <div class="form-group">
-          <label for="especializacion">Especializacion</label>
-          <input type="date" id="especializacion" name="especializacion" required>
+          <label for="especializacion">Especialización</label>
+          <input type="text" id="especializacion" name="especializacion" placeholder="Ej. Medicina General, Pediatría..." required>
         </div>
 
         <div class="form-group">
@@ -272,23 +307,126 @@ select {
           <input type="email" id="correo-contacto" name="correo-contacto" placeholder="correo@ejemplo.com" required>
         </div>
 
-        <!-- Número de Contacto con prefijo +56[cite: 6] -->
         <div class="form-group">
-          <label for="numero-contacto">Numero de Contacto</label>
+          <label for="password-medico">Contraseña de Acceso <small id="hint-password" style="font-weight:400; color:#666;">(Requerida para crear)</small></label>
+          <input type="password" id="password-medico" name="password-medico" placeholder="••••••••" required>
+        </div>
+
+        <div class="form-group">
+          <label for="numero-contacto">Número de Contacto</label>
           <div class="phone-input-group">
             <input type="text" class="phone-prefix" value="+56" readonly>
-            <input type="tel" id="numero-contacto" name="numero-contacto" placeholder="9 1234 5678" required>
+            <input class="solo-numeros" type="tel" id="numero-contacto" name="numero-contacto" placeholder="912345678" required>
           </div>
         </div>
 
+        <div class="form-group">
+          <label for="estado">Estado</label>
+          <select id="estado" name="estado" required>
+            <option value="Activo" selected>Activo</option>
+            <option value="Inactivo">Inactivo</option>
+          </select>
+        </div>
+
         <div class="form-buttons">
-          <button type="submit" class="btn btn-submit">Agregar/Editar</button>
-          <button type="button" class="btn btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-submit" id="btn-guardar">Agregar Médico</button>
+          <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
         </div>
       </form>
     </section>
 
   </main>
+
+  <script>
+    const items = document.querySelectorAll('.user-item');
+    const titulo = document.getElementById('titulo-formulario');
+    const inputId = document.getElementById('medico_id');
+    const inputMatricula = document.getElementById('numero-matricula');
+    const inputRun = document.getElementById('run-medico');
+    const inputNombre = document.getElementById('nombre-medico');
+    const inputSegNombre = document.getElementById('segundo-nombre-medico');
+    const inputTerNombre = document.getElementById('tercer-nombre-medico');
+    const inputApellidoP = document.getElementById('apellido-paterno');
+    const inputApellidoM = document.getElementById('apellido-materno');
+    const inputEspecialidad = document.getElementById('especializacion');
+    const inputCorreo = document.getElementById('correo-contacto');
+    const inputPassword = document.getElementById('password-medico');
+    const hintPassword = document.getElementById('hint-password');
+    const inputTelefono = document.getElementById('numero-contacto');
+    const selectEstado = document.getElementById('estado');
+    const btnGuardar = document.getElementById('btn-guardar');
+    const btnCancelar = document.getElementById('btn-cancelar');
+
+    // Al hacer clic en un médico -> cargar datos para edición
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        items.forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+
+        inputId.value = item.dataset.id;
+        inputMatricula.value = item.dataset.matricula;
+        inputRun.value = item.dataset.run;
+        inputNombre.value = item.dataset.nombre;
+        inputSegNombre.value = item.dataset.segnombre;
+        inputTerNombre.value = item.dataset.ternombre;
+        inputApellidoP.value = item.dataset.apellidop;
+        inputApellidoM.value = item.dataset.apellidom;
+        inputEspecialidad.value = item.dataset.especialidad;
+        inputCorreo.value = item.dataset.correo;
+        inputTelefono.value = item.dataset.telefono.replace('+56', '');
+        selectEstado.value = item.dataset.estado || 'Activo';
+
+        // En modo edición la contraseña pasa a ser opcional
+        inputPassword.value = '';
+        inputPassword.required = false;
+        hintPassword.textContent = '(Dejar vacío para mantener la actual)';
+
+        titulo.textContent = `Gestionar Médico: ${item.dataset.run}`;
+        btnGuardar.textContent = 'Guardar Cambios';
+      });
+    });
+
+    // Botón Cancelar -> limpiar y volver a modo Nuevo Médico
+    btnCancelar.addEventListener('click', () => {
+      items.forEach(i => i.classList.remove('selected'));
+      inputId.value = '';
+      inputMatricula.value = '';
+      inputRun.value = '';
+      inputNombre.value = '';
+      inputSegNombre.value = '';
+      inputTerNombre.value = '';
+      inputApellidoP.value = '';
+      inputApellidoM.value = '';
+      inputEspecialidad.value = '';
+      inputCorreo.value = '';
+      inputPassword.value = '';
+      inputPassword.required = true;
+      hintPassword.textContent = '(Requerida para crear)';
+      inputTelefono.value = '';
+      selectEstado.value = 'Activo';
+
+      titulo.textContent = 'Nuevo Médico';
+      btnGuardar.textContent = 'Agregar Médico';
+    });
+
+    // Filtros en vivo (Nombre/RUN y Especialidad)
+    const filtroNombre = document.getElementById('filtro-nombre');
+    const filtroEspecialidad = document.getElementById('filtro-especialidad');
+
+    function filtrarMedicos() {
+      const texto = filtroNombre.value.toLowerCase();
+      const esp = filtroEspecialidad.value.toLowerCase();
+
+      items.forEach(item => {
+        const coincideTexto = item.textContent.toLowerCase().includes(texto);
+        const coincideEsp = !esp || item.dataset.especialidad.toLowerCase().includes(esp);
+        item.style.display = (coincideTexto && coincideEsp) ? 'block' : 'none';
+      });
+    }
+
+    filtroNombre.addEventListener('input', filtrarMedicos);
+    filtroEspecialidad.addEventListener('input', filtrarMedicos);
+  </script>
 
 </body>
 </html>
