@@ -1,11 +1,12 @@
 from django.shortcuts import render, redirect
 from django.db import transaction, IntegrityError
 from django.contrib.auth.hashers import make_password
-from .models import Rol, Usuario, Paciente, Medico, Horario, HorarioMedico, Atencion, Medicamento
+from .models import Rol, Usuario, Paciente, Medico, Horario, HorarioMedico, Atencion, Medicamento, Receta, MedicamentoReceta, Boleta
 from django.contrib.auth.hashers import check_password
 from django.contrib import messages
 from datetime import date, datetime, time, timedelta
 import json
+
 
 
 
@@ -192,82 +193,260 @@ def registroatencion(request):
     })
 
 def gestionusuarios(request):
+    usuario_id = request.session.get('usuario_id')
+    rol_id = request.session.get('usuario_rol')
+
+    if not usuario_id:
+        messages.error(request, 'Debes iniciar sesión para acceder.')
+        return redirect('inicio_sesion')
+
+    usuario_actual = Usuario.objects.select_related('Rol').filter(ID_Usuario=usuario_id).first()
+    if not usuario_actual:
+        request.session.flush()
+        return redirect('inicio_sesion')
+
+    es_admin = (rol_id == 1)
+
     if request.method == 'POST':
-        usuario_id = request.POST.get('usuario_id', '').strip()
         nombre = request.POST.get('nombre', '').strip()
         apellido = request.POST.get('apellido', '').strip()
         correo = request.POST.get('correo', '').strip()
         password = request.POST.get('password', '').strip()
-        rol_id = request.POST.get('rol')
-        estado = request.POST.get('estado', 'Activo')
 
-        try:
-            rol_obj = Rol.objects.get(ID_Rol=rol_id)
+        if not nombre or not apellido or not correo:
+            messages.error(request, 'Nombre, apellido y correo son obligatorios.')
+            return redirect('gestionar_usuarios')
 
-            if usuario_id:
-                # --- MODO EDITAR USUARIO EXISTENTE ---
-                usuario = Usuario.objects.get(ID_Usuario=usuario_id)
+        # --- MODO ADMINISTRADOR (Puede crear y editar cualquier usuario) ---
+        if es_admin:
+            target_id = request.POST.get('usuario_id', '').strip()
+            rol_nuevo_id = request.POST.get('rol', '').strip()
+            estado_nuevo = request.POST.get('estado', 'Activo').strip()
 
-                # Validar que el correo no pertenezca a otro usuario distinto
-                if Usuario.objects.filter(Correo_Usuario=correo).exclude(ID_Usuario=usuario_id).exists():
-                    messages.error(request, f'El correo {correo} ya está siendo usado por otro usuario.')
-                    return redirect('gestionar_usuarios')
+            try:
+                with transaction.atomic():
+                    if target_id:
+                        u_obj = Usuario.objects.get(ID_Usuario=target_id)
+                        if Usuario.objects.filter(Correo_Usuario__iexact=correo).exclude(ID_Usuario=target_id).exists():
+                            messages.error(request, f'El correo {correo} ya está en uso por otro usuario.')
+                            return redirect('gestionar_usuarios')
 
-                usuario.Nombre = nombre[:20]
-                usuario.Apellido = apellido[:20]
-                usuario.Correo_Usuario = correo[:50]
-                usuario.Rol = rol_obj
-                usuario.Estado = estado
+                        u_obj.Nombre = nombre
+                        u_obj.Apellido = apellido
+                        u_obj.Correo_Usuario = correo
+                        if rol_nuevo_id:
+                            u_obj.Rol = Rol.objects.get(ID_Rol=rol_nuevo_id)
+                        u_obj.Estado = estado_nuevo
+                        if password:
+                            u_obj.Contraseña = make_password(password)
+                        u_obj.save()
 
-                # Solo actualiza la contraseña si el administrador escribió una nueva
-                if password:
-                    usuario.Contraseña = make_password(password)
+                        # Sincronizar si tiene ficha asociada
+                        Paciente.objects.filter(Usuario=u_obj).update(
+                            Nombre_Paciente=nombre, ApellidoP=apellido, CorreoContactoPaciente=correo, Estado=estado_nuevo
+                        )
+                        Medico.objects.filter(Usuario=u_obj).update(
+                            Nombre_Medico=nombre, ApellidoP_Medico=apellido, CorreoContactoMedico=correo, Estado=estado_nuevo
+                        )
 
-                usuario.save()
-                messages.success(request, f'Usuario #{usuario.ID_Usuario} ({usuario.Nombre}) actualizado correctamente.')
+                        if str(u_obj.ID_Usuario) == str(usuario_id):
+                            request.session['usuario_nombre'] = f"{nombre} {apellido}"
 
-            else:
-                # --- MODO CREAR NUEVO USUARIO ---
-                if Usuario.objects.filter(Correo_Usuario=correo).exists():
-                    messages.error(request, f'No se pudo crear: El correo {correo} ya está registrado.')
-                    return redirect('gestionar_usuarios')
+                        messages.success(request, f'Usuario #{u_obj.ID_Usuario} ({nombre} {apellido}) actualizado correctamente.')
+                    else:
+                        if not password:
+                            messages.error(request, 'Debes ingresar una contraseña para crear un usuario nuevo.')
+                            return redirect('gestionar_usuarios')
 
-                if not password or len(password) < 4:
-                    messages.error(request, 'Debes ingresar una contraseña de al menos 4 caracteres para un usuario nuevo.')
-                    return redirect('gestionar_usuarios')
+                        if Usuario.objects.filter(Correo_Usuario__iexact=correo).exists():
+                            messages.error(request, f'El correo {correo} ya se encuentra registrado.')
+                            return redirect('gestionar_usuarios')
 
-                nuevo = Usuario.objects.create(
-                    Nombre=nombre[:20],
-                    Apellido=apellido[:20],
-                    Correo_Usuario=correo[:50],
-                    Contraseña=make_password(password),
-                    Estado=estado,
-                    Rol=rol_obj
-                )
-                messages.success(request, f'Usuario {nuevo.Nombre} {nuevo.Apellido} creado con éxito.')
+                        rol_obj = Rol.objects.get(ID_Rol=rol_nuevo_id)
+                        nuevo_u = Usuario.objects.create(
+                            Nombre=nombre,
+                            Apellido=apellido,
+                            Correo_Usuario=correo,
+                            Contraseña=make_password(password),
+                            Rol=rol_obj,
+                            Estado=estado_nuevo
+                        )
+                        messages.success(request, f'Usuario "{nuevo_u.Nombre} {nuevo_u.Apellido}" creado correctamente.')
 
-        except Rol.DoesNotExist:
-            messages.error(request, 'El rol seleccionado no es válido.')
-        except Usuario.DoesNotExist:
-            messages.error(request, 'El usuario que intentas editar no existe.')
-        except Exception as e:
-            messages.error(request, f'Error al guardar usuario: {str(e)}')
+            except Exception as e:
+                messages.error(request, f'Error al guardar usuario: {str(e)}')
+
+        # --- MODO USUARIO ESTÁNDAR (Solo edita su propia cuenta) ---
+        else:
+            if Usuario.objects.filter(Correo_Usuario__iexact=correo).exclude(ID_Usuario=usuario_actual.ID_Usuario).exists():
+                messages.error(request, f'El correo {correo} ya está registrado por otro usuario.')
+                return redirect('gestionar_usuarios')
+
+            try:
+                with transaction.atomic():
+                    usuario_actual.Nombre = nombre
+                    usuario_actual.Apellido = apellido
+                    usuario_actual.Correo_Usuario = correo
+                    if password:
+                        usuario_actual.Contraseña = make_password(password)
+                    usuario_actual.save()
+
+                    Paciente.objects.filter(Usuario=usuario_actual).update(
+                        Nombre_Paciente=nombre, ApellidoP=apellido, CorreoContactoPaciente=correo
+                    )
+                    Medico.objects.filter(Usuario=usuario_actual).update(
+                        Nombre_Medico=nombre, ApellidoP_Medico=apellido, CorreoContactoMedico=correo
+                    )
+                    request.session['usuario_nombre'] = f"{nombre} {apellido}"
+
+                messages.success(request, 'Tus datos personales se actualizaron correctamente.')
+            except Exception as e:
+                messages.error(request, f'Error al actualizar tus datos: {str(e)}')
 
         return redirect('gestionar_usuarios')
 
-    # --- PETICIÓN GET: LISTAR USUARIOS Y ROLES ---
-    usuarios = Usuario.objects.select_related('Rol').all().order_by('ID_Usuario')
-    roles = Rol.objects.all().order_by('ID_Rol')
+    # --- PETICIÓN GET ---
+    usuarios = Usuario.objects.select_related('Rol').all().order_by('ID_Usuario') if es_admin else []
+    roles = Rol.objects.all().order_by('ID_Rol') if es_admin else []
 
-    return render(request, 'GestionDeUsuarios.html', { # <-- VERIFICA EL NOMBRE REAL DE TU HTML
+    return render(request, 'GestionDeUsuarios.html', {  # <-- Verifica el nombre exacto de tu HTML
+        'es_admin': es_admin,
+        'usuario': usuario_actual,
         'usuarios': usuarios,
-        'roles': roles
+        'roles': roles,
     })
 
 def gestionrecetas(request):
-  return render(request, "GestionDeRecetasAtencion.html")
+    usuario_id = request.session.get('usuario_id')
+    rol_id = request.session.get('usuario_rol')
 
+    if request.method == 'POST':
+        atencion_id = request.POST.get('atencion_id', '').strip()
+        institucion = request.POST.get('institucion', '').strip() or 'Clínica Biotechnica'
+        diagnostico = request.POST.get('diagnostico', '').strip()
+        medicamentos_ids = request.POST.getlist('medicamento_id[]')
+        indicaciones_list = request.POST.getlist('indicaciones[]')
 
+        if not atencion_id:
+            messages.error(request, 'Debes seleccionar una atención de la lista izquierda antes de emitir la receta.')
+            return redirect('gestionar_recetasatencion')
+
+        try:
+            atencion_obj = Atencion.objects.get(ID_Atencion=atencion_id)
+
+            # Validar medicamentos seleccionados (evitando duplicados por unique_together)
+            items_receta = []
+            vistos = set()
+            for med_id, ind in zip(medicamentos_ids, indicaciones_list):
+                med_id = med_id.strip()
+                ind = ind.strip()
+                if med_id and med_id not in vistos:
+                    vistos.add(med_id)
+                    items_receta.append((int(med_id), ind[:200] or 'Según indicación médica'))
+
+            if not items_receta:
+                messages.error(request, 'Debes seleccionar al menos un medicamento válido para emitir la receta.')
+                return redirect('gestionar_recetasatencion')
+
+            with transaction.atomic():
+                # 1. Actualizar diagnóstico/descripción y marcar atención como Realizada
+                if diagnostico:
+                    atencion_obj.Descripcion = diagnostico[:500]
+                atencion_obj.Estado = 'Realizada'
+                atencion_obj.save()
+
+                # 2. Crear o actualizar la Receta asociada a esta Atención
+                receta_obj, _ = Receta.objects.update_or_create(
+                    Atencion=atencion_obj,
+                    defaults={
+                        'Fecha_Receta': date.today(),
+                        'Institucion': institucion[:50],
+                    }
+                )
+
+                # 3. Reemplazar los detalles en MedicamentoReceta
+                MedicamentoReceta.objects.filter(ID_Receta=receta_obj).delete()
+                nuevos_detalles = []
+                for med_id, ind in items_receta:
+                    med_obj = Medicamento.objects.get(ID_Medicamento=med_id)
+                    nuevos_detalles.append(
+                        MedicamentoReceta(
+                            ID_Medicamento=med_obj,
+                            ID_Receta=receta_obj,
+                            Indicaciones=ind
+                        )
+                    )
+                MedicamentoReceta.objects.bulk_create(nuevos_detalles)
+
+            messages.success(
+                request,
+                f'Receta #{receta_obj.ID_Receta} emitida correctamente para {atencion_obj.Paciente.Nombre_Paciente} {atencion_obj.Paciente.ApellidoP}.'
+            )
+
+        except Atencion.DoesNotExist:
+            messages.error(request, 'La atención seleccionada no existe.')
+        except Medicamento.DoesNotExist:
+            messages.error(request, 'Uno de los medicamentos seleccionados no es válido.')
+        except Exception as e:
+            messages.error(request, f'Error al emitir receta: {str(e)}')
+
+        return redirect('gestionar_recetasatencion')
+
+    # --- PETICIÓN GET ---
+    if rol_id == 3 and usuario_id:
+        atenciones_qs = Atencion.objects.filter(ID_Medico__Usuario_id=usuario_id)
+    else:
+        atenciones_qs = Atencion.objects.all()
+
+    atenciones = (
+        atenciones_qs.exclude(Estado__iexact='Cancelada')
+        .select_related('Paciente', 'ID_Medico', 'ID_Horario')
+        .order_by('-Dia', 'ID_Horario__Hora_Inicio')
+    )
+
+    # Pre-cargar recetas existentes para mostrar sus medicamentos si el médico hace clic en una atención ya emitida
+    recetas_map = {}
+    for rec in Receta.objects.filter(Atencion__in=atenciones).prefetch_related('medicamentoreceta_set__ID_Medicamento'):
+        recetas_map[str(rec.Atencion_id)] = {
+            'id_receta': rec.ID_Receta,
+            'institucion': rec.Institucion,
+            'medicamentos': [
+                {
+                    'id': str(mr.ID_Medicamento_id),
+                    'indicaciones': mr.Indicaciones
+                }
+                for mr in rec.medicamentoreceta_set.all()
+            ]
+        }
+
+    medicamentos = Medicamento.objects.all().order_by('Nombre_Medicamento')
+    pacientes = Paciente.objects.filter(Estado='Activo').order_by('ApellidoP')
+
+    return render(request, 'GestionDeRecetasAtencion.html', {  # <-- VERIFICA EL NOMBRE DE TU ARCHIVO HTML
+        'atenciones': atenciones,
+        'medicamentos': medicamentos,
+        'pacientes': pacientes,
+        'recetas_json': json.dumps(recetas_map),
+    })
+
+def cerrarsesion(request):
+    # 1. Eliminar explícitamente el rol y los datos de la sesión
+    request.session.pop('usuario_rol', None)
+    request.session.pop('usuario_id', None)
+    request.session.pop('usuario_nombre', None)
+    request.session.flush()
+
+    messages.success(request, 'Sesión cerrada correctamente.')
+    response = redirect('inicio_sesion')
+
+    # 2. Borrar la cookie de sesión y limpiar la caché del navegador al instante
+    response.delete_cookie('sessionid')
+    response['Clear-Site-Data'] = '"cache", "storage"'
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response['Pragma'] = 'no-cache'
+    response['Expires'] = '0'
+
+    return response
 
 def gestionpacientes(request):
     if request.method == 'POST':
@@ -376,10 +555,29 @@ def gestionpacientes(request):
     })
 
 def gestionmedicos(request):
+    usuario_id = request.session.get('usuario_id')
+    rol_id = request.session.get('usuario_rol')
+
+    # 1. Prohibir el ingreso a cualquier rol distinto de Médico (Rol 3)
+    if not usuario_id or rol_id != 3:
+        messages.error(request, 'Acceso denegado: Esta sección es exclusiva para médicos.')
+        if rol_id == 1:
+            return redirect('gestionar_usuarios')
+        elif rol_id == 2:
+            return redirect('gestionar_atencion')
+        elif rol_id == 4:
+            return redirect('registrar_atencion')
+        return redirect('inicio_sesion')
+
+    # 2. Obtener únicamente el perfil del médico que inició sesión
+    medico_actual = Medico.objects.select_related('Usuario').filter(Usuario_id=usuario_id).first()
+
+    if not medico_actual:
+        messages.error(request, 'No se encontró un perfil de médico vinculado a tu usuario.')
+        return redirect('inicio_sesion')
+
     if request.method == 'POST':
-        medico_id = request.POST.get('medico_id', '').strip()
-        matricula_raw = request.POST.get('numero-matricula', '').strip()
-        run = request.POST.get('run-medico', '').strip()
+        run_medico = request.POST.get('run-medico', '').strip()
         nombre = request.POST.get('nombre-medico', '').strip()
         seg_nombre = request.POST.get('segundo-nombre-medico', '').strip()
         ter_nombre = request.POST.get('tercer-nombre-medico', '').strip()
@@ -388,142 +586,57 @@ def gestionmedicos(request):
         especializacion = request.POST.get('especializacion', '').strip()
         correo = request.POST.get('correo-contacto', '').strip()
         password = request.POST.get('password-medico', '').strip()
-        telefono = request.POST.get('numero-contacto', '').strip()
-        estado = request.POST.get('estado', 'Activo')
+        telefono_raw = request.POST.get('numero-contacto', '').strip()
+        estado = request.POST.get('estado', 'Activo').strip()
 
-        if not matricula_raw.isdigit():
-            messages.error(request, 'El Número de Matrícula debe ser numérico.')
+        telefono = f"+56{telefono_raw.replace('+56', '')}"
+
+        # Validar que el RUN o correo no choque con otro médico distinto
+        if Medico.objects.filter(RUN_Medico=run_medico).exclude(MatriculaProfesional=medico_actual.MatriculaProfesional).exists():
+            messages.error(request, f'El RUN {run_medico} ya pertenece a otro médico.')
             return redirect('gestionar_medicos')
 
-        matricula = int(matricula_raw)
-        telefono_limpio = telefono.replace('+56', '').strip()
-        telefono_completo = f"+56{telefono_limpio}"[:15]
+        if Usuario.objects.filter(Correo_Usuario__iexact=correo).exclude(ID_Usuario=usuario_id).exists():
+            messages.error(request, f'El correo {correo} ya está registrado por otro usuario.')
+            return redirect('gestionar_medicos')
 
         try:
-            if medico_id:
-                # --- MODO EDITAR MÉDICO EXISTENTE ---
-                medico = Medico.objects.get(MatriculaProfesional=medico_id)
+            with transaction.atomic():
+                # Actualizar datos en tabla Medico (manteniendo su MatriculaProfesional original)
+                medico_actual.RUN_Medico = run_medico
+                medico_actual.Nombre_Medico = nombre
+                medico_actual.SegNombre_Medico = seg_nombre
+                medico_actual.TerNombre_Medico = ter_nombre
+                medico_actual.ApellidoP_Medico = apellido_p
+                medico_actual.ApellidoM_Medico = apellido_m
+                medico_actual.Especializacion = especializacion
+                medico_actual.CorreoContactoMedico = correo
+                medico_actual.NumeroContactoMedico = telefono
+                medico_actual.Estado = estado
+                medico_actual.save()
 
-                if Medico.objects.filter(RUN_Medico=run).exclude(MatriculaProfesional=medico_id).exists() or Paciente.objects.filter(RUN_Paciente=run).exists():
-                    messages.error(request, f'No se pudo actualizar: El RUN {run} ya pertenece a otra persona.')
-                    return redirect('gestionar_medicos')
-
-                if int(medico_id) != matricula and Medico.objects.filter(MatriculaProfesional=matricula).exists():
-                    messages.error(request, f'La Matrícula Profesional {matricula} ya está registrada.')
-                    return redirect('gestionar_medicos')
-
-                if password and len(password) < 4:
-                    messages.error(request, 'La nueva contraseña debe tener al menos 4 caracteres.')
-                    return redirect('gestionar_medicos')
-
-                qs_correo = Usuario.objects.filter(Correo_Usuario=correo)
-                if medico.Usuario:
-                    qs_correo = qs_correo.exclude(ID_Usuario=medico.Usuario.ID_Usuario)
-                if qs_correo.exists():
-                    messages.error(request, f'El correo {correo} ya está siendo usado por otro usuario.')
-                    return redirect('gestionar_medicos')
-
-                if int(medico_id) != matricula:
-                    usuario_actual = medico.Usuario
-                    medico.delete()
-                    medico = Medico(MatriculaProfesional=matricula, Usuario=usuario_actual)
-
-                medico.RUN_Medico = run[:25]
-                medico.Nombre_Medico = nombre[:20]
-                medico.SegNombre_Medico = seg_nombre[:20]
-                medico.TerNombre_Medico = ter_nombre[:20]
-                medico.ApellidoP_Medico = apellido_p[:20]
-                medico.ApellidoM_Medico = apellido_m[:20]
-                medico.Especializacion = especializacion[:50]
-                medico.CorreoContactoMedico = correo[:50]
-                medico.NumeroContactoMedico = telefono_completo
-                medico.Estado = estado
-
-                rol_medico = Rol.objects.get(ID_Rol=3)
-                if medico.Usuario:
-                    medico.Usuario.Nombre = nombre[:20]
-                    medico.Usuario.Apellido = apellido_p[:20]
-                    medico.Usuario.Correo_Usuario = correo[:50]
-                    medico.Usuario.Estado = estado
-                    medico.Usuario.Rol = rol_medico
+                # Sincronizar datos en su cuenta de Usuario asociada
+                if medico_actual.Usuario:
+                    usuario_obj = medico_actual.Usuario
+                    usuario_obj.Nombre = nombre
+                    usuario_obj.Apellido = apellido_p
+                    usuario_obj.Correo_Usuario = correo
+                    usuario_obj.Estado = estado
                     if password:
-                        medico.Usuario.Contraseña = make_password(password)
-                    medico.Usuario.save()
-                else:
-                    clave_final = password if password else run
-                    nuevo_usuario = Usuario.objects.create(
-                        Nombre=nombre[:20],
-                        Apellido=apellido_p[:20],
-                        Correo_Usuario=correo[:50],
-                        Contraseña=make_password(clave_final),
-                        Estado=estado,
-                        Rol=rol_medico
-                    )
-                    medico.Usuario = nuevo_usuario
+                        usuario_obj.Contraseña = make_password(password)
+                    usuario_obj.save()
 
-                medico.save()
-                messages.success(request, f'Dr(a). {medico.Nombre_Medico} {medico.ApellidoP_Medico} y su usuario vinculados fueron actualizados.')
+                    request.session['usuario_nombre'] = f"{nombre} {apellido_p}"
 
-            else:
-                # --- MODO CREAR NUEVO MÉDICO + SU USUARIO ---
-                if not password or len(password) < 4:
-                    messages.error(request, 'Debes ingresar una contraseña de al menos 4 caracteres para crear el médico.')
-                    return redirect('gestionar_medicos')
-
-                if Medico.objects.filter(MatriculaProfesional=matricula).exists():
-                    messages.error(request, f'No se pudo crear: La Matrícula Profesional {matricula} ya existe.')
-                    return redirect('gestionar_medicos')
-
-                if Medico.objects.filter(RUN_Medico=run).exists() or Paciente.objects.filter(RUN_Paciente=run).exists():
-                    messages.error(request, f'No se pudo crear: El RUN {run} ya está registrado.')
-                    return redirect('gestionar_medicos')
-
-                if Usuario.objects.filter(Correo_Usuario=correo).exists():
-                    messages.error(request, f'No se pudo crear: El correo {correo} ya está registrado en la tabla de Usuarios.')
-                    return redirect('gestionar_medicos')
-
-                with transaction.atomic():
-                    rol_medico = Rol.objects.get(ID_Rol=3)
-
-                    nuevo_usuario = Usuario.objects.create(
-                        Nombre=nombre[:20],
-                        Apellido=apellido_p[:20],
-                        Correo_Usuario=correo[:50],
-                        Contraseña=make_password(password),
-                        Estado=estado,
-                        Rol=rol_medico
-                    )
-
-                    nuevo_med = Medico.objects.create(
-                        MatriculaProfesional=matricula,
-                        RUN_Medico=run[:25],
-                        Nombre_Medico=nombre[:20],
-                        SegNombre_Medico=seg_nombre[:20],
-                        TerNombre_Medico=ter_nombre[:20],
-                        ApellidoP_Medico=apellido_p[:20],
-                        ApellidoM_Medico=apellido_m[:20],
-                        Especializacion=especializacion[:50],
-                        CorreoContactoMedico=correo[:50],
-                        NumeroContactoMedico=telefono_completo,
-                        Estado=estado,
-                        Usuario=nuevo_usuario
-                    )
-
-                messages.success(request, f'Dr(a). {nuevo_med.Nombre_Medico} {nuevo_med.ApellidoP_Medico} y su cuenta de acceso fueron creados correctamente.')
-
-        except Medico.DoesNotExist:
-            messages.error(request, 'El médico seleccionado no existe.')
-        except Rol.DoesNotExist:
-            messages.error(request, 'Error del sistema: No existe el Rol 3 (Médico) en la base de datos.')
+            messages.success(request, 'Tus datos profesionales se han actualizado correctamente.')
         except Exception as e:
-            messages.error(request, f'Error al guardar médico: {str(e)}')
+            messages.error(request, f'Error al actualizar tus datos: {str(e)}')
 
         return redirect('gestionar_medicos')
 
-    # --- PETICIÓN GET: LISTAR MÉDICOS ---
-    medicos = Medico.objects.select_related('Usuario').all().order_by('MatriculaProfesional')
-    return render(request, 'GestionDeMedicos.html', {
-        'medicos': medicos
+    return render(request, 'GestionDeMedicos.html', {  # <-- Verifica que coincida con el nombre de tu archivo HTML
+        'medico': medico_actual,
+        'medicos': [medico_actual],
     })
 
 def _asegurar_bloques_horario():
@@ -865,11 +978,114 @@ def gestionatencion(request):
     })
 
 def cobro(request):
-  return render(request, "Cobro.html")
+    if request.method == 'POST':
+        atencion_id = request.POST.get('atencion_id', '').strip()
+        metodo_pago = request.POST.get('metodo-pago', '').strip()
+        neto_str = request.POST.get('neto', '0').replace('$', '').replace('.', '').replace(',', '.').strip()
+        iva_str = request.POST.get('iva', '0').replace('$', '').replace('.', '').replace(',', '.').strip()
+        total_str = request.POST.get('total', '0').replace('$', '').replace('.', '').replace(',', '.').strip()
+        estado_atencion = request.POST.get('estado-atencion', '').strip()
+
+        if not atencion_id:
+            messages.error(request, 'Debes seleccionar una atención médica para emitir el cobro.')
+            return redirect('gestionar_cobros')
+
+        try:
+            atencion_obj = Atencion.objects.get(ID_Atencion=atencion_id)
+            monto_neto = float(neto_str or 0)
+            monto_iva = float(iva_str or round(monto_neto * 0.19, 2))
+            monto_total = float(total_str or round(monto_neto + monto_iva, 2))
+
+            if monto_neto <= 0 and monto_total <= 0:
+                messages.error(request, 'El monto neto o total debe ser mayor a $0.')
+                return redirect('gestionar_cobros')
+
+            with transaction.atomic():
+                boleta_obj, creada = Boleta.objects.update_or_create(
+                    Atencion=atencion_obj,
+                    defaults={
+                        'Metodo_Pago': metodo_pago[:20],
+                        'Monto_Neto': monto_neto,
+                        'IVA': monto_iva,
+                        'Total': monto_total,
+                    }
+                )
+
+                if estado_atencion:
+                    atencion_obj.Estado = estado_atencion[:20]
+                    atencion_obj.save()
+
+            accion_txt = 'emitida' if creada else 'actualizada'
+            messages.success(
+                request,
+                f'Boleta #{boleta_obj.ID_Boleta} {accion_txt} correctamente por ${int(round(monto_total)):,} ({metodo_pago}).'
+            )
+
+        except Atencion.DoesNotExist:
+            messages.error(request, 'La atención seleccionada no existe.')
+        except ValueError:
+            messages.error(request, 'Los valores numéricos de Neto, IVA o Total no son válidos.')
+        except Exception as e:
+            messages.error(request, f'Error al registrar el cobro: {str(e)}')
+
+        return redirect('gestionar_cobros')
+
+    # --- PETICIÓN GET ---
+    atenciones = (
+        Atencion.objects.exclude(Estado__iexact='Cancelada')
+        .select_related('Paciente', 'ID_Medico', 'ID_Horario')
+        .order_by('-Dia', 'ID_Horario__Hora_Inicio')
+    )
+
+    # Pre-cargar recetas/medicamentos asociados a cada atención
+    medicamentos_por_atencion = {}
+    for rec in Receta.objects.filter(Atencion__in=atenciones).prefetch_related('medicamentoreceta_set__ID_Medicamento'):
+        lista_meds = [
+            f"{mr.ID_Medicamento.Nombre_Medicamento} ({mr.ID_Medicamento.Nombre_Comun}) — {mr.Indicaciones}"
+            for mr in rec.medicamentoreceta_set.all()
+        ]
+        medicamentos_por_atencion[str(rec.Atencion_id)] = lista_meds
+
+    # Pre-cargar boletas ya emitidas por si se consulta una atención ya cobrada
+    boletas_por_atencion = {}
+    for bol in Boleta.objects.filter(Atencion__in=atenciones):
+        boletas_por_atencion[str(bol.Atencion_id)] = {
+            'id_boleta': bol.ID_Boleta,
+            'metodo_pago': bol.Metodo_Pago,
+            'neto': bol.Monto_Neto,
+            'iva': bol.IVA,
+            'total': bol.Total,
+        }
+
+    # Armar diccionario limpio para serializar con json_script sin errores de sintaxis en JS
+    datos_atenciones = {}
+    for a in atenciones:
+        aid = str(a.ID_Atencion)
+        datos_atenciones[aid] = {
+            'id': a.ID_Atencion,
+            'paciente_nombre': f"{a.Paciente.Nombre_Paciente} {a.Paciente.ApellidoP} {a.Paciente.ApellidoM}".strip(),
+            'paciente_run': a.Paciente.RUN_Paciente,
+            'medico_info': f"Dr(a). {a.ID_Medico.Nombre_Medico} {a.ID_Medico.ApellidoP_Medico} - {a.ID_Medico.Especializacion or 'Medicina General'} - RUN: {a.ID_Medico.RUN_Medico} / Mat. #{a.ID_Medico.MatriculaProfesional}",
+            'paciente_info': f"{a.Paciente.Nombre_Paciente} {a.Paciente.ApellidoP} {a.Paciente.ApellidoM} - RUN: {a.Paciente.RUN_Paciente} - Tel: {a.Paciente.NumeroContactoPaciente}",
+            'fecha_hora': f"{a.Dia.strftime('%d/%m/%Y')} {a.ID_Horario.Hora_Inicio.strftime('%H:%M')}",
+            'descripcion': a.Descripcion,
+            'estado': a.Estado,
+            'medicamentos': medicamentos_por_atencion.get(aid, []),
+            'boleta': boletas_por_atencion.get(aid, None),
+        }
+
+    return render(request, 'Cobro.html', {  # <-- VERIFICA EL NOMBRE EXACTO DE TU ARCHIVO HTML
+        'atenciones': atenciones,
+        'datos_atenciones': datos_atenciones,
+    })
 
 from django.contrib.auth.hashers import check_password
 
 def iniciosesion(request):
+    # <-- AQUÍ: Si retrocede hasta el login, limpiar el rol y la sesión automáticamente
+    if request.method == 'GET' and request.session.get('usuario_rol'):
+        request.session.flush()
+
     if request.method == 'POST':
         identificador = request.POST.get('run', '').strip()  # Puede ser RUN o Correo
         password = request.POST.get('password', '').strip()

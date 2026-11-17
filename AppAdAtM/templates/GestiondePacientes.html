@@ -184,26 +184,77 @@
 <body>
 
   <!-- Barra Superior (Navbar) -->
-  <header class="navbar">
-    <div class="brand-section">
-      <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
-      <img src="tu-sublogo-texto.png" alt="Biotechnica" class="nav-sublogo">
-      <span class="nav-slogan">Slogan</span>
-    </div>
-    <nav class="navbar-content">
-      <ul class="nav-ul"> 
-        <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
-        <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
-        <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-        <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-        <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
-        <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-        <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
-        <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-        <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
-      </ul>
-    </nav>
-  </header>
+<header class="navbar">
+  <div class="brand-section">
+    <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
+    <img src="tu-sublogo-texto.png" alt="Biotechnica" class="nav-sublogo">
+    <span class="nav-slogan">
+      {% if request.session.usuario_nombre %}
+        Hola, {{ request.session.usuario_nombre }}
+      {% else %}
+        Biotechnica
+      {% endif %}
+    </span>
+  </div>
+
+  <nav class="navbar-content">
+    <ul class="nav-ul">
+      {% with rol=request.session.usuario_rol %}
+
+        {# --- 1. ADMINISTRADOR (Rol 1) --- #}
+        {% if rol == 1 %}
+          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
+          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
+          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
+          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+
+        {# --- 2. RECEPCIONISTA (Rol 2) --- #}
+        {% elif rol == 2 %}
+          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
+          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
+          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+
+        {# --- 3. MÉDICO (Rol 3) --- #}
+        {% elif rol == 3 %}
+          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Mi Disponibilidad</a></li>
+          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Mis Atenciones</a></li>
+          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Medicamentos</a></li>
+          <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Mis Datos Médicos</a></li>
+
+        {# --- 4. PACIENTE (Rol 4) --- #}
+        {% elif rol == 4 %}
+          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Agendar Atención</a></li>
+
+        {% endif %}
+
+        {# --- ENLACES COMUNES PARA TODOS LOS ROLES AUTENTICADOS --- #}
+        {% if rol %}
+          <li>
+            <a href="{% url 'gestionar_usuarios' %}" class="nav-text">
+              {% if rol == 1 %}Gestionar Usuarios{% else %}Mi Cuenta{% endif %}
+            </a>
+          </li>
+          <li><a href="{% url 'cerrar_sesion' %}" class="nav-text" style="color:#ffebee; font-weight:700;">Cerrar Sesión</a></li>
+        {% endif %}
+
+      {% endwith %}
+    </ul>
+  </nav>
+</header>
+
+<script>
+  window.addEventListener('pageshow', function (event) {
+    if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+      window.location.replace("{% url 'inicio_sesion' %}");
+    }
+  });
+</script>
 
   <!-- Contenedor Principal -->
   <main class="dashboard-container">

@@ -7,341 +7,596 @@
   <title>Gestión de Recetas / Atención</title>
   <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   <style>
-    * .navbar,
-.dashboard-container {
-  max-width: 1200px;
-}
+    .navbar,
+    .dashboard-container {
+      max-width: 1200px;
+    }
 
-.left-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+    .left-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.filters-row {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 22px;
-}
+    .filters-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
 
-.filter-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+    .filter-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.filter-item label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 6px;
-  margin-left: 4px;
-}
+    .filter-item label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 6px;
+      margin-left: 4px;
+    }
 
-.section-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #222222;
-  margin-bottom: 14px;
-  padding-left: 4px;
-}
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 14px;
+      padding-left: 4px;
+    }
 
-.user-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 520px;
-  overflow-y: auto;
-  padding-right: 8px;
-}
+    .user-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
 
-.user-list::-webkit-scrollbar,
-.prescription-scroll-container::-webkit-scrollbar { width: 7px; }
-.user-list::-webkit-scrollbar-track,
-.prescription-scroll-container::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-.user-list::-webkit-scrollbar-thumb,
-.prescription-scroll-container::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
+    .user-list::-webkit-scrollbar,
+    .prescription-scroll-container::-webkit-scrollbar { width: 7px; }
+    .user-list::-webkit-scrollbar-track,
+    .prescription-scroll-container::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    .user-list::-webkit-scrollbar-thumb,
+    .prescription-scroll-container::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
 
-.user-item {
-  padding: 12px 14px;
-  background-color: #ffffff;
-  border: 1.5px solid #2e7d32;
-  border-radius: 10px;
-  font-size: 0.82rem;
-  color: #333333;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+    .user-item {
+      padding: 12px 14px;
+      background-color: #ffffff;
+      border: 1.5px solid #2e7d32;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      color: #333333;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-.user-item:hover {
-  background-color: #e8f5e9;
-  transform: translateX(4px);
-  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
-}
+    .user-item:hover,
+    .user-item.selected {
+      background-color: #e8f5e9;
+      transform: translateX(4px);
+      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
+      font-weight: 600;
+    }
 
-.right-panel {
-  flex: 1.35;
-  display: flex;
-  flex-direction: column;
-}
+    .right-panel {
+      flex: 1.35;
+      display: flex;
+      flex-direction: column;
+    }
 
-.hospital-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 1.5px solid #e0e0e0;
-}
+    .hospital-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1.5px solid #e0e0e0;
+      gap: 12px;
+    }
 
-.hospital-header .sublogo-txt {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #2e7d32;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+    .hospital-header .sublogo-txt {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #2e7d32;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
 
-.hospital-header .info-txt {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #666666;
-}
+    .hospital-header .info-txt {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #666666;
+    }
 
-.prescription-scroll-container {
-  max-height: 480px;
-  overflow-y: auto;
-  padding-right: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
+    .prescription-scroll-container {
+      max-height: 480px;
+      overflow-y: auto;
+      padding-right: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
 
-.info-card-block {
-  border: 1.5px solid #2e7d32;
-  border-radius: 12px;
-  padding: 12px 14px;
-  background-color: #fcfcfc;
-}
+    .info-card-block {
+      border: 1.5px solid #2e7d32;
+      border-radius: 12px;
+      padding: 12px 14px;
+      background-color: #fcfcfc;
+    }
 
-.block-title {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #2e7d32;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+    .block-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #2e7d32;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
 
-.info-card-block p {
-  font-size: 0.85rem;
-  color: #444444;
-  line-height: 1.4;
-}
+    .info-card-block p {
+      font-size: 0.85rem;
+      color: #444444;
+      line-height: 1.4;
+    }
 
-.description-text {
-  color: #666666;
-  margin-top: 4px;
-  font-style: italic;
-}
+    .medication-card {
+      border: 1.5px solid #2e7d32;
+      border-radius: 12px;
+      padding: 14px;
+      background-color: #ffffff;
+      position: relative;
+    }
 
-.medication-card {
-  border: 1.5px solid #2e7d32;
-  border-radius: 12px;
-  padding: 14px;
-  background-color: #ffffff;
-  position: relative;
-}
+    .medication-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #2e7d32;
+      margin-bottom: 10px;
+    }
 
-.medication-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #2e7d32;
-  margin-bottom: 10px;
-}
+    .btn-remove-med {
+      background-color: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+      border-radius: 6px;
+      padding: 2px 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      cursor: pointer;
+    }
 
-.medication-card-header .icon-tag {
-  font-size: 0.8rem;
-}
+    .btn-add-med {
+      padding: 10px;
+      border-radius: 10px;
+      border: 1.5px dashed #2e7d32;
+      background-color: #f1f8e9;
+      color: #2e7d32;
+      font-weight: 700;
+      font-size: 0.88rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
 
-input[type="text"],
-input[type="date"],
-select {
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1.5px solid #2e7d32;
-  outline: none;
-  font-size: 0.9rem;
-  color: #333333;
-  background-color: #ffffff;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
+    .btn-add-med:hover {
+      background-color: #dcedc8;
+    }
 
-.form-buttons {
-  display: flex;
-  justify-content: flex-end;
-  gap: 14px;
-  margin-top: 20px;
-}
+    .field-group {
+      display: flex;
+      flex-direction: column;
+    }
 
-.btn {
-  padding: 10px 24px;
-  font-size: 0.92rem;
-  font-weight: 600;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
-}
+    .field-group label {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 4px;
+    }
 
-@media (max-width: 900px) {
-  .dashboard-container { flex-direction: column; }
-  .navbar { flex-direction: column; align-items: flex-start; }
-  .filters-row { flex-direction: column; }
-  .form-buttons { justify-content: stretch; }
-  .form-buttons .btn { flex: 1; }
-}
+    input[type="text"],
+    input[type="date"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 62px;
+    }
+
+    .form-buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 14px;
+      margin-top: 20px;
+    }
+
+    .btn {
+      padding: 10px 24px;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .alert-msg {
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .alert-error {
+      background-color: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+
+    .alert-success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-container { flex-direction: column; }
+      .navbar { flex-direction: column; align-items: flex-start; }
+      .filters-row { flex-direction: column; }
+      .form-buttons { justify-content: stretch; }
+      .form-buttons .btn { flex: 1; }
+    }
   </style>
   <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
 </head>
 <body>
 
-  <!-- Barra Superior (Navbar)[cite: 9] -->
-  <header class="navbar">
-    <div class="brand-section">
-      <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
-      <img src="tu-sublogo-texto.png" alt="Biotechnica" class="nav-sublogo">
-      <span class="nav-slogan">Slogan</span>
-    </div>
-    <nav class="navbar-content">
-          <ul class="nav-ul"> 
-      <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
-      <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
-      <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-      <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-      <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
-      <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-      <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
-      <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-      <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
-    </ul>
-    </nav>
-  </header>
+  <!-- Barra Superior (Navbar) -->
+<header class="navbar">
+  <div class="brand-section">
+    <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
+    <img src="tu-sublogo-texto.png" alt="Biotechnica" class="nav-sublogo">
+    <span class="nav-slogan">
+      {% if request.session.usuario_nombre %}
+        Hola, {{ request.session.usuario_nombre }}
+      {% else %}
+        Biotechnica
+      {% endif %}
+    </span>
+  </div>
 
-  <!-- Contenedor Principal[cite: 9] -->
+  <nav class="navbar-content">
+    <ul class="nav-ul">
+      {% with rol=request.session.usuario_rol %}
+
+        {# --- 1. ADMINISTRADOR (Rol 1) --- #}
+        {% if rol == 1 %}
+          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
+          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
+          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
+          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+
+        {# --- 2. RECEPCIONISTA (Rol 2) --- #}
+        {% elif rol == 2 %}
+          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
+          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
+          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+
+        {# --- 3. MÉDICO (Rol 3) --- #}
+        {% elif rol == 3 %}
+          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Mi Disponibilidad</a></li>
+          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Mis Atenciones</a></li>
+          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Medicamentos</a></li>
+          <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Mis Datos Médicos</a></li>
+
+        {# --- 4. PACIENTE (Rol 4) --- #}
+        {% elif rol == 4 %}
+          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Agendar Atención</a></li>
+
+        {% endif %}
+
+        {# --- ENLACES COMUNES PARA TODOS LOS ROLES AUTENTICADOS --- #}
+        {% if rol %}
+          <li>
+            <a href="{% url 'gestionar_usuarios' %}" class="nav-text">
+              {% if rol == 1 %}Gestionar Usuarios{% else %}Mi Cuenta{% endif %}
+            </a>
+          </li>
+          <li><a href="{% url 'cerrar_sesion' %}" class="nav-text" style="color:#ffebee; font-weight:700;">Cerrar Sesión</a></li>
+        {% endif %}
+
+      {% endwith %}
+    </ul>
+  </nav>
+</header>
+
+<script>
+  window.addEventListener('pageshow', function (event) {
+    if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+      window.location.replace("{% url 'inicio_sesion' %}");
+    }
+  });
+</script>
+
+  <!-- Contenedor Principal -->
   <main class="dashboard-container">
 
-    <!-- Panel Izquierdo: Filtros y Lista de Atenciones[cite: 9] -->
+    <!-- Panel Izquierdo: Filtros y Lista de Atenciones -->
     <section class="card left-panel">
       <div class="filters-row">
-        <!-- Filtrar por Paciente: Combobox (triángulo hacia abajo)[cite: 4, 9] -->
         <div class="filter-item">
           <label for="filtro-paciente">Filtrar por Paciente</label>
-          <select id="filtro-paciente" name="filtro-paciente">
-            <option value="">Seleccione Paciente...</option>
-            <option value="1">Paciente 1</option>
-            <option value="2">Paciente 2</option>
+          <select id="filtro-paciente">
+            <option value="">Todos los pacientes...</option>
+            {% for p in pacientes %}
+              <option value="{{ p.RUN_Paciente }}">{{ p.RUN_Paciente }} - {{ p.Nombre_Paciente }} {{ p.ApellidoP }}</option>
+            {% endfor %}
           </select>
         </div>
 
-        <!-- Fecha: Calendario (cuadro)[cite: 4, 9] -->
         <div class="filter-item">
           <label for="filtro-fecha">Fecha</label>
-          <input type="date" id="filtro-fecha" name="filtro-fecha">
+          <input type="date" id="filtro-fecha">
         </div>
       </div>
 
-      <h2 class="section-title">Atenciones Registradas</h2>
+      <h2 class="section-title">Atenciones Registradas ({{ atenciones|length }})</h2>
       <div class="user-list">
-        <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-        <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-        <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-        <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-        <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-        <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-        <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-        <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-        <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-        <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
+        {% for a in atenciones %}
+          <div class="user-item"
+               data-id="{{ a.ID_Atencion }}"
+               data-medico="Dr(a). {{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} - {{ a.ID_Medico.Especializacion|default:'Medicina General' }} - RUN: {{ a.ID_Medico.RUN_Medico }} / Mat. #{{ a.ID_Medico.MatriculaProfesional }}"
+               data-paciente="{{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} {{ a.Paciente.ApellidoM }} - RUN: {{ a.Paciente.RUN_Paciente }}"
+               data-run="{{ a.Paciente.RUN_Paciente }}"
+               data-fecha="{{ a.Dia|date:'Y-m-d' }}"
+               data-fecha-texto="{{ a.Dia|date:'d/m/Y' }} {{ a.ID_Horario.Hora_Inicio|time:'H:i' }}"
+               data-descripcion="{{ a.Descripcion }}"
+               data-estado="{{ a.Estado }}">
+            Dr(a). {{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} - {{ a.Dia|date:'d/m/Y' }} {{ a.ID_Horario.Hora_Inicio|time:'H:i' }} - {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} [{{ a.Estado }}]
+          </div>
+        {% empty %}
+          <p style="color:#666; font-size:0.9rem; padding:10px;">No hay atenciones disponibles para emitir receta.</p>
+        {% endfor %}
       </div>
     </section>
 
-    <!-- Panel Derecho: Gestión de Recetas / Atención[cite: 9] -->
+    <!-- Panel Derecho: Gestión de Recetas / Atención -->
     <section class="card right-panel">
-      <!-- Encabezado con Sublogo Hospital e Información Hospital[cite: 9] -->
       <div class="hospital-header">
-        <span class="sublogo-txt">SubLogo Hospital</span>
-        <span class="info-txt">Informacion Hospital</span>
+        <span class="sublogo-txt">Biotechnica Clínica</span>
+        <span class="info-txt" id="estado-receta-header">Selecciona una atención</span>
       </div>
 
-      <!-- Contenedor con barra de scroll para el documento médico[cite: 9] -->
-      <div class="prescription-scroll-container">
-        
-        <!-- Información Médico[cite: 9] -->
-        <div class="info-card-block">
-          <div class="block-title">Información Medico</div>
-          <p>Dr. Nombre Médico - Especialidad - RUN / Registro Médico</p>
-        </div>
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
 
-        <!-- Información Paciente[cite: 9] -->
-        <div class="info-card-block">
-          <div class="block-title">Información Paciente</div>
-          <p>Nombre Paciente - RUN: 12.345.678-9 - Edad: 32 años</p>
-        </div>
+      <form method="POST" action="" id="form-receta">
+        {% csrf_token %}
+        <input type="hidden" id="atencion_id" name="atencion_id" value="">
 
-        <!-- Información Atención / Descripción[cite: 9] -->
-        <div class="info-card-block">
-          <div class="block-title">Informacion Atencion</div>
-          <p class="description-text">Descripcion del diagnóstico o notas de la atención médica realizada al paciente.</p>
-        </div>
+        <!-- Contenedor con barra de scroll para el documento médico -->
+        <div class="prescription-scroll-container">
 
-        <!-- Módulo de Medicamento[cite: 9] -->
-        <div class="medication-card">
-          <div class="medication-card-header">
-            <span class="icon-tag">🗂️</span>
-            <span>Medicamento</span>
+          <!-- Institución -->
+          <div class="info-card-block">
+            <div class="block-title">Institución Emisora</div>
+            <input type="text" id="institucion" name="institucion" maxlength="50" value="Clínica Biotechnica" required>
           </div>
 
-          <!-- Combobox de Medicamento[cite: 4, 9] -->
-          <div class="field-group">
-            <label for="select-medicamento">Seleccionar Medicamento</label>
-            <select id="select-medicamento" name="select-medicamento">
-              <option value="" disabled selected>Seleccione medicamento...</option>
-              <option value="paracetamol">Paracetamol 500mg</option>
-              <option value="amoxicilina">Amoxicilina 875mg</option>
-              <option value="ibuprofeno">Ibuprofeno 400mg</option>
-            </select>
+          <!-- Información Médico -->
+          <div class="info-card-block">
+            <div class="block-title">Información Médico</div>
+            <p id="info-medico">Selecciona una atención de la lista izquierda...</p>
           </div>
 
-          <!-- Indicaciones[cite: 9] -->
-          <div class="field-group" style="margin-top: 10px;">
-            <label for="indicaciones">Indicaciones</label>
-            <input type="text" id="indicaciones" name="indicaciones" placeholder="Dosis y frecuencia (ej: 1 comprimido cada 8 horas por 7 días)">
+          <!-- Información Paciente -->
+          <div class="info-card-block">
+            <div class="block-title">Información Paciente</div>
+            <p id="info-paciente">Selecciona una atención de la lista izquierda...</p>
           </div>
+
+          <!-- Información Atención / Diagnóstico -->
+          <div class="info-card-block">
+            <div class="block-title">Diagnóstico / Notas de Atención</div>
+            <textarea id="diagnostico" name="diagnostico" placeholder="Diagnóstico o evolución médica de la consulta..." required></textarea>
+          </div>
+
+          <!-- Contenedor dinámico de tarjetas de Medicamentos -->
+          <div id="medicamentos-container" style="display:flex; flex-direction:column; gap:12px;"></div>
+
+          <!-- Botón Añadir Medicamento -->
+          <button type="button" class="btn-add-med" id="btn-add-med">
+            <span>+</span> Añadir Medicamento
+          </button>
+
         </div>
 
-        <!-- Botón Añadir Medicamento[cite: 9] -->
-        <button type="button" class="btn-add-med">
-          <span>+</span> Añadir Medicamento
-        </button>
-
-      </div>
-
-      <!-- Botones de Acción: Emitir Atención y Cancelar[cite: 9] -->
-      <div class="form-buttons">
-        <button type="button" class="btn btn-submit">Emitir Atencion</button>
-        <button type="button" class="btn btn-cancel">Cancelar</button>
-      </div>
+        <!-- Botones de Acción: Emitir Atención y Cancelar -->
+        <div class="form-buttons">
+          <button type="submit" class="btn btn-submit" id="btn-emitir">Emitir Atención</button>
+          <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
+        </div>
+      </form>
     </section>
 
   </main>
+
+  <!-- Plantilla oculta para clonar tarjetas de medicamentos -->
+  <template id="template-medicamento">
+    <div class="medication-card">
+      <div class="medication-card-header">
+        <div>
+          <span class="icon-tag">🗂️</span>
+          <span class="med-titulo">Medicamento</span>
+        </div>
+        <button type="button" class="btn-remove-med">Quitar</button>
+      </div>
+
+      <div class="field-group">
+        <label>Seleccionar Medicamento</label>
+        <select name="medicamento_id[]" required>
+          <option value="" disabled selected>Seleccione medicamento...</option>
+          {% for med in medicamentos %}
+            <option value="{{ med.ID_Medicamento }}">{{ med.Nombre_Medicamento }} ({{ med.Nombre_Comun }})</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="field-group" style="margin-top: 10px;">
+        <label>Indicaciones</label>
+        <input type="text" name="indicaciones[]" maxlength="200" placeholder="Dosis y frecuencia (ej: 1 comprimido cada 8 horas por 7 días)" required>
+      </div>
+    </div>
+  </template>
+
+  <script>
+    const RECETAS_EXISTENTES = {{ recetas_json|safe }};
+    const items = document.querySelectorAll('.user-item');
+    const inputAtencionId = document.getElementById('atencion_id');
+    const inputInstitucion = document.getElementById('institucion');
+    const pMedico = document.getElementById('info-medico');
+    const pPaciente = document.getElementById('info-paciente');
+    const txtDiagnostico = document.getElementById('diagnostico');
+    const headerEstado = document.getElementById('estado-receta-header');
+    const medContainer = document.getElementById('medicamentos-container');
+    const medTemplate = document.getElementById('template-medicamento');
+    const btnEmitir = document.getElementById('btn-emitir');
+
+    function agregarTarjetaMedicamento(medId = '', indicaciones = '') {
+      const clone = medTemplate.content.cloneNode(true);
+      const card = clone.querySelector('.medication-card');
+      const selectMed = card.querySelector('select');
+      const inputInd = card.querySelector('input');
+      const btnQuitar = card.querySelector('.btn-remove-med');
+
+      if (medId) selectMed.value = medId;
+      if (indicaciones) inputInd.value = indicaciones;
+
+      btnQuitar.addEventListener('click', () => {
+        if (medContainer.children.length > 1) {
+          card.remove();
+          renumerarMedicamentos();
+        } else {
+          selectMed.selectedIndex = 0;
+          inputInd.value = '';
+        }
+      });
+
+      medContainer.appendChild(clone);
+      renumerarMedicamentos();
+    }
+
+    function renumerarMedicamentos() {
+      const cards = medContainer.querySelectorAll('.medication-card');
+      cards.forEach((c, idx) => {
+        c.querySelector('.med-titulo').textContent = `Medicamento #${idx + 1}`;
+      });
+    }
+
+    // Iniciar con 1 tarjeta de medicamento lista
+    agregarTarjetaMedicamento();
+
+    document.getElementById('btn-add-med').addEventListener('click', () => {
+      agregarTarjetaMedicamento();
+    });
+
+    // Al seleccionar una atención de la lista izquierda
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        items.forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+
+        const atId = item.dataset.id;
+        inputAtencionId.value = atId;
+        pMedico.textContent = item.dataset.medico;
+        pPaciente.textContent = item.dataset.paciente;
+        txtDiagnostico.value = item.dataset.descripcion;
+
+        // Revisar si esta atención ya tenía una receta guardada
+        medContainer.innerHTML = '';
+        const recetaPrevia = RECETAS_EXISTENTES[atId];
+
+        if (recetaPrevia) {
+          headerEstado.textContent = `Receta #${recetaPrevia.id_receta} (${item.dataset.fechaTexto})`;
+          inputInstitucion.value = recetaPrevia.institucion;
+          btnEmitir.textContent = 'Actualizar Receta';
+          recetaPrevia.medicamentos.forEach(m => {
+            agregarTarjetaMedicamento(m.id, m.indicaciones);
+          });
+        } else {
+          headerEstado.textContent = `Atención #${atId} - ${item.dataset.fechaTexto}`;
+          inputInstitucion.value = 'Clínica Biotechnica';
+          btnEmitir.textContent = 'Emitir Atención';
+          agregarTarjetaMedicamento();
+        }
+      });
+    });
+
+    // Botón Cancelar
+    document.getElementById('btn-cancelar').addEventListener('click', () => {
+      items.forEach(i => i.classList.remove('selected'));
+      inputAtencionId.value = '';
+      pMedico.textContent = 'Selecciona una atención de la lista izquierda...';
+      pPaciente.textContent = 'Selecciona una atención de la lista izquierda...';
+      txtDiagnostico.value = '';
+      inputInstitucion.value = 'Clínica Biotechnica';
+      headerEstado.textContent = 'Selecciona una atención';
+      btnEmitir.textContent = 'Emitir Atención';
+      medContainer.innerHTML = '';
+      agregarTarjetaMedicamento();
+    });
+
+    // Filtros en vivo (Paciente y Fecha)
+    const filtroPaciente = document.getElementById('filtro-paciente');
+    const filtroFecha = document.getElementById('filtro-fecha');
+
+    function filtrarAtenciones() {
+      const runSel = filtroPaciente.value;
+      const fechaSel = filtroFecha.value;
+
+      items.forEach(item => {
+        const coincideRun = !runSel || item.dataset.run === runSel;
+        const coincideFecha = !fechaSel || item.dataset.fecha === fechaSel;
+        item.style.display = (coincideRun && coincideFecha) ? 'block' : 'none';
+      });
+    }
+
+    filtroPaciente.addEventListener('change', filtrarAtenciones);
+    filtroFecha.addEventListener('change', filtrarAtenciones);
+  </script>
 
 </body>
 </html>

@@ -7,286 +7,387 @@
   <title>Cobro</title>
   <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   <style>
-    * .navbar,
-.dashboard-container {
-  max-width: 1200px;
-}
+    .navbar,
+    .dashboard-container {
+      max-width: 1200px;
+    }
 
-.left-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+    .left-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.panel-header-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: #222222;
-  margin-bottom: 20px;
-}
+    .panel-header-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 18px;
+    }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 12px;
-}
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 12px;
+    }
 
-.form-group label {
-  font-size: 0.83rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 5px;
-  margin-left: 4px;
-}
+    .form-group label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 5px;
+      margin-left: 4px;
+    }
 
-input[type="text"],
-input[type="number"],
-select {
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1.5px solid #2e7d32;
-  outline: none;
-  font-size: 0.9rem;
-  color: #333333;
-  background-color: #ffffff;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
+    input[type="text"],
+    input[type="number"],
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
 
-.form-buttons {
-  display: flex;
-  gap: 14px;
-  margin-top: 18px;
-}
+    input[readonly] {
+      background-color: #f6faf6;
+    }
 
-.btn {
-  flex: 1;
-  padding: 10px 0;
-  font-size: 0.92rem;
-  font-weight: 600;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
-}
+    .form-buttons {
+      display: flex;
+      gap: 14px;
+      margin-top: 18px;
+    }
 
-.right-panel {
-  flex: 1.25;
-  display: flex;
-  flex-direction: column;
-}
+    .btn {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
 
-.hospital-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 8px;
-  border-bottom: 1.5px solid #e0e0e0;
-}
+    .right-panel {
+      flex: 1.25;
+      display: flex;
+      flex-direction: column;
+    }
 
-.hospital-header .sublogo-txt {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #2e7d32;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+    .hospital-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1.5px solid #e0e0e0;
+    }
 
-.hospital-header .info-txt {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #666666;
-}
+    .hospital-header .sublogo-txt {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #2e7d32;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
 
-.prescription-scroll-container {
-  max-height: 490px;
-  overflow-y: auto;
-  padding-right: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
+    .hospital-header .info-txt {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #666666;
+    }
 
-.prescription-scroll-container::-webkit-scrollbar { width: 7px; }
-.prescription-scroll-container::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-.prescription-scroll-container::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
+    .prescription-scroll-container {
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
 
-.info-card-block {
-  border: 1.5px solid #2e7d32;
-  border-radius: 12px;
-  padding: 12px 14px;
-  background-color: #fcfcfc;
-}
+    .prescription-scroll-container::-webkit-scrollbar { width: 7px; }
+    .prescription-scroll-container::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    .prescription-scroll-container::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
 
-.block-title {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #2e7d32;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+    .info-card-block {
+      border: 1.5px solid #2e7d32;
+      border-radius: 12px;
+      padding: 12px 14px;
+      background-color: #fcfcfc;
+    }
 
-.info-card-block p {
-  font-size: 0.85rem;
-  color: #444444;
-  line-height: 1.4;
-}
+    .block-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #2e7d32;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
 
-.description-text {
-  color: #666666;
-  margin-top: 4px;
-  font-style: italic;
-}
+    .info-card-block p {
+      font-size: 0.85rem;
+      color: #444444;
+      line-height: 1.4;
+    }
 
-.medication-card {
-  border: 1.5px solid #2e7d32;
-  border-radius: 12px;
-  padding: 14px;
-  background-color: #ffffff;
-  min-height: 80px;
-}
+    .description-text {
+      color: #666666;
+      margin-top: 4px;
+      font-style: italic;
+    }
 
-.medication-card-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #2e7d32;
-  margin-bottom: 8px;
-}
+    .medication-card {
+      border: 1.5px solid #2e7d32;
+      border-radius: 12px;
+      padding: 14px;
+      background-color: #ffffff;
+      min-height: 80px;
+    }
 
-.medication-card-header .icon-tag {
-  font-size: 0.8rem;
-}
+    .medication-card-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #2e7d32;
+      margin-bottom: 8px;
+    }
 
-@media (max-width: 900px) {
-  .dashboard-container { flex-direction: column; }
-  .navbar { flex-direction: column; align-items: flex-start; }
-}
+    .medication-card-header .icon-tag {
+      font-size: 0.8rem;
+    }
+
+    .alert-msg {
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .alert-error {
+      background-color: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+
+    .alert-success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-container { flex-direction: column; }
+      .navbar { flex-direction: column; align-items: flex-start; }
+    }
   </style>
-   <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
+  <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
 </head>
 <body>
 
-  <!-- Barra Superior (Navbar)[cite: 13] -->
-  <header class="navbar">
-    <div class="brand-section">
-      <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
-      <img src="tu-sublogo-texto.png" alt="Biotechnica" class="nav-sublogo">
-      <span class="nav-slogan">Slogan</span>
-    </div>
-    <nav class="navbar-content">
-          <ul class="nav-ul"> 
-      <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
-      <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
-      <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-      <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-      <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
-      <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-      <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
-      <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-      <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
-    </ul>
-    </nav>
-  </header>
+  <!-- Barra Superior (Navbar) -->
+<header class="navbar">
+  <div class="brand-section">
+    <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
+    <img src="tu-sublogo-texto.png" alt="Biotechnica" class="nav-sublogo">
+    <span class="nav-slogan">
+      {% if request.session.usuario_nombre %}
+        Hola, {{ request.session.usuario_nombre }}
+      {% else %}
+        Biotechnica
+      {% endif %}
+    </span>
+  </div>
 
-  <!-- Contenedor Principal[cite: 13] -->
+  <nav class="navbar-content">
+    <ul class="nav-ul">
+      {% with rol=request.session.usuario_rol %}
+
+        {# --- 1. ADMINISTRADOR (Rol 1) --- #}
+        {% if rol == 1 %}
+          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
+          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
+          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
+          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+
+        {# --- 2. RECEPCIONISTA (Rol 2) --- #}
+        {% elif rol == 2 %}
+          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
+          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
+          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+
+        {# --- 3. MÉDICO (Rol 3) --- #}
+        {% elif rol == 3 %}
+          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Mi Disponibilidad</a></li>
+          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Mis Atenciones</a></li>
+          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Medicamentos</a></li>
+          <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Mis Datos Médicos</a></li>
+
+        {# --- 4. PACIENTE (Rol 4) --- #}
+        {% elif rol == 4 %}
+          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Agendar Atención</a></li>
+
+        {% endif %}
+
+        {# --- ENLACES COMUNES PARA TODOS LOS ROLES AUTENTICADOS --- #}
+        {% if rol %}
+          <li>
+            <a href="{% url 'gestionar_usuarios' %}" class="nav-text">
+              {% if rol == 1 %}Gestionar Usuarios{% else %}Mi Cuenta{% endif %}
+            </a>
+          </li>
+          <li><a href="{% url 'cerrar_sesion' %}" class="nav-text" style="color:#ffebee; font-weight:700;">Cerrar Sesión</a></li>
+        {% endif %}
+
+      {% endwith %}
+    </ul>
+  </nav>
+</header>
+
+<script>
+  window.addEventListener('pageshow', function (event) {
+    if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+      window.location.replace("{% url 'inicio_sesion' %}");
+    }
+  });
+</script>
+
+  <!-- Contenedor Principal -->
   <main class="dashboard-container">
 
-    <!-- Panel Izquierdo: Formulario de Cobro[cite: 13] -->
+    <!-- Panel Izquierdo: Formulario de Cobro -->
     <section class="card left-panel">
-      <h1 class="panel-header-title">Cobro</h1>
+      <h1 class="panel-header-title" id="titulo-cobro">Cobro</h1>
 
-      <form onsubmit="event.preventDefault();">
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" action="" id="form-cobro">
+        {% csrf_token %}
+
         <div class="form-group">
-          <label for="total">Total</label>
-          <input type="text" id="total" name="total" placeholder="$0" required>
+          <label for="atencion_id">Seleccionar Atención</label>
+          <select id="atencion_id" name="atencion_id" required>
+            <option value="" disabled selected>Seleccione una atención...</option>
+            {% for a in atenciones %}
+              <option value="{{ a.ID_Atencion }}">
+                #{{ a.ID_Atencion }} | {{ a.Dia|date:'d/m/Y' }} {{ a.ID_Horario.Hora_Inicio|time:'H:i' }} - {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} ({{ a.Paciente.RUN_Paciente }}) [{{ a.Estado }}]
+              </option>
+            {% endfor %}
+          </select>
         </div>
 
         <div class="form-group">
-          <label for="metodo-pago">Metodo de Pago</label>
-          <input type="text" id="metodo-pago" name="metodo-pago" placeholder="Efectivo, Débito, Crédito..." required>
+          <label for="metodo-pago">Método de Pago</label>
+          <select id="metodo-pago" name="metodo-pago" required>
+            <option value="" disabled selected>Seleccione método...</option>
+            <option value="Efectivo">Efectivo</option>
+            <option value="Débito">Débito</option>
+            <option value="Crédito">Crédito</option>
+            <option value="Transferencia">Transferencia</option>
+            <option value="Bono Fonasa/Isapre">Bono Fonasa / Isapre</option>
+          </select>
         </div>
 
         <div class="form-group">
-          <label for="neto">Neto</label>
-          <input type="text" id="neto" name="neto" placeholder="$0" required>
+          <label for="neto">Monto Neto ($)</label>
+          <input type="number" id="neto" name="neto" min="0" step="1" placeholder="Ej. 25000" required>
         </div>
 
         <div class="form-group">
-          <label for="iva">IVA</label>
-          <input type="text" id="iva" name="iva" placeholder="19%" required>
+          <label for="iva">IVA (19%)</label>
+          <input type="number" id="iva" name="iva" min="0" step="0.01" placeholder="0" readonly required>
+        </div>
+
+        <div class="form-group">
+          <label for="total">Total ($)</label>
+          <input type="number" id="total" name="total" min="0" step="0.01" placeholder="0" required>
         </div>
 
         <div class="form-group">
           <label for="paciente">Paciente</label>
-          <input type="text" id="paciente" name="paciente" placeholder="Nombre completo del paciente" required>
+          <input type="text" id="paciente" name="paciente" placeholder="Nombre completo del paciente" readonly required>
         </div>
 
         <div class="form-group">
           <label for="run">RUN</label>
-          <input type="text" id="run" name="run" placeholder="12.345.678-9" required>
+          <input type="text" id="run" name="run" placeholder="12.345.678-9" readonly required>
         </div>
 
-        <!-- Estado Atención: Combobox (triángulo hacia abajo)[cite: 4, 13] -->
         <div class="form-group">
-          <label for="estado-atencion">Estado Atencion</label>
+          <label for="estado-atencion">Estado Atención</label>
           <select id="estado-atencion" name="estado-atencion" required>
-            <option value="" disabled selected>Seleccione estado...</option>
-            <option value="pagado">Pagado</option>
-            <option value="pendiente">Pendiente de Pago</option>
-            <option value="anulado">Anulado</option>
+            <option value="Pagada" selected>Pagada</option>
+            <option value="Realizada">Realizada</option>
+            <option value="Programada">Pendiente de Pago (Programada)</option>
+            <option value="Cancelada">Anulado (Cancelada)</option>
           </select>
         </div>
 
-        <!-- Botones de Acción: Cobrar y Cancelar[cite: 13] -->
         <div class="form-buttons">
-          <button type="submit" class="btn btn-submit">Cobrar</button>
-          <button type="button" class="btn btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-submit" id="btn-cobrar">Cobrar</button>
+          <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
         </div>
       </form>
     </section>
 
-    <!-- Panel Derecho: Información Hospitalaria y de Atención[cite: 13] -->
+    <!-- Panel Derecho: Información Hospitalaria y de Atención -->
     <section class="card right-panel">
-      <!-- Encabezado Sublogo Hospital e Información Hospital[cite: 13] -->
       <div class="hospital-header">
-        <span class="sublogo-txt">SubLogo Hospital</span>
-        <span class="info-txt">Informacion Hospital</span>
+        <span class="sublogo-txt">Biotechnica Clínica</span>
+        <span class="info-txt" id="header-boleta-info">Detalle de Atención</span>
       </div>
 
-      <!-- Contenedor scrollable con el detalle de la consulta[cite: 13] -->
       <div class="prescription-scroll-container">
-        
-        <!-- Información Médico[cite: 13] -->
+
+        <!-- Información Médico -->
         <div class="info-card-block">
-          <div class="block-title">Información Medico</div>
-          <p>Dr. Nombre Médico - Especialidad - RUN / Registro Médico</p>
+          <div class="block-title">Información Médico</div>
+          <p id="detalle-medico">Selecciona una atención para ver el médico tratante...</p>
         </div>
 
-        <!-- Información Paciente[cite: 13] -->
+        <!-- Información Paciente -->
         <div class="info-card-block">
           <div class="block-title">Información Paciente</div>
-          <p>Nombre Paciente - RUN: 12.345.678-9 - Edad: 32 años</p>
+          <p id="detalle-paciente">Selecciona una atención para ver los datos del paciente...</p>
         </div>
 
-        <!-- Información Atención / Descripción[cite: 13] -->
+        <!-- Información Atención / Descripción -->
         <div class="info-card-block">
-          <div class="block-title">Informacion Atencion</div>
-          <p class="description-text">Descripcion de la atención efectuada y servicios a facturar.</p>
+          <div class="block-title">Información Atención</div>
+          <p class="description-text" id="detalle-atencion">Descripción de la atención efectuada y servicios a facturar.</p>
         </div>
 
-        <!-- Bloque Medicamento[cite: 13] -->
+        <!-- Bloque Medicamento -->
         <div class="medication-card">
           <div class="medication-card-header">
             <span class="icon-tag">🗂️</span>
-            <span>Medicamento</span>
+            <span>Medicamentos Recetados</span>
           </div>
-          <div class="medication-content">
-            <p>Detalle de fármacos recetados o insumos clínicos utilizados.</p>
+          <div class="medication-content" id="detalle-medicamentos">
+            <p style="font-size:0.85rem; color:#666;">Detalle de fármacos recetados asociados a la atención.</p>
           </div>
         </div>
 
@@ -294,6 +395,119 @@ select {
     </section>
 
   </main>
+
+  {{ datos_atenciones|json_script:"atenciones-data" }}
+
+  <script>
+    const ATENCIONES_DATA = JSON.parse(document.getElementById('atenciones-data').textContent);
+
+    const selectAtencion = document.getElementById('atencion_id');
+    const selectMetodo = document.getElementById('metodo-pago');
+    const inputNeto = document.getElementById('neto');
+    const inputIva = document.getElementById('iva');
+    const inputTotal = document.getElementById('total');
+    const inputPaciente = document.getElementById('paciente');
+    const inputRun = document.getElementById('run');
+    const selectEstado = document.getElementById('estado-atencion');
+    const tituloCobro = document.getElementById('titulo-cobro');
+    const btnCobrar = document.getElementById('btn-cobrar');
+
+    const headerBoleta = document.getElementById('header-boleta-info');
+    const pMedico = document.getElementById('detalle-medico');
+    const pPaciente = document.getElementById('detalle-paciente');
+    const pAtencion = document.getElementById('detalle-atencion');
+    const divMedicamentos = document.getElementById('detalle-medicamentos');
+
+    // Cálculo automático Neto -> IVA (19%) -> Total
+    inputNeto.addEventListener('input', () => {
+      const neto = parseFloat(inputNeto.value);
+      if (!isNaN(neto) && neto >= 0) {
+        const iva = Math.round(neto * 0.19);
+        inputIva.value = iva;
+        inputTotal.value = Math.round(neto + iva);
+      } else {
+        inputIva.value = '';
+        inputTotal.value = '';
+      }
+    });
+
+    // Cálculo inverso Total -> Neto + IVA (19%)
+    inputTotal.addEventListener('input', () => {
+      const total = parseFloat(inputTotal.value);
+      if (!isNaN(total) && total >= 0) {
+        const neto = Math.round(total / 1.19);
+        const iva = Math.round(total - neto);
+        inputNeto.value = neto;
+        inputIva.value = iva;
+      } else {
+        inputNeto.value = '';
+        inputIva.value = '';
+      }
+    });
+
+    // Al seleccionar una Atención -> rellenar formulario y ficha derecha
+    selectAtencion.addEventListener('change', () => {
+      const data = ATENCIONES_DATA[selectAtencion.value];
+      if (!data) return;
+
+      inputPaciente.value = data.paciente_nombre;
+      inputRun.value = data.paciente_run;
+
+      pMedico.textContent = data.medico_info;
+      pPaciente.textContent = data.paciente_info;
+      pAtencion.textContent = `[${data.fecha_hora}] ${data.descripcion}`;
+
+      // Renderizar medicamentos recetados
+      if (data.medicamentos && data.medicamentos.length > 0) {
+        divMedicamentos.innerHTML = data.medicamentos
+          .map(m => `<p style="font-size:0.84rem; color:#333; margin-bottom:4px;">• ${m}</p>`)
+          .join('');
+      } else {
+        divMedicamentos.innerHTML = '<p style="font-size:0.84rem; color:#666;">Esta atención no tiene receta de medicamentos asociada.</p>';
+      }
+
+      // Si ya tenía una Boleta emitida, precargar sus montos
+      if (data.boleta) {
+        tituloCobro.textContent = `Cobro (Boleta #${data.boleta.id_boleta})`;
+        headerBoleta.textContent = `Boleta #${data.boleta.id_boleta} emitida`;
+        selectMetodo.value = data.boleta.metodo_pago;
+        inputNeto.value = data.boleta.neto;
+        inputIva.value = data.boleta.iva;
+        inputTotal.value = data.boleta.total;
+        selectEstado.value = data.estado === 'Pagada' ? 'Pagada' : data.estado;
+        btnCobrar.textContent = 'Actualizar Boleta';
+      } else {
+        tituloCobro.textContent = 'Cobro';
+        headerBoleta.textContent = `Atención #${data.id} (${data.fecha_hora})`;
+        selectMetodo.selectedIndex = 0;
+        inputNeto.value = '';
+        inputIva.value = '';
+        inputTotal.value = '';
+        selectEstado.value = 'Pagada';
+        btnCobrar.textContent = 'Cobrar';
+      }
+    });
+
+    // Botón Cancelar
+    document.getElementById('btn-cancelar').addEventListener('click', () => {
+      selectAtencion.selectedIndex = 0;
+      selectMetodo.selectedIndex = 0;
+      inputNeto.value = '';
+      inputIva.value = '';
+      inputTotal.value = '';
+      inputPaciente.value = '';
+      inputRun.value = '';
+      selectEstado.value = 'Pagada';
+      tituloCobro.textContent = 'Cobro';
+      headerBoleta.textContent = 'Detalle de Atención';
+      btnCobrar.textContent = 'Cobrar';
+
+      pMedico.textContent = 'Selecciona una atención para ver el médico tratante...';
+      pPaciente.textContent = 'Selecciona una atención para ver los datos del paciente...';
+      pAtencion.textContent = 'Descripción de la atención efectuada y servicios a facturar.';
+      divMedicamentos.innerHTML = '<p style="font-size:0.85rem; color:#666;">Detalle de fármacos recetados asociados a la atención.</p>';
+    });
+  </script>
 
 </body>
 </html>

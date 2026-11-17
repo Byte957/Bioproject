@@ -126,3 +126,7 @@ MAILERS = {
         'BACKEND': 'django.core.mail.backends.console.EmailBackend',
     },
 }
+
+SESSION_COOKIE_AGE = 900          # 900 segundos = 15 minutos de inactividad
+SESSION_SAVE_EVERY_REQUEST = True # Reinicia el contador cada vez que hace clic en algo
+SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Cierra la sesión al cerrar el navegador
