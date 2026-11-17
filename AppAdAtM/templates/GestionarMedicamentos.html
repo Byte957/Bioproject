@@ -1,0 +1,317 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gestión de Medicamentos</title>
+  <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
+  <style>
+    .navbar,
+    .dashboard-container {
+      max-width: 1200px;
+    }
+
+    .left-panel {
+      flex: 1.1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filters-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .filter-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-item label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 6px;
+      margin-left: 4px;
+    }
+
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 14px;
+      padding-left: 4px;
+    }
+
+    .user-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 540px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    .user-list::-webkit-scrollbar { width: 7px; }
+    .user-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    .user-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
+
+    .user-item {
+      padding: 12px 14px;
+      background-color: #ffffff;
+      border: 1.5px solid #2e7d32;
+      border-radius: 10px;
+      font-size: 0.85rem;
+      color: #333333;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .user-item:hover,
+    .user-item.selected {
+      background-color: #e8f5e9;
+      transform: translateX(4px);
+      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
+      font-weight: 600;
+    }
+
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 5px;
+      margin-left: 4px;
+    }
+
+    input[type="text"],
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .alert-msg {
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .alert-error {
+      background-color: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+
+    .alert-success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-container { flex-direction: column; }
+      .navbar { flex-direction: column; align-items: flex-start; }
+      .filters-row { flex-direction: column; }
+    }
+  </style>
+  <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
+</head>
+<body>
+
+  <!-- Barra Superior (Navbar) -->
+  <header class="navbar">
+    <div class="brand-section">
+      <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
+      <img src="tu-sublogo-texto.png" alt="Biotechnica" class="nav-sublogo">
+      <span class="nav-slogan">Slogan</span>
+    </div>
+    <nav class="navbar-content">
+      <ul class="nav-ul"> 
+        <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
+        <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
+        <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+        <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
+        <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+        <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
+        <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+        <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
+        <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+        <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Contenedor Principal -->
+  <main class="dashboard-container">
+
+    <!-- Panel Izquierdo: Buscador y Lista de Medicamentos -->
+    <section class="card left-panel">
+      <div class="filters-row">
+        <div class="filter-item">
+          <label for="filtro-nombre">Buscar por Nombre o Nombre Común</label>
+          <input type="text" id="filtro-nombre" placeholder="Ej. Paracetamol, Ibuprofeno, Tapsin...">
+        </div>
+      </div>
+
+      <h2 class="section-title">Medicamentos Registrados ({{ medicamentos|length }})</h2>
+      <div class="user-list">
+        {% for med in medicamentos %}
+          <div class="user-item"
+               data-id="{{ med.ID_Medicamento }}"
+               data-nombre="{{ med.Nombre_Medicamento }}"
+               data-comun="{{ med.Nombre_Comun }}">
+            #{{ med.ID_Medicamento }} - {{ med.Nombre_Medicamento }} ({{ med.Nombre_Comun }})
+          </div>
+        {% empty %}
+          <p style="color:#666; font-size:0.9rem; padding:10px;">No hay medicamentos registrados todavía.</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Panel Derecho: Formulario de Gestión de Medicamentos -->
+    <section class="card right-panel">
+      <h1 class="panel-header-title" id="titulo-formulario">Nuevo Medicamento</h1>
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" action="" id="form-medicamento">
+        {% csrf_token %}
+        <input type="hidden" id="medicamento_id" name="medicamento_id" value="">
+        <input type="hidden" id="accion" name="accion" value="guardar">
+
+        <div class="form-group">
+          <label for="nombre-medicamento">Nombre del Medicamento (Principio Activo / Técnico)</label>
+          <input type="text" id="nombre-medicamento" name="nombre-medicamento" maxlength="50" placeholder="Ej. Paracetamol 500mg" required>
+        </div>
+
+        <div class="form-group">
+          <label for="nombre-comun">Nombre Común / Comercial</label>
+          <input type="text" id="nombre-comun" name="nombre-comun" maxlength="50" placeholder="Ej. Kitadol, Tapsin, Panadol..." required>
+        </div>
+
+        <div class="form-buttons">
+          <button type="submit" class="btn btn-submit" id="btn-guardar">Agregar Medicamento</button>
+          <button type="button" class="btn" id="btn-eliminar" style="display:none; background-color:#c62828; color:#fff; border:none;">Eliminar</button>
+          <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
+        </div>
+      </form>
+    </section>
+
+  </main>
+
+  <script>
+    const items = document.querySelectorAll('.user-item');
+    const titulo = document.getElementById('titulo-formulario');
+    const inputId = document.getElementById('medicamento_id');
+    const inputAccion = document.getElementById('accion');
+    const inputNombre = document.getElementById('nombre-medicamento');
+    const inputComun = document.getElementById('nombre-comun');
+    const btnGuardar = document.getElementById('btn-guardar');
+    const btnEliminar = document.getElementById('btn-eliminar');
+
+    function limpiarFormulario() {
+      items.forEach(i => i.classList.remove('selected'));
+      inputId.value = '';
+      inputAccion.value = 'guardar';
+      inputNombre.value = '';
+      inputComun.value = '';
+
+      btnEliminar.style.display = 'none';
+      titulo.textContent = 'Nuevo Medicamento';
+      btnGuardar.textContent = 'Agregar Medicamento';
+    }
+
+    // Al hacer clic en un medicamento -> cargar datos para edición
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        items.forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+
+        inputId.value = item.dataset.id;
+        inputAccion.value = 'guardar';
+        inputNombre.value = item.dataset.nombre;
+        inputComun.value = item.dataset.comun;
+
+        btnEliminar.style.display = 'inline-block';
+        titulo.textContent = `Gestionar Medicamento #${item.dataset.id}`;
+        btnGuardar.textContent = 'Guardar Cambios';
+      });
+    });
+
+    btnEliminar.addEventListener('click', () => {
+      if (confirm('¿Seguro que deseas eliminar este medicamento del catálogo?')) {
+        inputAccion.value = 'eliminar';
+        document.getElementById('form-medicamento').submit();
+      }
+    });
+
+    document.getElementById('btn-cancelar').addEventListener('click', limpiarFormulario);
+
+    // Filtro en vivo por nombre técnico o nombre común
+    document.getElementById('filtro-nombre').addEventListener('input', function () {
+      const texto = this.value.toLowerCase();
+      items.forEach(item => {
+        item.style.display = item.textContent.toLowerCase().includes(texto) ? 'block' : 'none';
+      });
+    });
+  </script>
+
+</body>
+</html>

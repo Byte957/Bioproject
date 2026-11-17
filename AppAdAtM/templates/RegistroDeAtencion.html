@@ -7,253 +7,383 @@
   <title>Registro de Atención</title>
   <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   <style>
-    *.navbar,
-.dashboard-container {
-  max-width: 1200px;
-}
+    .navbar,
+    .dashboard-container {
+      max-width: 1200px;
+    }
 
-.left-panel {
-  flex: 1.1;
-  display: flex;
-  flex-direction: column;
-}
+    .left-panel {
+      flex: 1.1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.filters-row {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 22px;
-}
+    .filters-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
 
-.filter-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+    .filter-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.filter-item label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 6px;
-  margin-left: 4px;
-}
+    .filter-item label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 6px;
+      margin-left: 4px;
+    }
 
-.section-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #222222;
-  margin-bottom: 14px;
-  padding-left: 4px;
-}
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 14px;
+      padding-left: 4px;
+    }
 
-.user-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 490px;
-  overflow-y: auto;
-  padding-right: 8px;
-}
+    .user-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 490px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
 
-.user-list::-webkit-scrollbar { width: 7px; }
-.user-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-.user-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
+    .user-list::-webkit-scrollbar { width: 7px; }
+    .user-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    .user-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
 
-.user-item {
-  padding: 12px 14px;
-  background-color: #ffffff;
-  border: 1.5px solid #2e7d32;
-  border-radius: 10px;
-  font-size: 0.82rem;
-  color: #333333;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+    .user-item {
+      padding: 12px 14px;
+      background-color: #ffffff;
+      border: 1.5px solid #2e7d32;
+      border-radius: 10px;
+      font-size: 0.84rem;
+      color: #333333;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-.user-item:hover {
-  background-color: #e8f5e9;
-  transform: translateX(4px);
-  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
-}
+    .user-item:hover,
+    .user-item.selected {
+      background-color: #e8f5e9;
+      transform: translateX(4px);
+      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
+      font-weight: 600;
+    }
 
-.right-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.panel-header-title {
-  font-size: 1.45rem;
-  font-weight: 700;
-  color: #222222;
-  margin-bottom: 20px;
-}
+    .panel-header-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 20px;
+    }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 12px;
-}
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 12px;
+    }
 
-.form-group label {
-  font-size: 0.83rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 5px;
-  margin-left: 4px;
-}
+    .form-group label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 5px;
+      margin-left: 4px;
+    }
 
-input[type="text"],
-input[type="time"],
-input[type="date"],
-select {
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1.5px solid #2e7d32;
-  outline: none;
-  font-size: 0.9rem;
-  color: #333333;
-  background-color: #ffffff;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
+    input[type="text"],
+    input[type="time"],
+    input[type="date"],
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
 
-.form-buttons {
-  display: flex;
-  gap: 14px;
-  margin-top: 18px;
-}
+    input[readonly] {
+      background-color: #f6faf6;
+    }
 
-.btn {
-  flex: 1;
-  padding: 10px 0;
-  font-size: 0.92rem;
-  font-weight: 600;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
+    .form-buttons {
+      display: flex;
+      gap: 14px;
+      margin-top: 18px;
+    }
 
-@media (max-width: 900px) {
-  .dashboard-container { flex-direction: column; }
-  .navbar { flex-direction: column; align-items: flex-start; }
-  .filters-row { flex-direction: column; }
-}
-  </style>   
-<link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}"> 
+    .btn {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .alert-msg {
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .alert-error {
+      background-color: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+
+    .alert-success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-container { flex-direction: column; }
+      .navbar { flex-direction: column; align-items: flex-start; }
+      .filters-row { flex-direction: column; }
+    }
+  </style>
+  <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}"> 
 </head>
 <body>
 
-  <!-- Barra Superior (Navbar)[cite: 7] -->
+  <!-- Barra Superior (Navbar) -->
   <header class="navbar">
     <div class="brand-section">
       <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
       <img src="tu-sublogo-texto.png" alt="Biotechnica" class="nav-sublogo">
       <span class="nav-slogan">Slogan</span>
     </div>
-        <nav class="navbar-content">
-          <ul class="nav-ul"> 
-      <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
-      <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
-      <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-      <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-      <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
-      <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-      <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
-      <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-    </ul>
+    <nav class="navbar-content">
+      <ul class="nav-ul"> 
+        <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
+        <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
+        <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+        <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+        <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
+        <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+        <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
+        <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+        <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
+      </ul>
     </nav>
   </header>
 
-  <!-- Contenedor Principal[cite: 7] -->
+  <!-- Contenedor Principal -->
   <main class="dashboard-container">
 
-    <!-- Panel Izquierdo: Filtros y Lista de Médicos / Horarios[cite: 7] -->
+    <!-- Panel Izquierdo: Filtros y Lista de Médicos / Horarios Disponibles -->
     <section class="card left-panel">
       <div class="filters-row">
-        <!-- Filtrar por Especialidad: Combobox (triángulo hacia abajo)[cite: 4, 7] -->
         <div class="filter-item">
           <label for="filtro-especialidad">Filtrar por Especialidad</label>
-          <select id="filtro-especialidad" name="filtro-especialidad">
-            <option value="">Seleccione Especialidad...</option>
-            <option value="1">Medicina General</option>
-            <option value="2">Pediatría</option>
-            <option value="3">Cardiología</option>
+          <select id="filtro-especialidad">
+            <option value="">Todas las especialidades...</option>
+            {% for esp in especialidades %}
+              <option value="{{ esp }}">{{ esp }}</option>
+            {% endfor %}
           </select>
         </div>
 
-        <!-- Fecha: Calendario (cuadro)[cite: 4, 7] -->
         <div class="filter-item">
           <label for="filtro-fecha">Fecha</label>
-          <input type="date" id="filtro-fecha" name="filtro-fecha">
+          <input type="date" id="filtro-fecha">
         </div>
       </div>
 
-      <h2 class="section-title">Medicos:</h2>
+      <h2 class="section-title">Horarios Médicos Disponibles:</h2>
       <div class="user-list">
-        <div class="user-item">Nombre Medico-Especializacion- Fecha y Hora</div>
-        <div class="user-item">Nombre Medico-Especializacion- Fecha y Hora</div>
-        <div class="user-item">Nombre Medico-Especializacion- Fecha y Hora</div>
-        <div class="user-item">Nombre Medico-Especializacion- Fecha y Hora</div>
-        <div class="user-item">Nombre Medico-Especializacion- Fecha y Hora</div>
-        <div class="user-item">Nombre Medico-Especializacion- Fecha y Hora</div>
-        <div class="user-item">Nombre Medico-Especializacion- Fecha y Hora</div>
-        <div class="user-item">Nombre Medico-Especializacion- Fecha y Hora</div>
-        <div class="user-item">Nombre Medico-Especializacion- Fecha y Hora</div>
-        <div class="user-item">Nombre Medico-Especializacion- Fecha y Hora</div>
+        {% for b in bloques_disponibles %}
+          <div class="user-item"
+               data-medico-id="{{ b.ID_Medico.MatriculaProfesional }}"
+               data-medico-nombre="Dr(a). {{ b.ID_Medico.Nombre_Medico }} {{ b.ID_Medico.ApellidoP_Medico }}"
+               data-especialidad="{{ b.ID_Medico.Especializacion|default:'General' }}"
+               data-fecha="{{ b.Dia|date:'Y-m-d' }}"
+               data-horario-id="{{ b.ID_Horario.ID_Horario }}"
+               data-hora-inicio="{{ b.ID_Horario.Hora_Inicio|time:'H:i' }}"
+               data-hora-fin="{{ b.ID_Horario.Hora_Fin|time:'H:i' }}">
+            Dr(a). {{ b.ID_Medico.Nombre_Medico }} {{ b.ID_Medico.ApellidoP_Medico }} - {{ b.ID_Medico.Especializacion|default:"General" }} - {{ b.Dia|date:"d/m/Y" }} ({{ b.ID_Horario.Hora_Inicio|time:"H:i" }} - {{ b.ID_Horario.Hora_Fin|time:"H:i" }})
+          </div>
+        {% empty %}
+          <p style="color:#666; font-size:0.9rem; padding:10px;">
+            No hay bloques disponibles habilitados todavía. El médico debe habilitar sus horas en "Gestionar Disponibilidad".
+          </p>
+        {% endfor %}
       </div>
     </section>
 
-    <!-- Panel Derecho: Formulario de Registro de Atención[cite: 7] -->
+    <!-- Panel Derecho: Formulario de Registro de Atención -->
     <section class="card right-panel">
-      <h1 class="panel-header-title">Registrar Atencion</h1>
-      
-      <form  method="post" onsubmit="event.preventDefault();">
+      <h1 class="panel-header-title">Registrar Atención</h1>
+
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" action="">
         {% csrf_token %}
+        <input type="hidden" id="medico_id" name="medico_id" required>
+        <input type="hidden" id="horario_id" name="horario_id" required>
 
         <div class="form-group">
-          <label for="medico">Medico</label>
-          <input type="text" id="medico" name="medico" placeholder="Nombre del médico" required>
+          <label for="medico">Médico (Selecciona en la lista izquierda)</label>
+          <input type="text" id="medico" name="medico" placeholder="Haz clic en un horario disponible..." readonly required>
         </div>
 
         <div class="form-group">
-          <label for="especializacion">Especializacion</label>
-          <input type="text" id="especializacion" name="especializacion" placeholder="Especialidad médica" required>
+          <label for="especializacion">Especialización</label>
+          <input type="text" id="especializacion" name="especializacion" placeholder="Especialidad médica" readonly required>
         </div>
 
-        <!-- Fecha: Calendario[cite: 4, 7] -->
         <div class="form-group">
           <label for="fecha">Fecha</label>
-          <input type="date" id="fecha" name="fecha" required>
+          <input type="date" id="fecha" name="fecha" readonly required>
         </div>
 
-        <!-- Hora[cite: 7] -->
         <div class="form-group">
-          <label for="hora">Hora</label>
-          <input type="time" id="hora" name="hora" required>
+          <label for="hora">Bloque Horario</label>
+          <input type="text" id="hora" name="hora" placeholder="HH:MM - HH:MM" readonly required>
+        </div>
+
+        <div class="form-group">
+          <label for="run-paciente">RUN Paciente</label>
+          <input class="validar-run" type="text" id="run-paciente" name="run-paciente" list="lista-runs"
+                 value="{% if paciente_sesion %}{{ paciente_sesion.RUN_Paciente }}{% endif %}"
+                 placeholder="11.111.111-1" {% if paciente_sesion %}readonly{% endif %} required>
+          <datalist id="lista-runs">
+            {% for p in pacientes_lista %}
+              <option value="{{ p.RUN_Paciente }}">{{ p.Nombre_Paciente }} {{ p.ApellidoP }}</option>
+            {% endfor %}
+          </datalist>
         </div>
 
         <div class="form-group">
           <label for="paciente">Paciente</label>
-          <input type="text" id="paciente" name="paciente" placeholder="Nombre completo del paciente" required>
+          <input type="text" id="paciente" name="paciente"
+                 value="{% if paciente_sesion %}{{ paciente_sesion.Nombre_Paciente }} {{ paciente_sesion.ApellidoP }} {{ paciente_sesion.ApellidoM }}{% endif %}"
+                 placeholder="Nombre completo del paciente" {% if paciente_sesion %}readonly{% endif %} required>
         </div>
 
         <div class="form-group">
-          <label for="run-paciente">RUN</label>
-          <input class="validar-run" type="text" id="run-paciente" name="run-paciente" placeholder="12.345.678-9" required>
+          <label for="descripcion">Motivo de Consulta</label>
+          <input type="text" id="descripcion" name="descripcion" placeholder="Ej. Control general, dolor de cabeza..." required>
         </div>
 
         <div class="form-buttons">
           <button type="submit" class="btn btn-submit">Registrar</button>
-          <button type="button" class="btn btn-cancel">Cancelar</button>
+          <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
         </div>
       </form>
     </section>
 
   </main>
+
+  <script>
+    const items = document.querySelectorAll('.user-item');
+    const inputMedicoId = document.getElementById('medico_id');
+    const inputHorarioId = document.getElementById('horario_id');
+    const inputMedico = document.getElementById('medico');
+    const inputEspecialidad = document.getElementById('especializacion');
+    const inputFecha = document.getElementById('fecha');
+    const inputHora = document.getElementById('hora');
+    const inputRun = document.getElementById('run-paciente');
+    const inputPaciente = document.getElementById('paciente');
+    const inputDescripcion = document.getElementById('descripcion');
+
+    // Mapa RUN -> Nombre para autocompletar al escribir o elegir RUN
+    const mapaPacientes = {
+      {% for p in pacientes_lista %}
+        "{{ p.RUN_Paciente }}": "{{ p.Nombre_Paciente }} {{ p.ApellidoP }} {{ p.ApellidoM }}",
+      {% endfor %}
+    };
+
+    inputRun.addEventListener('input', () => {
+      const nombreEncontrado = mapaPacientes[inputRun.value.trim()];
+      if (nombreEncontrado) {
+        inputPaciente.value = nombreEncontrado;
+      }
+    });
+
+    // Seleccionar bloque horario disponible desde la lista izquierda
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        items.forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+
+        inputMedicoId.value = item.dataset.medicoId;
+        inputHorarioId.value = item.dataset.horarioId;
+        inputMedico.value = item.dataset.medicoNombre;
+        inputEspecialidad.value = item.dataset.especialidad;
+        inputFecha.value = item.dataset.fecha;
+        inputHora.value = `${item.dataset.horaInicio} - ${item.dataset.horaFin}`;
+      });
+    });
+
+    // Botón Cancelar
+    document.getElementById('btn-cancelar').addEventListener('click', () => {
+      items.forEach(i => i.classList.remove('selected'));
+      inputMedicoId.value = '';
+      inputHorarioId.value = '';
+      inputMedico.value = '';
+      inputEspecialidad.value = '';
+      inputFecha.value = '';
+      inputHora.value = '';
+      inputDescripcion.value = '';
+      {% if not paciente_sesion %}
+        inputRun.value = '';
+        inputPaciente.value = '';
+      {% endif %}
+    });
+
+    // Filtros en vivo (Especialidad y Fecha)
+    const filtroEspecialidad = document.getElementById('filtro-especialidad');
+    const filtroFecha = document.getElementById('filtro-fecha');
+
+    function filtrarDisponibles() {
+      const espSel = filtroEspecialidad.value.toLowerCase();
+      const fechaSel = filtroFecha.value;
+
+      items.forEach(item => {
+        const coincideEsp = !espSel || item.dataset.especialidad.toLowerCase() === espSel;
+        const coincideFecha = !fechaSel || item.dataset.fecha === fechaSel;
+        item.style.display = (coincideEsp && coincideFecha) ? 'block' : 'none';
+      });
+    }
+
+    filtroEspecialidad.addEventListener('change', filtrarDisponibles);
+    filtroFecha.addEventListener('change', filtrarDisponibles);
+  </script>
 
 </body>
 </html>

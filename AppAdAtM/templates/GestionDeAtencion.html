@@ -7,151 +7,252 @@
   <title>Gestión de Atención</title>
   <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   <style>
-    * .navbar,
-.dashboard-container {
-  max-width: 1200px;
-}
+    .navbar,
+    .dashboard-container {
+      max-width: 1200px;
+    }
 
-.left-panel {
-  flex: 1.1;
-  display: flex;
-  flex-direction: column;
-}
+    .left-panel {
+      flex: 1.15;
+      display: flex;
+      flex-direction: column;
+    }
 
-.filters-row {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 22px;
-}
+    /* Barra de pestañas para navegar las 3 listas */
+.tabs-bar {
+      display: flex !important;
+      gap: 8px;
+      margin-bottom: 16px;
+      border-bottom: 2px solid #2e7d32;
+      padding-bottom: 12px;
+      width: 100%;
+    }
 
-.filter-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+    .tab-btn {
+      display: inline-block !important;
+      flex: 1;
+      padding: 10px 8px !important;
+      border-radius: 10px !important;
+      border: 2px solid #2e7d32 !important;
+      background-color: #ffffff !important;
+      color: #2e7d32 !important;
+      font-size: 0.85rem !important;
+      font-weight: 700 !important;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
 
-.filter-item label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 6px;
-  margin-left: 4px;
-}
+    .tab-btn:hover {
+      background-color: #e8f5e9 !important;
+    }
 
-.section-title {
-  font-size: 1.15rem;
-  font-weight: 700;
-  color: #222222;
-  margin-bottom: 14px;
-  padding-left: 4px;
-}
+    .tab-btn.active {
+      background-color: #2e7d32 !important;
+      color: #ffffff !important;
+    }
 
-.user-list {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 490px;
-  overflow-y: auto;
-  padding-right: 8px;
-}
+    .tab-panel {
+      display: none;
+      flex-direction: column;
+      flex: 1;
+    }
 
-.user-list::-webkit-scrollbar { width: 7px; }
-.user-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-.user-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
+    .tab-panel.active {
+      display: flex;
+    }
 
-.user-item {
-  padding: 12px 14px;
-  background-color: #ffffff;
-  border: 1.5px solid #2e7d32;
-  border-radius: 10px;
-  font-size: 0.82rem;
-  color: #333333;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
+    .filters-row {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
 
-.user-item:hover {
-  background-color: #e8f5e9;
-  transform: translateX(4px);
-  box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
-}
+    .filter-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
 
-.right-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+    .filter-item label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 5px;
+      margin-left: 4px;
+    }
 
-.panel-header-title {
-  font-size: 1.45rem;
-  font-weight: 700;
-  color: #222222;
-  margin-bottom: 20px;
-}
+    .section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 12px;
+      padding-left: 4px;
+    }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 12px;
-}
+    .list-wrapper {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      flex: 1;
+    }
 
-.form-group label {
-  font-size: 0.83rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 5px;
-  margin-left: 4px;
-}
+    .user-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      max-height: 490px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
 
-input[type="text"],
-input[type="time"],
-input[type="date"],
-select {
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1.5px solid #2e7d32;
-  outline: none;
-  font-size: 0.9rem;
-  color: #333333;
-  background-color: #ffffff;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
+    .user-list::-webkit-scrollbar { width: 7px; }
+    .user-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    .user-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
 
-.form-buttons {
-  display: flex;
-  gap: 12px;
-  margin-top: 18px;
-}
+    .user-item {
+      padding: 11px 14px;
+      background-color: #ffffff;
+      border: 1.5px solid #2e7d32;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      color: #333333;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-.btn {
-  flex: 1;
-  padding: 10px 0;
-  font-size: 0.9rem;
-  font-weight: 600;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
-}
+    .user-item:hover,
+    .user-item.selected {
+      background-color: #e8f5e9;
+      transform: translateX(4px);
+      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
+      font-weight: 600;
+    }
 
-@media (max-width: 900px) {
-  .dashboard-container { flex-direction: column; }
-  .navbar { flex-direction: column; align-items: flex-start; }
-  .filters-row { flex-direction: column; }
-  .list-wrapper { flex-direction: column; }
-  .btn-add-action { width: 100%; }
-}
+    .btn-add-action {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background-color: #2e7d32;
+      color: #ffffff;
+      font-size: 1.5rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-decoration: none;
+      flex-shrink: 0;
+      transition: background-color 0.2s;
+    }
+
+    .btn-add-action:hover {
+      background-color: #1b5e20;
+    }
+
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 20px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 12px;
+    }
+
+    .form-group label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 5px;
+      margin-left: 4px;
+    }
+
+    input[type="text"],
+    input[type="time"],
+    input[type="date"],
+    select,
+    textarea {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      font-family: inherit;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 75px;
+    }
+
+    .form-buttons {
+      display: flex;
+      gap: 12px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .alert-msg {
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .alert-error {
+      background-color: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+
+    .alert-success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-container { flex-direction: column; }
+      .navbar { flex-direction: column; align-items: flex-start; }
+      .filters-row { flex-direction: column; }
+      .list-wrapper { flex-direction: column; }
+      .btn-add-action { width: 100%; border-radius: 10px; }
+    }
   </style>
-   <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
+  <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
 </head>
 <body>
 
-  <!-- Barra Superior (Navbar)[cite: 8] -->
+  <!-- Barra Superior (Navbar) -->
   <header class="navbar">
     <div class="brand-section">
       <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
@@ -159,117 +260,338 @@ select {
       <span class="nav-slogan">Slogan</span>
     </div>
     <nav class="navbar-content">
-          <ul class="nav-ul"> 
-      <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
-      <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
-      <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-      <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-      <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
-      <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-      <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
-      <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-    </ul>
+      <ul class="nav-ul"> 
+        <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
+        <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
+        <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+        <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+        <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
+        <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+        <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
+        <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+        <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
+      </ul>
     </nav>
   </header>
 
-  <!-- Contenedor Principal[cite: 8] -->
+  <!-- Contenedor Principal -->
   <main class="dashboard-container">
 
-    <!-- Panel Izquierdo: Filtros y Lista de Atenciones Registradas[cite: 8] -->
+    <!-- Panel Izquierdo: Navegación entre Atenciones, Médicos y Pacientes -->
     <section class="card left-panel">
-      <div class="filters-row">
-        <!-- Filtrar por Paciente (RUN): Combobox (triángulo hacia abajo)[cite: 4, 8] -->
-        <div class="filter-item">
-          <label for="filtro-paciente">Filtrar por Paciente (RUN)</label>
-          <select id="filtro-paciente" name="filtro-paciente">
-            <option value="">Seleccione RUN...</option>
-            <option value="1">12.345.678-9</option>
-            <option value="2">9.876.543-2</option>
-          </select>
+
+      <!-- Botones de Pestañas -->
+      <div class="tabs-bar">
+        <button type="button" class="tab-btn active" data-tab="tab-atenciones">Atenciones ({{ atenciones|length }})</button>
+        <button type="button" class="tab-btn" data-tab="tab-medicos">Médicos ({{ medicos|length }})</button>
+        <button type="button" class="tab-btn" data-tab="tab-pacientes">Pacientes ({{ pacientes|length }})</button>
+      </div>
+
+      <!-- ================= PESTAÑA 1: ATENCIONES ================= -->
+      <div class="tab-panel active" id="tab-atenciones">
+        <div class="filters-row">
+          <div class="filter-item">
+            <label for="filtro-paciente">Filtrar por Paciente (RUN)</label>
+            <select id="filtro-paciente">
+              <option value="">Todos los pacientes...</option>
+              {% for p in pacientes %}
+                <option value="{{ p.RUN_Paciente }}">{{ p.RUN_Paciente }} - {{ p.Nombre_Paciente }} {{ p.ApellidoP }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="filter-item">
+            <label for="filtro-fecha">Fecha</label>
+            <input type="date" id="filtro-fecha">
+          </div>
         </div>
 
-        <!-- Fecha: Calendario (cuadro)[cite: 4, 8] -->
-        <div class="filter-item">
-          <label for="filtro-fecha">Fecha</label>
-          <input type="date" id="filtro-fecha" name="filtro-fecha">
+        <h2 class="section-title">Atenciones Registradas (Clic para editar)</h2>
+        <div class="list-wrapper">
+          <div class="user-list">
+            {% for a in atenciones %}
+              <div class="user-item item-atencion"
+                   data-id="{{ a.ID_Atencion }}"
+                   data-paciente="{{ a.Paciente.ID }}"
+                   data-run="{{ a.Paciente.RUN_Paciente }}"
+                   data-medico="{{ a.ID_Medico.MatriculaProfesional }}"
+                   data-dia="{{ a.Dia|date:'Y-m-d' }}"
+                   data-horario="{{ a.ID_Horario.ID_Horario }}"
+                   data-descripcion="{{ a.Descripcion }}"
+                   data-estado="{{ a.Estado }}">
+                #{{ a.ID_Atencion }} | Dr(a). {{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} - {{ a.Dia|date:'d/m/Y' }} {{ a.ID_Horario.Hora_Inicio|time:'H:i' }} - {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} [{{ a.Estado }}]
+              </div>
+            {% empty %}
+              <p style="color:#666; font-size:0.9rem; padding:10px;">No hay atenciones registradas todavía.</p>
+            {% endfor %}
+          </div>
+
+          <a href="#" class="btn-add-action" id="btn-nueva-atencion" title="Nueva Atención">+</a>
         </div>
       </div>
 
-      <h2 class="section-title">Atenciones Registradas</h2>
-      <div class="list-wrapper">
+      <!-- ================= PESTAÑA 2: MÉDICOS ================= -->
+      <div class="tab-panel" id="tab-medicos">
+        <div class="filters-row">
+          <div class="filter-item">
+            <label for="filtro-buscar-medico">Buscar Médico o Especialidad</label>
+            <input type="text" id="filtro-buscar-medico" placeholder="Nombre, apellido, RUN o especialidad...">
+          </div>
+        </div>
+
+        <h2 class="section-title">Médicos Activos (Clic para asignar al formulario)</h2>
         <div class="user-list">
-          <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-          <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-          <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-          <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-          <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-          <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-          <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-          <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-          <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
-          <div class="user-item">Nombre Medico- Fecha y Hora- Paciente</div>
+          {% for m in medicos %}
+            <div class="user-item item-medico"
+                 data-medico-id="{{ m.MatriculaProfesional }}">
+              Mat. #{{ m.MatriculaProfesional }} - Dr(a). {{ m.Nombre_Medico }} {{ m.ApellidoP_Medico }} {{ m.ApellidoM_Medico }} | {{ m.Especializacion|default:"Medicina General" }} ({{ m.RUN_Medico }})
+            </div>
+          {% empty %}
+            <p style="color:#666; font-size:0.9rem; padding:10px;">No hay médicos activos registrados.</p>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- ================= PESTAÑA 3: PACIENTES ================= -->
+      <div class="tab-panel" id="tab-pacientes">
+        <div class="filters-row">
+          <div class="filter-item">
+            <label for="filtro-buscar-paciente">Buscar Paciente por Nombre o RUN</label>
+            <input type="text" id="filtro-buscar-paciente" placeholder="Nombre, apellido o RUN...">
+          </div>
         </div>
 
-        <!-- Botón '+' para ir a la sección de agregar usuario sin necesidad del Navbar[cite: 8] -->
-        <a href="#" class="btn-add-action" title="Agregar Usuario">+</a>
+        <h2 class="section-title">Pacientes Activos (Clic para asignar al formulario)</h2>
+        <div class="user-list">
+          {% for p in pacientes %}
+            <div class="user-item item-paciente"
+                 data-paciente-id="{{ p.ID }}">
+              {{ p.RUN_Paciente }} - {{ p.Nombre_Paciente }} {{ p.ApellidoP }} {{ p.ApellidoM }} | Tel: {{ p.NumeroContactoPaciente }}
+            </div>
+          {% empty %}
+            <p style="color:#666; font-size:0.9rem; padding:10px;">No hay pacientes activos registrados.</p>
+          {% endfor %}
+        </div>
       </div>
+
     </section>
 
-    <!-- Panel Derecho: Formulario Gestionar Atención[cite: 8] -->
+    <!-- Panel Derecho: Formulario de Gestión de Atención -->
     <section class="card right-panel">
-      <h1 class="panel-header-title">Gestionar Atencion:</h1>
-      
-      <form onsubmit="event.preventDefault();">
-        <div class="form-group">
-          <label for="medico">Medico</label>
-          <input type="text" id="medico" name="medico" placeholder="Nombre del médico" required>
-        </div>
+      <h1 class="panel-header-title" id="titulo-formulario">Nueva Atención</h1>
 
-        <!-- Fecha: Calendario[cite: 4, 8] -->
-        <div class="form-group">
-          <label for="fecha">Fecha</label>
-          <input type="date" id="fecha" name="fecha" required>
-        </div>
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
 
-        <!-- Hora[cite: 8] -->
-        <div class="form-group">
-          <label for="hora">Hora</label>
-          <input type="time" id="hora" name="hora" required>
-        </div>
+      <form method="POST" action="" id="form-atencion">
+        {% csrf_token %}
+        <input type="hidden" id="atencion_id" name="atencion_id" value="">
+        <input type="hidden" id="accion" name="accion" value="guardar">
 
         <div class="form-group">
           <label for="paciente">Paciente</label>
-          <input type="text" id="paciente" name="paciente" placeholder="Nombre del paciente" required>
-        </div>
-
-        <div class="form-group">
-          <label for="run-paciente">RUN</label>
-          <input class="validar-run" type="text" id="run-paciente" name="run-paciente" placeholder="12.345.678-9" required>
-        </div>
-
-
-        <!-- Estado Atención: Combobox (triángulo hacia abajo)[cite: 4, 8] -->
-        <div class="form-group">
-          <label for="estado-atencion">Estado Atencion</label>
-          <select id="estado-atencion" name="estado-atencion" required>
-            <option value="" disabled selected>Seleccione estado...</option>
-            <option value="pendiente">Pendiente</option>
-            <option value="en-curso">En Curso</option>
-            <option value="finalizada">Finalizada</option>
-            <option value="cancelada">Cancelada</option>
+          <select id="paciente" name="paciente" required>
+            <option value="" disabled selected>Seleccione paciente...</option>
+            {% for p in pacientes %}
+              <option value="{{ p.ID }}">{{ p.RUN_Paciente }} - {{ p.Nombre_Paciente }} {{ p.ApellidoP }} {{ p.ApellidoM }}</option>
+            {% endfor %}
           </select>
         </div>
 
-        <!-- Botones: Editar, Cobrar, Cancelar[cite: 8] -->
+        <div class="form-group">
+          <label for="medico">Médico</label>
+          <select id="medico" name="medico" required>
+            <option value="" disabled selected>Seleccione médico...</option>
+            {% for m in medicos %}
+              <option value="{{ m.MatriculaProfesional }}">Dr(a). {{ m.Nombre_Medico }} {{ m.ApellidoP_Medico }} ({{ m.Especializacion|default:"General" }})</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="dia">Fecha de Atención</label>
+          <input type="date" id="dia" name="dia" required>
+        </div>
+
+        <div class="form-group">
+          <label for="horario">Bloque Horario (20 min)</label>
+          <select id="horario" name="horario" required>
+            <option value="" disabled selected>Seleccione bloque...</option>
+            {% for h in horarios %}
+              <option value="{{ h.ID_Horario }}">{{ h.Hora_Inicio|time:'H:i' }} - {{ h.Hora_Fin|time:'H:i' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="descripcion">Motivo / Descripción</label>
+          <textarea id="descripcion" name="descripcion" placeholder="Motivo de la consulta o observaciones..." required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="estado">Estado de la Atención</label>
+          <select id="estado" name="estado" required>
+            <option value="Programada" selected>Programada</option>
+            <option value="Realizada">Realizada</option>
+            <option value="No Asistió">No Asistió</option>
+            <option value="Cancelada">Cancelada</option>
+          </select>
+        </div>
+
         <div class="form-buttons">
-          <button type="submit" class="btn btn-submit">Editar</button>
-          <button type="button" class="btn btn-secondary-action">Cobrar</button>
-          <button type="button" class="btn btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-submit" id="btn-guardar">Agendar Atención</button>
+          {% if rol_id == 1 or rol_id == 2 or not rol_id %}
+            <button type="button" class="btn" id="btn-eliminar" style="display:none; background-color:#c62828; color:#fff; border:none;">Eliminar</button>
+          {% endif %}
+          <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
         </div>
       </form>
     </section>
 
   </main>
+
+  <script>
+    // --- 1. NAVEGACIÓN ENTRE LAS 3 PESTAÑAS ---
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        tabPanels.forEach(p => p.classList.remove('active'));
+
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // --- 2. REFERENCIAS AL FORMULARIO DERECHO ---
+    const titulo = document.getElementById('titulo-formulario');
+    const inputId = document.getElementById('atencion_id');
+    const inputAccion = document.getElementById('accion');
+    const selectPaciente = document.getElementById('paciente');
+    const selectMedico = document.getElementById('medico');
+    const inputDia = document.getElementById('dia');
+    const selectHorario = document.getElementById('horario');
+    const inputDescripcion = document.getElementById('descripcion');
+    const selectEstado = document.getElementById('estado');
+    const btnGuardar = document.getElementById('btn-guardar');
+    const btnEliminar = document.getElementById('btn-eliminar');
+
+    const itemsAtencion = document.querySelectorAll('.item-atencion');
+    const itemsMedico = document.querySelectorAll('.item-medico');
+    const itemsPaciente = document.querySelectorAll('.item-paciente');
+
+    function limpiarFormulario() {
+      document.querySelectorAll('.user-item').forEach(i => i.classList.remove('selected'));
+      inputId.value = '';
+      inputAccion.value = 'guardar';
+      selectPaciente.selectedIndex = 0;
+      selectMedico.selectedIndex = 0;
+      inputDia.value = '';
+      selectHorario.selectedIndex = 0;
+      inputDescripcion.value = '';
+      selectEstado.value = 'Programada';
+
+      if (btnEliminar) btnEliminar.style.display = 'none';
+      titulo.textContent = 'Nueva Atención';
+      btnGuardar.textContent = 'Agendar Atención';
+    }
+
+    // Clic en ATENCIÓN -> carga todo en modo Edición
+    itemsAtencion.forEach(item => {
+      item.addEventListener('click', () => {
+        itemsAtencion.forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+
+        inputId.value = item.dataset.id;
+        inputAccion.value = 'guardar';
+        selectPaciente.value = item.dataset.paciente;
+        selectMedico.value = item.dataset.medico;
+        inputDia.value = item.dataset.dia;
+        selectHorario.value = item.dataset.horario;
+        inputDescripcion.value = item.dataset.descripcion;
+        selectEstado.value = item.dataset.estado;
+
+        if (btnEliminar) btnEliminar.style.display = 'inline-block';
+        titulo.textContent = `Gestionar Atención #${item.dataset.id}`;
+        btnGuardar.textContent = 'Guardar Cambios';
+      });
+    });
+
+    // Clic en MÉDICO -> selecciona ese médico en el formulario derecho
+    itemsMedico.forEach(item => {
+      item.addEventListener('click', () => {
+        itemsMedico.forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+        selectMedico.value = item.dataset.medicoId;
+      });
+    });
+
+    // Clic en PACIENTE -> selecciona ese paciente en el formulario derecho
+    itemsPaciente.forEach(item => {
+      item.addEventListener('click', () => {
+        itemsPaciente.forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+        selectPaciente.value = item.dataset.pacienteId;
+      });
+    });
+
+    // Eliminar atención
+    if (btnEliminar) {
+      btnEliminar.addEventListener('click', () => {
+        if (confirm('¿Seguro que deseas eliminar esta atención y liberar el horario del médico?')) {
+          inputAccion.value = 'eliminar';
+          document.getElementById('form-atencion').submit();
+        }
+      });
+    }
+
+    document.getElementById('btn-cancelar').addEventListener('click', limpiarFormulario);
+    document.getElementById('btn-nueva-atencion').addEventListener('click', (e) => {
+      e.preventDefault();
+      limpiarFormulario();
+    });
+
+    // --- 3. FILTROS INDEPENDIENTES DE CADA PESTAÑA ---
+    // Filtro Atenciones
+    const filtroPaciente = document.getElementById('filtro-paciente');
+    const filtroFecha = document.getElementById('filtro-fecha');
+
+    function filtrarAtenciones() {
+      const runSel = filtroPaciente.value;
+      const fechaSel = filtroFecha.value;
+
+      itemsAtencion.forEach(item => {
+        const coincideRun = !runSel || item.dataset.run === runSel;
+        const coincideFecha = !fechaSel || item.dataset.dia === fechaSel;
+        item.style.display = (coincideRun && coincideFecha) ? 'block' : 'none';
+      });
+    }
+    filtroPaciente.addEventListener('change', filtrarAtenciones);
+    filtroFecha.addEventListener('change', filtrarAtenciones);
+
+    // Filtro Médicos
+    document.getElementById('filtro-buscar-medico').addEventListener('input', function () {
+      const q = this.value.toLowerCase();
+      itemsMedico.forEach(item => {
+        item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+      });
+    });
+
+    // Filtro Pacientes
+    document.getElementById('filtro-buscar-paciente').addEventListener('input', function () {
+      const q = this.value.toLowerCase();
+      itemsPaciente.forEach(item => {
+        item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+      });
+    });
+  </script>
 
 </body>
 </html>

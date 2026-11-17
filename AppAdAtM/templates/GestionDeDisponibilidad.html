@@ -7,127 +7,262 @@
   <title>Gestión de Disponibilidad</title>
   <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   <style>
-    *.navbar,
-.dashboard-container {
-  max-width: 1320px;
-}
+    .navbar,
+    .dashboard-container {
+      max-width: 1320px;
+    }
 
-.left-panel {
-  flex: 1.5;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
+    .left-panel {
+      flex: 1.5;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
 
-.filters-row {
-  display: flex;
-  gap: 16px;
-  margin-bottom: 20px;
-}
+    .filters-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+      align-items: flex-end;
+    }
 
-.filter-item {
-  flex: 0 0 240px;
-  display: flex;
-  flex-direction: column;
-}
+    .filter-item {
+      flex: 0 0 240px;
+      display: flex;
+      flex-direction: column;
+    }
 
-.filter-item label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 6px;
-  margin-left: 4px;
-}
+    .filter-item label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 6px;
+      margin-left: 4px;
+    }
 
-.right-panel {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 320px;
-}
+    .legend-bar {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      flex-wrap: wrap;
+    }
 
-.panel-header-title {
-  font-size: 1.45rem;
-  font-weight: 700;
-  color: #222222;
-  margin-bottom: 20px;
-}
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
 
-.info-card-block {
-  border: 1.5px solid #2e7d32;
-  border-radius: 12px;
-  padding: 14px;
-  background-color: #fcfcfc;
-  margin-bottom: 16px;
-}
+    .legend-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 4px;
+      border: 1px solid #999;
+    }
 
-.block-title {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: #2e7d32;
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+    .schedule-table-wrapper {
+      max-height: 540px;
+      overflow: auto;
+      border-radius: 12px;
+      border: 1.5px solid #2e7d32;
+    }
 
-.info-card-block p {
-  font-size: 0.85rem;
-  color: #444444;
-  line-height: 1.4;
-}
+    .schedule-table-wrapper::-webkit-scrollbar { width: 8px; height: 8px; }
+    .schedule-table-wrapper::-webkit-scrollbar-track { background: #f1f1f1; }
+    .schedule-table-wrapper::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 14px;
-}
+    .schedule-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 780px;
+    }
 
-.form-group label {
-  font-size: 0.83rem;
-  font-weight: 600;
-  color: #333333;
-  margin-bottom: 5px;
-  margin-left: 4px;
-}
+    .schedule-table thead th {
+      position: sticky;
+      top: 0;
+      background-color: #2e7d32;
+      color: #ffffff;
+      padding: 9px 6px;
+      font-size: 0.82rem;
+      z-index: 2;
+    }
 
-input[type="date"],
-select {
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1.5px solid #2e7d32;
-  outline: none;
-  font-size: 0.9rem;
-  color: #333333;
-  background-color: #ffffff;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
+    .schedule-table .time-cell {
+      position: sticky;
+      left: 0;
+      background-color: #f4f8f4;
+      font-weight: 600;
+      font-size: 0.78rem;
+      color: #222222;
+      padding: 7px 10px;
+      border-bottom: 1px solid #dcdcdc;
+      border-right: 1.5px solid #2e7d32;
+      white-space: nowrap;
+      text-align: center;
+      z-index: 1;
+    }
 
-.form-buttons {
-  display: flex;
-  gap: 14px;
-  margin-top: 18px;
-}
+    .schedule-table .slot-cell {
+      border-bottom: 1px solid #e0e0e0;
+      border-right: 1px solid #e0e0e0;
+      padding: 6px 5px;
+      text-align: center;
+      font-size: 0.75rem;
+      cursor: pointer;
+      transition: background-color 0.15s;
+      max-width: 115px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
 
-.btn {
-  flex: 1;
-  padding: 10px 0;
-  font-size: 0.92rem;
-  font-weight: 600;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
-}
+    .schedule-table .slot-cell:hover {
+      filter: brightness(0.95);
+    }
 
-@media (max-width: 950px) {
-  .dashboard-container { flex-direction: column; }
-  .navbar { flex-direction: column; align-items: flex-start; }
-  .filter-item { flex: 1; }
-  .left-panel, .right-panel { width: 100%; }
-}
+    .schedule-table .slot-cell.disponible {
+      background-color: #e8f5e9;
+      color: #1b5e20;
+      font-weight: 600;
+    }
+
+    .schedule-table .slot-cell.bloqueado {
+      background-color: #fff3e0;
+      color: #e65100;
+      font-weight: 600;
+    }
+
+    .schedule-table .slot-cell.occupied {
+      background-color: #ffebee;
+      color: #c62828;
+      font-weight: 700;
+      cursor: not-allowed;
+    }
+
+    .schedule-table .slot-cell.selected-slot {
+      outline: 2.5px solid #1b5e20;
+      outline-offset: -2px;
+    }
+
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 320px;
+    }
+
+    .panel-header-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 20px;
+    }
+
+    .info-card-block {
+      border: 1.5px solid #2e7d32;
+      border-radius: 12px;
+      padding: 14px;
+      background-color: #fcfcfc;
+      margin-bottom: 16px;
+    }
+
+    .block-title {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: #2e7d32;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-card-block p {
+      font-size: 0.85rem;
+      color: #444444;
+      line-height: 1.4;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      margin-bottom: 14px;
+    }
+
+    .form-group label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 5px;
+      margin-left: 4px;
+    }
+
+    input[type="date"],
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .form-buttons {
+      display: flex;
+      gap: 14px;
+      margin-top: 18px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 0;
+      font-size: 0.92rem;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+
+    .alert-msg {
+      padding: 11px;
+      border-radius: 10px;
+      margin-bottom: 14px;
+      font-size: 0.84rem;
+      font-weight: 600;
+      text-align: center;
+    }
+
+    .alert-error {
+      background-color: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+
+    .alert-warning {
+      background-color: #fff3e0;
+      color: #e65100;
+      border: 1px solid #ffcc80;
+    }
+
+    .alert-success {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+
+    @media (max-width: 950px) {
+      .dashboard-container { flex-direction: column; }
+      .navbar { flex-direction: column; align-items: flex-start; }
+      .filter-item { flex: 1; }
+      .left-panel, .right-panel { width: 100%; }
+    }
   </style>
-   <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
+  <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
 </head>
 <body>
 
@@ -139,281 +274,232 @@ select {
       <span class="nav-slogan">Slogan</span>
     </div>
     <nav class="navbar-content">
-          <ul class="nav-ul"> 
-      <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
-      <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
-      <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-      <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-      <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
-      <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-      <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
-      <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-    </ul>
+      <ul class="nav-ul"> 
+        <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atencion</a></li>      
+        <li><a href="{% url 'gestionar_usuarios' %}" class="nav-text">Gestionar Usuarios</a></li>
+        <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+        <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+        <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Gestionar Medicos</a></li>
+        <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+        <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atencion</a></li>
+        <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+        <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
+      </ul>
     </nav>
   </header>
 
   <!-- Contenedor Principal -->
   <main class="dashboard-container">
 
-    <!-- Panel Izquierdo: Filtro por Fecha y Tabla de Horarios Scrolleable en 2D[cite: 12] -->
+    <!-- Panel Izquierdo: Filtro por Fecha y Tabla de Horarios -->
     <section class="card left-panel">
-      <div class="filters-row">
-        <!-- Filtrar por Fecha: Calendario (cuadro)[cite: 4, 12] -->
+      <form method="GET" action="" class="filters-row" id="form-filtros">
         <div class="filter-item">
-          <label for="filtro-fecha">Filtrar por Fecha</label>
-          <input type="date" id="filtro-fecha" name="filtro-fecha">
+          <label for="filtro-fecha">Semana de la Fecha</label>
+          <input type="date" id="filtro-fecha" name="fecha" value="{{ fecha_seleccionada }}" onchange="this.form.submit()">
         </div>
+
+        {% if rol_id != 3 %}
+        <div class="filter-item" style="flex: 1;">
+          <label for="filtro-medico">Médico</label>
+          <select id="filtro-medico" name="medico" onchange="this.form.submit()">
+            {% for m in medicos %}
+              <option value="{{ m.MatriculaProfesional }}" {% if medico and m.MatriculaProfesional == medico.MatriculaProfesional %}selected{% endif %}>
+                Dr(a). {{ m.Nombre_Medico }} {{ m.ApellidoP_Medico }} ({{ m.Especializacion|default:"General" }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        {% endif %}
+      </form>
+
+      <!-- Leyenda visual -->
+      <div class="legend-bar">
+        <div class="legend-item"><span class="legend-dot" style="background:#e8f5e9;"></span> Disponible para citas</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#fff3e0;"></span> Bloqueado por médico</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ffebee;"></span> Ocupado (Atención agendada)</div>
+        <div class="legend-item"><span class="legend-dot" style="background:#ffffff;"></span> Sin asignar</div>
       </div>
 
-      <!-- Tabla de Bloques de 20 Minutos de 07:00 a 12:00 (Lunes a Domingo)[cite: 12] -->
+      <!-- Tabla de Bloques de 20 Minutos de 07:00 a 24:00 -->
       <div class="schedule-table-wrapper">
         <table class="schedule-table">
           <thead>
             <tr>
               <th class="time-header">Hora</th>
-              <th>Lunes</th>
-              <th>Martes</th>
-              <th>Miércoles</th>
-              <th>Jueves</th>
-              <th>Viernes</th>
-              <th>Sábado</th>
-              <th>Domingo</th>
+              {% for col in fechas_columnas %}
+                <th>{{ col.nombre }}<br><small style="font-weight:400;">{{ col.fecha }}</small></th>
+              {% endfor %}
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td class="time-cell">7:00 - 7:20</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">7:20 - 7:40</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">7:40 - 8:00</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">8:00 - 8:20</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell occupied">Ocupado</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">8:20 - 8:40</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell occupied">Ocupado</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">8:40 - 9:00</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell occupied">Ocupado</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">9:00 - 9:20</td>
-              <td class="slot-cell occupied">Ocupado</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">9:20 - 9:40</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell occupied">Ocupado</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">9:40 - 10:00</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">10:00 - 10:20</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">10:20 - 10:40</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">10:40 - 11:00</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">11:00 - 11:20</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell occupied">Ocupado</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">11:20 - 11:40</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-            <tr>
-              <td class="time-cell">11:40 - 12:00</td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-              <td class="slot-cell"></td>
-            </tr>
-          </tbody>
+          <tbody id="schedule-body"></tbody>
         </table>
       </div>
     </section>
 
-    <!-- Panel Derecho: Formulario Gestionar Disponibilidad[cite: 12] -->
+    <!-- Panel Derecho: Formulario Gestionar Disponibilidad -->
     <section class="card right-panel">
       <h1 class="panel-header-title">Gestionar Disponibilidad</h1>
       
-      <!-- Cuadro de Información Médico[cite: 12] -->
       <div class="info-card-block">
-        <div class="block-title">Información Medico</div>
-        <p>Dr. Nombre Médico - Especialidad - RUN / ID Médico</p>
+        <div class="block-title">Información Médico</div>
+        <p>
+          {% if medico %}
+            Dr(a). {{ medico.Nombre_Medico }} {{ medico.ApellidoP_Medico }} - {{ medico.Especializacion|default:"Sin especialidad" }} - {{ medico.RUN_Medico }} / Mat. #{{ medico.MatriculaProfesional }}
+          {% else %}
+            No hay médicos activos registrados en el sistema.
+          {% endif %}
+        </p>
       </div>
 
-      <form onsubmit="event.preventDefault();">
-        <!-- Inicio de Reserva: Combobox (triángulo hacia abajo)[cite: 4, 12] -->
+      {% if messages %}
+        {% for message in messages %}
+          <div class="alert-msg {% if message.tags == 'error' %}alert-error{% elif message.tags == 'warning' %}alert-warning{% else %}alert-success{% endif %}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <form method="POST" action="">
+        {% csrf_token %}
+        <input type="hidden" name="fecha_semana" value="{{ fecha_seleccionada }}">
+        {% if medico %}
+          <input type="hidden" name="medico_id" value="{{ medico.MatriculaProfesional }}">
+        {% endif %}
+
         <div class="form-group">
-          <label for="inicio-reserva">Inicio de Reserva</label>
+          <label for="dia-semana">Día de la Semana</label>
+          <select id="dia-semana" name="dia-semana" required>
+            <option value="" disabled selected>Seleccione día...</option>
+            <option value="Lunes">Lunes</option>
+            <option value="Martes">Martes</option>
+            <option value="Miércoles">Miércoles</option>
+            <option value="Jueves">Jueves</option>
+            <option value="Viernes">Viernes</option>
+            <option value="Sábado">Sábado</option>
+            <option value="Domingo">Domingo</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="inicio-reserva">Hora de Inicio</label>
           <select id="inicio-reserva" name="inicio-reserva" required>
             <option value="" disabled selected>Seleccione bloque de inicio...</option>
-            <option value="07:00">7:00</option>
-            <option value="07:20">7:20</option>
-            <option value="07:40">7:40</option>
-            <option value="08:00">8:00</option>
-            <option value="08:20">8:20</option>
-            <option value="08:40">8:40</option>
-            <option value="09:00">9:00</option>
-            <option value="09:20">9:20</option>
-            <option value="09:40">9:40</option>
-            <option value="10:00">10:00</option>
-            <option value="10:20">10:20</option>
-            <option value="10:40">10:40</option>
-            <option value="11:00">11:00</option>
-            <option value="11:20">11:20</option>
-            <option value="11:40">11:40</option>
           </select>
         </div>
 
-        <!-- Fin de Reserva: Combobox (triángulo hacia abajo)[cite: 4, 12] -->
         <div class="form-group">
-          <label for="fin-reserva">Fin de Reserva</label>
+          <label for="fin-reserva">Hora de Término</label>
           <select id="fin-reserva" name="fin-reserva" required>
             <option value="" disabled selected>Seleccione bloque de término...</option>
-            <option value="07:20">7:20</option>
-            <option value="07:40">7:40</option>
-            <option value="08:00">8:00</option>
-            <option value="08:20">8:20</option>
-            <option value="08:40">8:40</option>
-            <option value="09:00">9:00</option>
-            <option value="09:20">9:20</option>
-            <option value="09:40">9:40</option>
-            <option value="10:00">10:00</option>
-            <option value="10:20">10:20</option>
-            <option value="10:40">10:40</option>
-            <option value="11:00">11:00</option>
-            <option value="11:20">11:20</option>
-            <option value="11:40">11:40</option>
-            <option value="12:00">12:00</option>
           </select>
         </div>
 
-        <!-- Motivo Reserva: Combobox (triángulo hacia abajo)[cite: 4, 12] -->
         <div class="form-group">
-          <label for="motivo-reserva">Motivo Reserva</label>
-          <select id="motivo-reserva" name="motivo-reserva" required>
-            <option value="" disabled selected>Seleccione motivo...</option>
-            <option value="consulta">Consulta Médica</option>
-            <option value="procedimiento">Procedimiento</option>
-            <option value="control">Control</option>
-            <option value="bloqueo">Bloqueo Horario / No disponible</option>
+          <label for="estado-bloque">Acción / Estado del Horario</label>
+          <select id="estado-bloque" name="estado-bloque" required>
+            <option value="Disponible" selected>Habilitar como Disponible</option>
+            <option value="Bloqueado">Bloquear Horario (No disponible)</option>
+            <option value="Eliminar">Quitar asignación (Dejar en blanco)</option>
           </select>
         </div>
 
-        <!-- Botones: Editar y Cancelar[cite: 12] -->
         <div class="form-buttons">
-          <button type="submit" class="btn btn-submit">Editar</button>
-          <button type="button" class="btn btn-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-submit">Aplicar Horario</button>
+          <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
         </div>
       </form>
     </section>
 
   </main>
+
+  <script>
+    const EVENTOS_SEMANA = {{ eventos_json|safe }};
+    const HORA_INICIO = 7;
+    const HORA_FIN = 24;
+    const INTERVALO = 20;
+    const DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+    const tbody = document.getElementById('schedule-body');
+    const selectInicio = document.getElementById('inicio-reserva');
+    const selectFin = document.getElementById('fin-reserva');
+    const selectDia = document.getElementById('dia-semana');
+
+    // Indexar eventos por "Dia|HH:MM" para pintarlos al instante
+    const mapaEventos = {};
+    EVENTOS_SEMANA.forEach(ev => {
+      mapaEventos[`${ev.dia}|${ev.inicio}`] = ev;
+    });
+
+    function formatearHora(totalMinutos) {
+      const h = Math.floor(totalMinutos / 60);
+      const m = totalMinutos % 60;
+      return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+    }
+
+    for (let min = HORA_INICIO * 60; min < HORA_FIN * 60; min += INTERVALO) {
+      const bloqueInicio = formatearHora(min);
+      const bloqueFin = formatearHora(min + INTERVALO);
+
+      const optInicio = document.createElement('option');
+      optInicio.value = bloqueInicio;
+      optInicio.textContent = bloqueInicio;
+      selectInicio.appendChild(optInicio);
+
+      const optFin = document.createElement('option');
+      optFin.value = bloqueFin;
+      optFin.textContent = bloqueFin;
+      selectFin.appendChild(optFin);
+
+      const tr = document.createElement('tr');
+      const tdHora = document.createElement('td');
+      tdHora.className = 'time-cell';
+      tdHora.textContent = `${bloqueInicio} - ${bloqueFin}`;
+      tr.appendChild(tdHora);
+
+      DIAS.forEach(dia => {
+        const td = document.createElement('td');
+        td.className = 'slot-cell';
+        const ev = mapaEventos[`${dia}|${bloqueInicio}`];
+
+        if (ev) {
+          if (ev.tipo === 'ocupado') {
+            td.classList.add('occupied');
+            td.textContent = ev.texto;
+            td.title = ev.detalle || ev.texto;
+          } else if (ev.tipo === 'disponible') {
+            td.classList.add('disponible');
+            td.textContent = 'Disponible';
+          } else if (ev.tipo === 'bloqueado') {
+            td.classList.add('bloqueado');
+            td.textContent = 'Bloqueado';
+          }
+        }
+
+        // Permitir seleccionar celdas que no estén ocupadas por una atención
+        if (!ev || ev.tipo !== 'ocupado') {
+          td.addEventListener('click', () => {
+            document.querySelectorAll('.slot-cell').forEach(c => c.classList.remove('selected-slot'));
+            td.classList.add('selected-slot');
+            selectDia.value = dia;
+            selectInicio.value = bloqueInicio;
+            selectFin.value = bloqueFin;
+          });
+        }
+
+        tr.appendChild(td);
+      });
+
+      tbody.appendChild(tr);
+    }
+
+    document.getElementById('btn-cancelar').addEventListener('click', () => {
+      document.querySelectorAll('.slot-cell').forEach(c => c.classList.remove('selected-slot'));
+      selectDia.selectedIndex = 0;
+      selectInicio.selectedIndex = 0;
+      selectFin.selectedIndex = 0;
+    });
+  </script>
 
 </body>
 </html>
