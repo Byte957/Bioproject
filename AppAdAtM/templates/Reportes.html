@@ -181,8 +181,8 @@
   <!-- Barra Superior (Navbar) -->
 <header class="navbar">
   <div class="brand-section">
-    <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
-    <img src="tu-sublogo-texto.png" alt="Biotechnica" class="nav-sublogo">
+    <img src="{% static 'AppAdAtM/Imagenes/tu-logo-isotipo.png' %}" alt="Logo" class="nav-logo">
+    <img src="{% static 'AppAdAtM/Imagenes/tu-sublogo-texto.png' %}" alt="Biotechnica" class="nav-sublogo">
     <span class="nav-slogan">
       {% if request.session.usuario_nombre %}
         Hola, {{ request.session.usuario_nombre }}
