@@ -9,7 +9,7 @@
   <style>
     .navbar,
     .dashboard-container {
-      max-width: 1200px;
+      max-width: 1400px;
     }
 
     .left-panel {
@@ -300,6 +300,8 @@
           <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
           <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
           <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+          <li><a href="{% url 'ver_auditoria' %}" class="nav-text">Auditoría</a></li>
+          <li><a href="{% url 'reportes_clinica' %}" class="nav-text">Reportes</a></li>
 
         {# --- 2. RECEPCIONISTA (Rol 2) --- #}
         {% elif rol == 2 %}

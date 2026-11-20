@@ -1,12 +1,16 @@
 from django.shortcuts import render, redirect
 from django.db import transaction, IntegrityError
 from django.contrib.auth.hashers import make_password
-from .models import Rol, Usuario, Paciente, Medico, Horario, HorarioMedico, Atencion, Medicamento, Receta, MedicamentoReceta, Boleta
+from .models import Rol, Usuario, Paciente, Medico, Horario, HorarioMedico, Atencion, Medicamento, Receta, MedicamentoReceta, Boleta, Auditoria
 from django.contrib.auth.hashers import check_password
 from django.contrib import messages
 from datetime import date, datetime, time, timedelta
 import json
-
+from django.http import HttpResponse
+from django.template.loader import get_template
+from django.db.models import Count, Sum
+import openpyxl
+from openpyxl.styles import Font, PatternFill, Alignment
 
 
 
@@ -1205,3 +1209,297 @@ def registrousuario(request):
             messages.error(request, f'Ocurrió un error inesperado al guardar: {str(e)}')
 
     return render(request, 'Registrarse.html') # <-- PON AQUÍ EL NOMBRE REAL DE TU HTML DE REGISTRO
+
+def verauditoria(request):
+    usuario_id = request.session.get('usuario_id')
+    rol_id = request.session.get('usuario_rol')
+
+    # Acceso exclusivo para Administrador (Rol 1)
+    if not usuario_id or rol_id != 1:
+        messages.error(request, 'Acceso denegado: Solo el Administrador puede consultar el registro de auditoría.')
+        if rol_id == 2:
+            return redirect('gestionar_atencion')
+        elif rol_id == 3:
+            return redirect('gestionar_disponibilidad')
+        elif rol_id == 4:
+            return redirect('registrar_atencion')
+        return redirect('inicio_sesion')
+
+    registros = Auditoria.objects.all().order_by('-ID_Auditoria')
+    tablas = (
+        Auditoria.objects.values_list('Tabla_Afectada', flat=True)
+        .distinct()
+        .order_by('Tabla_Afectada')
+    )
+
+    return render(request, 'Auditoria.html', {
+        'registros': registros,
+        'tablas': tablas,
+    })
+
+def _obtener_datos_reportes(fecha_inicio, fecha_fin):
+    # --- 1. REPORTE DE ATENCIONES POR ESTADO ---
+    qs_atenciones = Atencion.objects.select_related('Paciente', 'ID_Medico', 'ID_Horario').all()
+    if fecha_inicio:
+        qs_atenciones = qs_atenciones.filter(Dia__gte=fecha_inicio)
+    if fecha_fin:
+        qs_atenciones = qs_atenciones.filter(Dia__lte=fecha_fin)
+    qs_atenciones = qs_atenciones.order_by('-Dia', 'ID_Horario__Hora_Inicio')
+
+    resumen_estados = list(
+        qs_atenciones.values('Estado')
+        .annotate(cantidad=Count('ID_Atencion'))
+        .order_by('Estado')
+    )
+    total_atenciones = qs_atenciones.count()
+
+    # --- 2. REPORTE DE INGRESOS (BOLETAS) ---
+    qs_boletas = Boleta.objects.select_related('Atencion', 'Atencion__Paciente', 'Atencion__ID_Medico').all()
+    if fecha_inicio:
+        qs_boletas = qs_boletas.filter(Atencion__Dia__gte=fecha_inicio)
+    if fecha_fin:
+        qs_boletas = qs_boletas.filter(Atencion__Dia__lte=fecha_fin)
+    qs_boletas = qs_boletas.order_by('-Atencion__Dia', '-ID_Boleta')
+
+    totales_ingresos = qs_boletas.aggregate(
+        suma_neto=Sum('Monto_Neto'),
+        suma_iva=Sum('IVA'),
+        suma_total=Sum('Total')
+    )
+    resumen_metodos = list(
+        qs_boletas.values('Metodo_Pago')
+        .annotate(cantidad=Count('ID_Boleta'), total_metodo=Sum('Total'))
+        .order_by('-total_metodo')
+    )
+
+    return {
+        'atenciones': qs_atenciones,
+        'resumen_estados': resumen_estados,
+        'total_atenciones': total_atenciones,
+        'boletas': qs_boletas,
+        'suma_neto': totales_ingresos['suma_neto'] or 0,
+        'suma_iva': totales_ingresos['suma_iva'] or 0,
+        'suma_total': totales_ingresos['suma_total'] or 0,
+        'resumen_metodos': resumen_metodos,
+    }
+
+
+def reportes_clinica(request):
+    usuario_id = request.session.get('usuario_id')
+    rol_id = request.session.get('usuario_rol')
+
+    # Solo Administrador (1) y Recepcionista (2)
+    if not usuario_id or rol_id not in (1, 2):
+        messages.error(request, 'Acceso denegado: No tienes permisos para ver reportes.')
+        return redirect('inicio_sesion')
+
+    hoy = date.today()
+    primer_dia_mes = hoy.replace(day=1).strftime('%Y-%m-%d')
+    fecha_inicio = request.GET.get('fecha_inicio', primer_dia_mes)
+    fecha_fin = request.GET.get('fecha_fin', hoy.strftime('%Y-%m-%d'))
+
+    datos = _obtener_datos_reportes(fecha_inicio, fecha_fin)
+    datos['fecha_inicio'] = fecha_inicio
+    datos['fecha_fin'] = fecha_fin
+
+    return render(request, 'Reportes.html', datos)
+
+
+def exportar_reporte(request):
+    usuario_id = request.session.get('usuario_id')
+    rol_id = request.session.get('usuario_rol')
+
+    if not usuario_id or rol_id not in (1, 2):
+        return redirect('inicio_sesion')
+
+    tipo = request.GET.get('tipo', 'atenciones')      # 'atenciones' o 'ingresos'
+    formato = request.GET.get('formato', 'excel')     # 'excel' o 'pdf'
+    fecha_inicio = request.GET.get('fecha_inicio', '')
+    fecha_fin = request.GET.get('fecha_fin', '')
+
+    datos = _obtener_datos_reportes(fecha_inicio, fecha_fin)
+    rango_txt = f"{fecha_inicio or 'Inicio'}_a_{fecha_fin or 'Hoy'}"
+
+    # =========================================================================
+    # EXPORTACIÓN A EXCEL (.xlsx)
+    # =========================================================================
+    if formato == 'excel':
+        wb = openpyxl.Workbook()
+        ws = wb.active
+
+        header_fill = PatternFill(start_color="2E7D32", end_color="2E7D32", fill_type="solid")
+        header_font = Font(color="FFFFFF", bold=True)
+
+        if tipo == 'atenciones':
+            ws.title = "Reporte Atenciones"
+            ws.append(["REPORTE DE HORAS Y ESTADOS DE ATENCIÓN - BIOTECHNICA"])
+            ws.append([f"Rango: {fecha_inicio or 'Todos'} hasta {fecha_fin or 'Todos'}"])
+            ws.append([])
+
+            # Resumen por Estado
+            ws.append(["RESUMEN POR ESTADO", "CANTIDAD"])
+            for col in range(1, 3):
+                ws.cell(row=4, column=col).fill = header_fill
+                ws.cell(row=4, column=col).font = header_font
+
+            for item in datos['resumen_estados']:
+                ws.append([item['Estado'], item['cantidad']])
+            ws.append(["TOTAL ATENCIONES", datos['total_atenciones']])
+            ws.append([])
+
+            # Detalle de Atenciones
+            fila_cabecera = ws.max_row + 1
+            cabeceras = ["ID", "Fecha", "Horario", "Paciente", "RUN Paciente", "Médico", "Estado", "Descripción"]
+            ws.append(cabeceras)
+            for col in range(1, len(cabeceras) + 1):
+                ws.cell(row=fila_cabecera, column=col).fill = header_fill
+                ws.cell(row=fila_cabecera, column=col).font = header_font
+
+            for a in datos['atenciones']:
+                ws.append([
+                    a.ID_Atencion,
+                    a.Dia.strftime('%d/%m/%Y'),
+                    f"{a.ID_Horario.Hora_Inicio.strftime('%H:%M')} - {a.ID_Horario.Hora_Fin.strftime('%H:%M')}",
+                    f"{a.Paciente.Nombre_Paciente} {a.Paciente.ApellidoP}",
+                    a.Paciente.RUN_Paciente,
+                    f"Dr(a). {a.ID_Medico.Nombre_Medico} {a.ID_Medico.ApellidoP_Medico}",
+                    a.Estado,
+                    a.Descripcion,
+                ])
+
+            nombre_archivo = f"Reporte_Atenciones_{rango_txt}.xlsx"
+
+        else:
+            ws.title = "Reporte Ingresos"
+            ws.append(["REPORTE DE INGRESOS - BIOTECHNICA"])
+            ws.append([f"Rango: {fecha_inicio or 'Todos'} hasta {fecha_fin or 'Todos'}"])
+            ws.append([])
+
+            # Resumen Financiero
+            ws.append(["CONCEPTO", "MONTO ($)"])
+            for col in range(1, 3):
+                ws.cell(row=4, column=col).fill = header_fill
+                ws.cell(row=4, column=col).font = header_font
+
+            ws.append(["Total Monto Neto", round(datos['suma_neto'], 2)])
+            ws.append(["Total IVA (19%)", round(datos['suma_iva'], 2)])
+            ws.append(["Total Ingresos Brutos", round(datos['suma_total'], 2)])
+            ws.append([])
+
+            # Detalle de Boletas
+            fila_cabecera = ws.max_row + 1
+            cabeceras = ["N° Boleta", "Fecha Atención", "ID Atención", "Paciente", "Médico", "Método Pago", "Neto ($)", "IVA ($)", "Total ($)"]
+            ws.append(cabeceras)
+            for col in range(1, len(cabeceras) + 1):
+                ws.cell(row=fila_cabecera, column=col).fill = header_fill
+                ws.cell(row=fila_cabecera, column=col).font = header_font
+
+            for b in datos['boletas']:
+                ws.append([
+                    b.ID_Boleta,
+                    b.Atencion.Dia.strftime('%d/%m/%Y'),
+                    b.Atencion.ID_Atencion,
+                    f"{b.Atencion.Paciente.Nombre_Paciente} {b.Atencion.Paciente.ApellidoP}",
+                    f"Dr(a). {b.Atencion.ID_Medico.Nombre_Medico} {b.Atencion.ID_Medico.ApellidoP_Medico}",
+                    b.Metodo_Pago,
+                    b.Monto_Neto,
+                    b.IVA,
+                    b.Total,
+                ])
+
+            nombre_archivo = f"Reporte_Ingresos_{rango_txt}.xlsx"
+
+        # Ajustar ancho automático de columnas
+        for col in ws.columns:
+            max_len = max(len(str(cell.value or '')) for cell in col)
+            ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 45)
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}"'
+        wb.save(response)
+        return response
+
+    # =========================================================================
+    # EXPORTACIÓN A PDF (.pdf) CON REPORTLAB
+    # =========================================================================
+    from reportlab.lib.pagesizes import letter, landscape
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib import colors
+
+    response = HttpResponse(content_type='application/pdf')
+    nombre_pdf = f"Reporte_{tipo.capitalize()}_{rango_txt}.pdf"
+    response['Content-Disposition'] = f'attachment; filename="{nombre_pdf}"'
+
+    doc = SimpleDocTemplate(response, pagesize=landscape(letter))
+    styles = getSampleStyleSheet()
+    elementos = []
+
+    titulo_texto = "Biotechnica Clínica - Reporte de Atenciones" if tipo == 'atenciones' else "Biotechnica Clínica - Reporte de Ingresos"
+    elementos.append(Paragraph(f"<b>{titulo_texto}</b>", styles['Title']))
+    elementos.append(Paragraph(f"Período: {fecha_inicio or 'Inicio'} al {fecha_fin or 'Hoy'} | Emitido: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+    elementos.append(Spacer(1, 14))
+
+    estilo_tabla = TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2e7d32')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f1f8e9')]),
+    ])
+
+    if tipo == 'atenciones':
+        resumen_data = [["Estado", "Cantidad"]] + [[i['Estado'], str(i['cantidad'])] for i in datos['resumen_estados']] + [["TOTAL", str(datos['total_atenciones'])]]
+        t_resumen = Table(resumen_data, colWidths=[180, 100])
+        t_resumen.setStyle(estilo_tabla)
+        elementos.append(t_resumen)
+        elementos.append(Spacer(1, 14))
+
+        filas = [["ID", "Fecha", "Horario", "Paciente", "RUN", "Médico", "Estado"]]
+        for a in datos['atenciones']:
+            filas.append([
+                f"#{a.ID_Atencion}",
+                a.Dia.strftime('%d/%m/%Y'),
+                f"{a.ID_Horario.Hora_Inicio.strftime('%H:%M')}-{a.ID_Horario.Hora_Fin.strftime('%H:%M')}",
+                f"{a.Paciente.Nombre_Paciente} {a.Paciente.ApellidoP}",
+                a.Paciente.RUN_Paciente,
+                f"Dr(a). {a.ID_Medico.Nombre_Medico} {a.ID_Medico.ApellidoP_Medico}",
+                a.Estado,
+            ])
+        t_detalle = Table(filas, repeatRows=1)
+        t_detalle.setStyle(estilo_tabla)
+        elementos.append(t_detalle)
+    else:
+        resumen_data = [
+            ["Concepto", "Monto"],
+            ["Boletas Emitidas", str(datos['boletas'].count())],
+            ["Total Neto", f"${int(round(datos['suma_neto'])):,}"],
+            ["Total IVA (19%)", f"${int(round(datos['suma_iva'])):,}"],
+            ["TOTAL INGRESOS", f"${int(round(datos['suma_total'])):,}"],
+        ]
+        t_resumen = Table(resumen_data, colWidths=[180, 130])
+        t_resumen.setStyle(estilo_tabla)
+        elementos.append(t_resumen)
+        elementos.append(Spacer(1, 14))
+
+        filas = [["Boleta", "Fecha", "Paciente", "Médico", "Método Pago", "Neto", "IVA", "Total"]]
+        for b in datos['boletas']:
+            filas.append([
+                f"#{b.ID_Boleta}",
+                b.Atencion.Dia.strftime('%d/%m/%Y'),
+                f"{b.Atencion.Paciente.Nombre_Paciente} {b.Atencion.Paciente.ApellidoP}",
+                f"Dr(a). {b.Atencion.ID_Medico.Nombre_Medico} {b.Atencion.ID_Medico.ApellidoP_Medico}",
+                b.Metodo_Pago,
+                f"${int(round(b.Monto_Neto)):,}",
+                f"${int(round(b.IVA)):,}",
+                f"${int(round(b.Total)):,}",
+            ])
+        t_detalle = Table(filas, repeatRows=1)
+        t_detalle.setStyle(estilo_tabla)
+        elementos.append(t_detalle)
+
+    doc.build(elementos)
+    return response

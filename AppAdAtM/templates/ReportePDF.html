@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #222; }
+    .header { border-bottom: 2px solid #2e7d32; padding-bottom: 8px; margin-bottom: 14px; }
+    .header h1 { color: #2e7d32; font-size: 18px; margin: 0 0 4px 0; }
+    .header p { margin: 2px 0; color: #555; font-size: 10px; }
+    h2 { color: #2e7d32; font-size: 13px; margin: 14px 0 6px 0; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+    th { background-color: #2e7d32; color: #ffffff; padding: 6px; text-align: left; font-size: 10px; }
+    td { border: 1px solid #cccccc; padding: 5px 6px; font-size: 10px; }
+    .resumen-table { width: 55%; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Biotechnica Clínica — Reporte de {% if tipo == 'atenciones' %}Atenciones y Estados{% else %}Ingresos{% endif %}</h1>
+    <p><strong>Período filtrado:</strong> {{ fecha_inicio }} al {{ fecha_fin }}</p>
+    <p><strong>Fecha de emisión:</strong> {{ fecha_generacion }}</p>
+  </div>
+
+  {% if tipo == 'atenciones' %}
+    <h2>Resumen por Estado</h2>
+    <table class="resumen-table">
+      <thead>
+        <tr>
+          <th>Estado de Atención</th>
+          <th>Cantidad</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in resumen_estados %}
+          <tr>
+            <td>{{ item.Estado }}</td>
+            <td>{{ item.cantidad }}</td>
+          </tr>
+        {% endfor %}
+        <tr>
+          <td><strong>TOTAL ATENCIONES</strong></td>
+          <td><strong>{{ total_atenciones }}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Detalle de Horas Registradas</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Fecha</th>
+          <th>Horario</th>
+          <th>Paciente</th>
+          <th>Médico</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in atenciones %}
+          <tr>
+            <td>#{{ a.ID_Atencion }}</td>
+            <td>{{ a.Dia|date:'d/m/Y' }}</td>
+            <td>{{ a.ID_Horario.Hora_Inicio|time:'H:i' }} - {{ a.ID_Horario.Hora_Fin|time:'H:i' }}</td>
+            <td>{{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} ({{ a.Paciente.RUN_Paciente }})</td>
+            <td>Dr(a). {{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }}</td>
+            <td>{{ a.Estado }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+  {% else %}
+    <h2>Resumen Financiero</h2>
+    <table class="resumen-table">
+      <thead>
+        <tr>
+          <th>Concepto</th>
+          <th>Monto</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>Boletas Emitidas</td><td>{{ boletas|length }}</td></tr>
+        <tr><td>Total Monto Neto</td><td>${{ suma_neto|floatformat:0 }}</td></tr>
+        <tr><td>Total IVA (19%)</td><td>${{ suma_iva|floatformat:0 }}</td></tr>
+        <tr><td><strong>TOTAL INGRESOS</strong></td><td><strong>${{ suma_total|floatformat:0 }}</strong></td></tr>
+      </tbody>
+    </table>
+
+    <h2>Detalle de Boletas</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Boleta</th>
+          <th>Fecha</th>
+          <th>Paciente</th>
+          <th>Médico</th>
+          <th>Método</th>
+          <th>Neto</th>
+          <th>IVA</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in boletas %}
+          <tr>
+            <td>#{{ b.ID_Boleta }}</td>
+            <td>{{ b.Atencion.Dia|date:'d/m/Y' }}</td>
+            <td>{{ b.Atencion.Paciente.Nombre_Paciente }} {{ b.Atencion.Paciente.ApellidoP }}</td>
+            <td>Dr(a). {{ b.Atencion.ID_Medico.Nombre_Medico }} {{ b.Atencion.ID_Medico.ApellidoP_Medico }}</td>
+            <td>{{ b.Metodo_Pago }}</td>
+            <td>${{ b.Monto_Neto|floatformat:0 }}</td>
+            <td>${{ b.IVA|floatformat:0 }}</td>
+            <td><strong>${{ b.Total|floatformat:0 }}</strong></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+</body>
+</html>

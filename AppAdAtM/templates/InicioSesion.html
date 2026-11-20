@@ -182,15 +182,15 @@
 
     <!-- Círculo / Isotipo superior del logo -->
     <div class="logo-container">
-      <img src="tu-logo-isotipo.png" alt="Logo Biothecnica">
+      <img src="{% static 'AppAdAtM/Imagenes/tu-logo-isotipo.png' %}" alt="Logo Biothecnica">
     </div>
 
     <!-- Caja inferior / Nombre de marca del logo -->
     <div class="sublogo-container">
-      <img src="tu-sublogo-texto.png" alt="Biotechnica">
+      <img src="{% static 'AppAdAtM/Imagenes/tu-sublogo-texto.png' %}" alt="Biotechnica">
     </div>
 
-    <div class="slogan">SLOGAN DE LA EMPRESA</div>
+    <div class="slogan">GLOBAL PHARMA</div>
 {% if messages %}
   {% for message in messages %}
     <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">

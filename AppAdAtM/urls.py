@@ -14,4 +14,7 @@ urlpatterns = [
     path('Cobros', views.cobro, name='gestionar_cobros'),
     path('GestionarMedicamentos', views.gestionmedicamentos, name='gestionar_medicamentos'),
     path('CerrarSesion', views.cerrarsesion, name='cerrar_sesion'),
+    path('Auditoria', views.verauditoria, name='ver_auditoria'),
+    path('Reportes', views.reportes_clinica, name='reportes_clinica'),
+    path('Reportes/Exportar', views.exportar_reporte, name='exportar_reporte'),
 ]

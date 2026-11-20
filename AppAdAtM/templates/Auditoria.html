@@ -1,0 +1,416 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Auditoría del Sistema</title>
+  <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
+  <style>
+    .navbar,
+    .dashboard-container {
+      max-width: 1400px;
+    }
+
+    .left-panel {
+      flex: 1.3;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filters-row {
+      display: flex;
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .filter-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-item label {
+      font-size: 0.83rem;
+      font-weight: 600;
+      color: #333333;
+      margin-bottom: 6px;
+      margin-left: 4px;
+    }
+
+    input[type="date"],
+    select {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #2e7d32;
+      outline: none;
+      font-size: 0.9rem;
+      color: #333333;
+      background-color: #ffffff;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .section-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+      padding: 0 4px;
+    }
+
+    .section-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #222222;
+    }
+
+    .btn-limpiar-filtros {
+      padding: 5px 12px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      border-radius: 8px;
+      border: 1px solid #2e7d32;
+      background-color: #f1f8e9;
+      color: #2e7d32;
+      cursor: pointer;
+    }
+
+    .btn-limpiar-filtros:hover {
+      background-color: #dcedc8;
+    }
+
+    .user-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-height: 540px;
+      overflow-y: auto;
+      padding-right: 8px;
+    }
+
+    .user-list::-webkit-scrollbar { width: 7px; }
+    .user-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+    .user-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
+
+    .user-item {
+      padding: 12px 14px;
+      background-color: #ffffff;
+      border: 1.5px solid #2e7d32;
+      border-radius: 10px;
+      font-size: 0.84rem;
+      color: #333333;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-item:hover,
+    .user-item.selected {
+      background-color: #e8f5e9;
+      transform: translateX(4px);
+      box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
+      font-weight: 600;
+    }
+
+    .item-main-text {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .badge-accion {
+      padding: 3px 9px;
+      border-radius: 6px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      flex-shrink: 0;
+    }
+
+    .badge-INSERT {
+      background-color: #e8f5e9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+
+    .badge-UPDATE {
+      background-color: #fff8e1;
+      color: #ef6c00;
+      border: 1px solid #ffe082;
+    }
+
+    .badge-DELETE {
+      background-color: #ffebee;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+
+    .right-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-header-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      color: #222222;
+      margin-bottom: 18px;
+    }
+
+    .info-card-block {
+      border: 1.5px solid #2e7d32;
+      border-radius: 12px;
+      padding: 12px 14px;
+      background-color: #fcfcfc;
+      margin-bottom: 12px;
+    }
+
+    .block-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #2e7d32;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .info-card-block p {
+      font-size: 0.9rem;
+      color: #333333;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard-container { flex-direction: column; }
+      .navbar { flex-direction: column; align-items: flex-start; }
+      .filters-row { flex-direction: column; }
+    }
+  </style>
+  <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
+</head>
+<body>
+
+  <!-- Barra Superior (Navbar) -->
+<header class="navbar">
+  <div class="brand-section">
+    <img src="tu-logo-isotipo.png" alt="Logo" class="nav-logo">
+    <img src="tu-sublogo-texto.png" alt="Biotechnica" class="nav-sublogo">
+    <span class="nav-slogan">
+      {% if request.session.usuario_nombre %}
+        Hola, {{ request.session.usuario_nombre }}
+      {% else %}
+        Biotechnica
+      {% endif %}
+    </span>
+  </div>
+
+  <nav class="navbar-content">
+    <ul class="nav-ul">
+      {% with rol=request.session.usuario_rol %}
+
+        {# --- 1. ADMINISTRADOR (Rol 1) --- #}
+        {% if rol == 1 %}
+          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
+          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
+          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
+          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+          <li><a href="{% url 'ver_auditoria' %}" class="nav-text">Auditoría</a></li>
+          <li><a href="{% url 'reportes_clinica' %}" class="nav-text">Reportes</a></li>
+
+        {# --- 2. RECEPCIONISTA (Rol 2) --- #}
+        {% elif rol == 2 %}
+          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
+          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
+          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+
+        {# --- 3. MÉDICO (Rol 3) --- #}
+        {% elif rol == 3 %}
+          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Mi Disponibilidad</a></li>
+          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Mis Atenciones</a></li>
+          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Medicamentos</a></li>
+          <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Mis Datos Médicos</a></li>
+
+        {# --- 4. PACIENTE (Rol 4) --- #}
+        {% elif rol == 4 %}
+          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Agendar Atención</a></li>
+          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Mis Datos</a></li>
+
+        {% endif %}
+
+        {# --- ENLACES COMUNES PARA TODOS LOS ROLES AUTENTICADOS --- #}
+        {% if rol %}
+          <li>
+            <a href="{% url 'gestionar_usuarios' %}" class="nav-text">
+              {% if rol == 1 %}Gestionar Usuarios{% else %}Mi Cuenta{% endif %}
+            </a>
+          </li>
+          <li><a href="{% url 'cerrar_sesion' %}" class="nav-text" style="color:#ffebee; font-weight:700;">Cerrar Sesión</a></li>
+        {% endif %}
+
+      {% endwith %}
+    </ul>
+  </nav>
+</header>
+
+<script>
+  window.addEventListener('pageshow', function (event) {
+    if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
+      window.location.replace("{% url 'inicio_sesion' %}");
+    }
+  });
+</script>
+
+  <!-- Contenedor Principal -->
+  <main class="dashboard-container">
+
+    <!-- Panel Izquierdo: Filtros y Eventos de Auditoría -->
+    <section class="card left-panel">
+      <div class="filters-row">
+        <div class="filter-item">
+          <label for="filtro-tabla">Filtrar por Tabla</label>
+          <select id="filtro-tabla">
+            <option value="">Todas las tablas...</option>
+            {% for t in tablas %}
+              <option value="{{ t }}">{{ t }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label for="filtro-fecha">Filtrar por Fecha</label>
+          <input type="date" id="filtro-fecha">
+        </div>
+      </div>
+
+      <div class="section-header-row">
+        <h2 class="section-title">Eventos Registrados (<span id="contador-visible">{{ registros|length }}</span>)</h2>
+        <button type="button" class="btn-limpiar-filtros" id="btn-limpiar">Limpiar filtros</button>
+      </div>
+
+      <div class="user-list" id="lista-auditoria">
+        {% for r in registros %}
+          <div class="user-item"
+               data-id="{{ r.ID_Auditoria }}"
+               data-tabla="{{ r.Tabla_Afectada }}"
+               data-accion="{{ r.Accion }}"
+               data-registroid="{{ r.Registro_ID }}"
+               data-detalle="{{ r.Detalle|default:'Sin detalle adicional' }}"
+               data-fecha="{{ r.Fecha_Hora|date:'Y-m-d' }}"
+               data-fechahora="{{ r.Fecha_Hora|date:'d/m/Y H:i:s' }}">
+            <span class="item-main-text">
+              #{{ r.ID_Auditoria }} | <strong>{{ r.Tabla_Afectada }}</strong> (ID: {{ r.Registro_ID }}) - {{ r.Fecha_Hora|date:'d/m/Y H:i' }}
+            </span>
+            <span class="badge-accion badge-{{ r.Accion }}">{{ r.Accion }}</span>
+          </div>
+        {% empty %}
+          <p style="color:#666; font-size:0.9rem; padding:10px;">Aún no hay registros en la tabla de Auditoría.</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <!-- Panel Derecho: Detalle del Evento Seleccionado -->
+    <section class="card right-panel">
+      <h1 class="panel-header-title" id="titulo-detalle">Detalle de Auditoría</h1>
+
+      <div class="info-card-block">
+        <div class="block-title">ID Auditoría / Fecha y Hora</div>
+        <p id="det-fecha">Selecciona un registro de la lista izquierda...</p>
+      </div>
+
+      <div class="info-card-block">
+        <div class="block-title">Tabla Afectada</div>
+        <p id="det-tabla">-</p>
+      </div>
+
+      <div class="info-card-block">
+        <div class="block-title">Operación Ejecutada (Trigger)</div>
+        <p id="det-accion">-</p>
+      </div>
+
+      <div class="info-card-block">
+        <div class="block-title">ID del Registro Afectado</div>
+        <p id="det-registro">-</p>
+      </div>
+
+      <div class="info-card-block" style="min-height: 110px;">
+        <div class="block-title">Detalle de la Modificación</div>
+        <p id="det-detalle">Haz clic en cualquier evento para inspeccionar los valores capturados por el trigger.</p>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    const items = document.querySelectorAll('.user-item');
+    const filtroTabla = document.getElementById('filtro-tabla');
+    const filtroFecha = document.getElementById('filtro-fecha');
+    const btnLimpiar = document.getElementById('btn-limpiar');
+    const contadorVisible = document.getElementById('contador-visible');
+
+    const tituloDetalle = document.getElementById('titulo-detalle');
+    const detFecha = document.getElementById('det-fecha');
+    const detTabla = document.getElementById('det-tabla');
+    const detAccion = document.getElementById('det-accion');
+    const detRegistro = document.getElementById('det-registro');
+    const detDetalle = document.getElementById('det-detalle');
+
+    // Al hacer clic en un evento -> mostrar detalle completo en el panel derecho
+    items.forEach(item => {
+      item.addEventListener('click', () => {
+        items.forEach(i => i.classList.remove('selected'));
+        item.classList.add('selected');
+
+        tituloDetalle.textContent = `Auditoría #${item.dataset.id}`;
+        detFecha.textContent = `${item.dataset.fechahora}`;
+        detTabla.textContent = item.dataset.tabla;
+        detAccion.textContent = item.dataset.accion;
+        detRegistro.textContent = item.dataset.registroid;
+        detDetalle.textContent = item.dataset.detalle;
+      });
+    });
+
+    // Filtro en vivo por Tabla y Fecha
+    function filtrarAuditoria() {
+      const tablaSel = filtroTabla.value;
+      const fechaSel = filtroFecha.value;
+      let visibles = 0;
+
+      items.forEach(item => {
+        const coincideTabla = !tablaSel || item.dataset.tabla === tablaSel;
+        const coincideFecha = !fechaSel || item.dataset.fecha === fechaSel;
+
+        if (coincideTabla && coincideFecha) {
+          item.style.display = 'flex';
+          visibles++;
+        } else {
+          item.style.display = 'none';
+        }
+      });
+
+      contadorVisible.textContent = visibles;
+    }
+
+    filtroTabla.addEventListener('change', filtrarAuditoria);
+    filtroFecha.addEventListener('change', filtrarAuditoria);
+
+    btnLimpiar.addEventListener('click', () => {
+      filtroTabla.selectedIndex = 0;
+      filtroFecha.value = '';
+      filtrarAuditoria();
+    });
+  </script>
+
+</body>
+</html>
