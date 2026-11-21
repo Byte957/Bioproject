@@ -1,17 +1,13 @@
 {% load static %}
 <!DOCTYPE html>
 <html lang="es">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% if es_admin %}Gestión de Usuarios{% else %}Mi Cuenta{% endif %}</title>
   <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   <style>
-    .navbar,
-    .dashboard-container {
-      max-width: 1400px;
-    }
-
     .left-panel {
       flex: 1.1;
       display: flex;
@@ -55,9 +51,19 @@
       padding-right: 8px;
     }
 
-    .user-list::-webkit-scrollbar { width: 7px; }
-    .user-list::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
-    .user-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
+    .user-list::-webkit-scrollbar {
+      width: 7px;
+    }
+
+    .user-list::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 10px;
+    }
+
+    .user-list::-webkit-scrollbar-thumb {
+      background: #43a047;
+      border-radius: 10px;
+    }
 
     .user-item {
       padding: 12px 16px;
@@ -146,275 +152,266 @@
       transition: all 0.2s ease;
     }
 
-    .alert-msg {
-      padding: 12px;
-      border-radius: 10px;
-      margin-bottom: 16px;
-      font-size: 0.85rem;
-      font-weight: 600;
-      text-align: center;
-    }
-
-    .alert-error {
-      background-color: #ffebee;
-      color: #c62828;
-      border: 1px solid #ef9a9a;
-    }
-
-    .alert-success {
-      background-color: #e8f5e9;
-      color: #2e7d32;
-      border: 1px solid #a5d6a7;
-    }
-
     @media (max-width: 900px) {
-      .dashboard-container { flex-direction: column; }
-      .navbar { flex-direction: column; align-items: flex-start; }
-      .filters-row { flex-direction: column; }
+      .filters-row {
+        flex-direction: column;
+      }
+    }
+
+    .logout-link {
+      color: #b71c1c;
+      font-weight: 700;
     }
   </style>
   <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
 </head>
+
 <body>
 
   <!-- Barra Superior Dinámica según Rol -->
-<header class="navbar">
-  <div class="brand-section">
-    <img src="{% static 'AppAdAtM/Imagenes/tu-logo-isotipo.png' %}" alt="Logo" class="nav-logo">
-    <img src="{% static 'AppAdAtM/Imagenes/tu-sublogo-texto.png' %}" alt="Biotechnica" class="nav-sublogo">
-    <span class="nav-slogan">
-      {% if request.session.usuario_nombre %}
-        Hola, {{ request.session.usuario_nombre }}
-      {% else %}
-        Biotechnica
-      {% endif %}
-    </span>
-  </div>
+  <header>
+    <nav class="navbar">
+      <div class="brand-section">
+        <img src="{% static 'AppAdAtM/Imagenes/tu-logo-isotipo.png' %}" alt="Logo" class="nav-logo">
+        <img src="{% static 'AppAdAtM/Imagenes/tu-sublogo-texto.png' %}" alt="Biotechnica" class="nav-sublogo">
+        <span class="nav-slogan">
+          {% if request.session.usuario_nombre %}
+          Hola, {{ request.session.usuario_nombre }}
+          {% else %}
+          Biotechnica
+          {% endif %}
+        </span>
+      </div>
+      <button class="nav-toggle" id="navToggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="navbar-content">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <div class="navbar-content" id="navbar-content">
+        <ul class="nav-ul">
+          {% with rol=request.session.usuario_rol %}
 
-  <nav class="navbar-content">
-    <ul class="nav-ul">
-      {% with rol=request.session.usuario_rol %}
+          {# --- 1. ADMINISTRADOR (Rol 1) --- #}
+          {% if rol == 1 %}
+          <li class="nav-primary"><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+          <li class="nav-primary"><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+          <li class="nav-primary"><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
+          <li class="nav-secondary"><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
+          <li class="nav-secondary"><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+          <li class="nav-secondary"><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
+          <li class="nav-secondary"><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+          <li class="nav-secondary"><a href="{% url 'ver_auditoria' %}" class="nav-text">Auditoría</a></li>
+          <li class="nav-secondary"><a href="{% url 'reportes_clinica' %}" class="nav-text">Reportes</a></li>
 
-        {# --- 1. ADMINISTRADOR (Rol 1) --- #}
-        {% if rol == 1 %}
-          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
-          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
-          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
-          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-          <li><a href="{% url 'ver_auditoria' %}" class="nav-text">Auditoría</a></li>
-          <li><a href="{% url 'reportes_clinica' %}" class="nav-text">Reportes</a></li>
+          {# --- 2. RECEPCIONISTA (Rol 2) --- #}
+          {% elif rol == 2 %}
+          <li class="nav-primary"><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
+          <li class="nav-primary"><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
+          <li class="nav-primary"><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
+          <li class="nav-secondary"><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
+          <li class="nav-secondary"><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
 
-        {# --- 2. RECEPCIONISTA (Rol 2) --- #}
-        {% elif rol == 2 %}
-          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
-          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
-          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
+          {# --- 3. MÉDICO (Rol 3) --- #}
+          {% elif rol == 3 %}
+          <li class="nav-primary"><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Mi Disponibilidad</a></li>
+          <li class="nav-primary"><a href="{% url 'gestionar_atencion' %}" class="nav-text">Mis Atenciones</a></li>
+          <li class="nav-primary"><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
+          <li class="nav-secondary"><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Medicamentos</a></li>
+          <li class="nav-secondary"><a href="{% url 'gestionar_medicos' %}" class="nav-text">Mis Datos Médicos</a></li>
 
-        {# --- 3. MÉDICO (Rol 3) --- #}
-        {% elif rol == 3 %}
-          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Mi Disponibilidad</a></li>
-          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Mis Atenciones</a></li>
-          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Medicamentos</a></li>
-          <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Mis Datos Médicos</a></li>
+          {# --- 4. PACIENTE (Rol 4) --- #}
+          {% elif rol == 4 %}
+          <li class="nav-primary"><a href="{% url 'registrar_atencion' %}" class="nav-text">Agendar Atención</a></li>
 
-        {# --- 4. PACIENTE (Rol 4) --- #}
-        {% elif rol == 4 %}
-          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Agendar Atención</a></li>
-          
 
-        {% endif %}
+          {% endif %}
 
-        {# --- ENLACES COMUNES PARA TODOS LOS ROLES AUTENTICADOS --- #}
-        {% if rol %}
-          <li>
+          {# --- ENLACES COMUNES PARA TODOS LOS ROLES AUTENTICADOS --- #}
+          {% if rol %}
+          <li class="nav-primary">
             <a href="{% url 'gestionar_usuarios' %}" class="nav-text">
               {% if rol == 1 %}Gestionar Usuarios{% else %}Mi Cuenta{% endif %}
             </a>
           </li>
-          <li><a href="{% url 'cerrar_sesion' %}" class="nav-text" style="color:#ffebee; font-weight:700;">Cerrar Sesión</a></li>
-        {% endif %}
+          <li class="{% if rol == 4 %}nav-primary{% else %}nav-secondary{% endif %}"><a href="{% url 'cerrar_sesion' %}" class="nav-text logout-link">Cerrar
+              Sesión</a></li>
+          {% endif %}
 
-      {% endwith %}
-    </ul>
-  </nav>
-</header>
+          {% endwith %}
+        </ul>
+      </div>
+    </nav>
+  </header>
 
   <!-- Contenedor de Gestión -->
   <main class="dashboard-container">
 
     {% if es_admin %}
-      <!-- ========================================================= -->
-      <!-- VISTA ADMINISTRADOR: Gestión completa de todos los usuarios -->
-      <!-- ========================================================= -->
-      <section class="card left-panel">
-        <div class="filters-row">
-          <div class="filter-item">
-            <label for="filtro-nombre">Buscar por Nombre o Correo</label>
-            <input type="text" id="filtro-nombre" placeholder="Escribe para filtrar...">
-          </div>
-
-          <div class="filter-item">
-            <label for="filtro-rol">Filtrar por Rol</label>
-            <select id="filtro-rol">
-              <option value="">Todos los roles</option>
-              {% for r in roles %}
-                <option value="{{ r.ID_Rol }}">{{ r.Nombre_Rol }}</option>
-              {% endfor %}
-            </select>
-          </div>
+    <!-- ========================================================= -->
+    <!-- VISTA ADMINISTRADOR: Gestión completa de todos los usuarios -->
+    <!-- ========================================================= -->
+    <section class="card left-panel">
+      <div class="filters-row">
+        <div class="filter-item">
+          <label for="filtro-nombre">Buscar por Nombre o Correo</label>
+          <input type="text" id="filtro-nombre" placeholder="Escribe para filtrar...">
         </div>
 
-        <h2 class="section-title">Usuarios Registrados ({{ usuarios|length }})</h2>
-        <div class="user-list" id="lista-usuarios">
-          {% for u in usuarios %}
-            <div class="user-item"
-                 data-id="{{ u.ID_Usuario }}"
-                 data-nombre="{{ u.Nombre }}"
-                 data-apellido="{{ u.Apellido }}"
-                 data-correo="{{ u.Correo_Usuario }}"
-                 data-rol="{{ u.Rol.ID_Rol }}"
-                 data-estado="{{ u.Estado }}">
-              #{{ u.ID_Usuario }} - {{ u.Nombre }} {{ u.Apellido }} | {{ u.Correo_Usuario }} ({{ u.Rol.Nombre_Rol }} - {{ u.Estado }})
-            </div>
-          {% empty %}
-            <p style="color:#666; font-size:0.9rem; padding:10px;">No hay usuarios registrados todavía.</p>
-          {% endfor %}
+        <div class="filter-item">
+          <label for="filtro-rol">Filtrar por Rol</label>
+          <select id="filtro-rol">
+            <option value="">Todos los roles</option>
+            {% for r in roles %}
+            <option value="{{ r.ID_Rol }}">{{ r.Nombre_Rol }}</option>
+            {% endfor %}
+          </select>
         </div>
-      </section>
+      </div>
 
-      <section class="card right-panel">
-        <h1 class="panel-header-title" id="titulo-formulario">Nuevo Usuario</h1>
+      <h2 class="section-title">Usuarios Registrados ({{ usuarios|length }})</h2>
+      <div class="user-list" id="lista-usuarios">
+        {% for u in usuarios %}
+        <div class="user-item" data-id="{{ u.ID_Usuario }}" data-nombre="{{ u.Nombre }}"
+          data-apellido="{{ u.Apellido }}" data-correo="{{ u.Correo_Usuario }}" data-rol="{{ u.Rol.ID_Rol }}"
+          data-estado="{{ u.Estado }}">
+          #{{ u.ID_Usuario }} - {{ u.Nombre }} {{ u.Apellido }} | {{ u.Correo_Usuario }} ({{ u.Rol.Nombre_Rol }} - {{
+          u.Estado }})
+        </div>
+        {% empty %}
+        <p style="color:#666; font-size:0.9rem; padding:10px;">No hay usuarios registrados todavía.</p>
+        {% endfor %}
+      </div>
+    </section>
 
-        {% if messages %}
-          {% for message in messages %}
-            <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
-              {{ message }}
-            </div>
-          {% endfor %}
-        {% endif %}
+    <section class="card right-panel">
+      <h1 class="panel-header-title" id="titulo-formulario">Nuevo Usuario</h1>
 
-        <form method="POST" action="">
-          {% csrf_token %}
-          <input type="hidden" id="usuario_id" name="usuario_id" value="">
+      {% if messages %}
+      {% for message in messages %}
+      <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+      {% endif %}
 
-          <div class="form-group">
-            <label for="nombre">Nombre</label>
-            <input type="text" id="nombre" name="nombre" placeholder="Nombre del usuario" required>
-          </div>
+      <form method="POST" action="">
+        {% csrf_token %}
+        <input type="hidden" id="usuario_id" name="usuario_id" value="">
 
-          <div class="form-group">
-            <label for="apellido">Apellido</label>
-            <input type="text" id="apellido" name="apellido" placeholder="Apellido del usuario" required>
-          </div>
+        <div class="form-group">
+          <label for="nombre">Nombre</label>
+          <input type="text" id="nombre" name="nombre" placeholder="Nombre del usuario" required>
+        </div>
 
-          <div class="form-group">
-            <label for="correo">Correo Usuario</label>
-            <input type="email" id="correo" name="correo" placeholder="correo@ejemplo.com" required>
-          </div>
+        <div class="form-group">
+          <label for="apellido">Apellido</label>
+          <input type="text" id="apellido" name="apellido" placeholder="Apellido del usuario" required>
+        </div>
 
-          <div class="form-group">
-            <label for="password">Contraseña <small id="hint-password" style="font-weight:400; color:#666;"></small></label>
-            <input type="password" id="password" name="password" placeholder="••••••••" required>
-          </div>
+        <div class="form-group">
+          <label for="correo">Correo Usuario</label>
+          <input type="email" id="correo" name="correo" placeholder="correo@ejemplo.com" required>
+        </div>
 
-          <div class="form-group">
-            <label for="rol">Rol</label>
-            <select id="rol" name="rol" required>
-              <option value="" disabled selected>Seleccione un rol...</option>
-              {% for r in roles %}
-                <option value="{{ r.ID_Rol }}">{{ r.Nombre_Rol }}</option>
-              {% endfor %}
-            </select>
-          </div>
+        <div class="form-group">
+          <label for="password">Contraseña <small id="hint-password"
+              style="font-weight:400; color:#666;"></small></label>
+          <input type="password" id="password" name="password" placeholder="••••••••" required>
+        </div>
 
-          <div class="form-group">
-            <label for="estado">Estado</label>
-            <select id="estado" name="estado" required>
-              <option value="Activo" selected>Activo</option>
-              <option value="Inactivo">Inactivo</option>
-            </select>
-          </div>
+        <div class="form-group">
+          <label for="rol">Rol</label>
+          <select id="rol" name="rol" required>
+            <option value="" disabled selected>Seleccione un rol...</option>
+            {% for r in roles %}
+            <option value="{{ r.ID_Rol }}">{{ r.Nombre_Rol }}</option>
+            {% endfor %}
+          </select>
+        </div>
 
-          <div class="form-buttons">
-            <button type="submit" class="btn btn-submit" id="btn-guardar">Agregar Usuario</button>
-            <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
-          </div>
-        </form>
-      </section>
+        <div class="form-group">
+          <label for="estado">Estado</label>
+          <select id="estado" name="estado" required>
+            <option value="Activo" selected>Activo</option>
+            <option value="Inactivo">Inactivo</option>
+          </select>
+        </div>
+
+        <div class="form-buttons">
+          <button type="submit" class="btn btn-submit" id="btn-guardar">Agregar Usuario</button>
+          <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
+        </div>
+      </form>
+    </section>
 
     {% else %}
-      <!-- ========================================================= -->
-      <!-- VISTA USUARIO ESTÁNDAR: Solo edita su propia cuenta      -->
-      <!-- ========================================================= -->
-      <section class="card left-panel">
-        <h2 class="section-title">Mi Cuenta de Usuario</h2>
-        <div class="user-list">
-          <div class="user-item selected" style="white-space: normal; line-height: 1.6; cursor: default;">
-            <div><strong>ID Usuario:</strong> #{{ usuario.ID_Usuario }}</div>
-            <div><strong>Nombre Completo:</strong> {{ usuario.Nombre }} {{ usuario.Apellido }}</div>
-            <div><strong>Correo Electrónico:</strong> {{ usuario.Correo_Usuario }}</div>
-            <div><strong>Rol Asignado:</strong> {{ usuario.Rol.Nombre_Rol }}</div>
-            <div><strong>Estado:</strong> {{ usuario.Estado }}</div>
-          </div>
+    <!-- ========================================================= -->
+    <!-- VISTA USUARIO ESTÁNDAR: Solo edita su propia cuenta      -->
+    <!-- ========================================================= -->
+    <section class="card left-panel">
+      <h2 class="section-title">Mi Cuenta de Usuario</h2>
+      <div class="user-list">
+        <div class="user-item selected" style="white-space: normal; line-height: 1.6; cursor: default;">
+          <div><strong>ID Usuario:</strong> #{{ usuario.ID_Usuario }}</div>
+          <div><strong>Nombre Completo:</strong> {{ usuario.Nombre }} {{ usuario.Apellido }}</div>
+          <div><strong>Correo Electrónico:</strong> {{ usuario.Correo_Usuario }}</div>
+          <div><strong>Rol Asignado:</strong> {{ usuario.Rol.Nombre_Rol }}</div>
+          <div><strong>Estado:</strong> {{ usuario.Estado }}</div>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section class="card right-panel">
-        <h1 class="panel-header-title">Mis Datos de Usuario</h1>
+    <section class="card right-panel">
+      <h1 class="panel-header-title">Mis Datos de Usuario</h1>
 
-        {% if messages %}
-          {% for message in messages %}
-            <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
-              {{ message }}
-            </div>
-          {% endfor %}
-        {% endif %}
+      {% if messages %}
+      {% for message in messages %}
+      <div class="alert-msg {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+        {{ message }}
+      </div>
+      {% endfor %}
+      {% endif %}
 
-        <form method="POST" action="">
-          {% csrf_token %}
+      <form method="POST" action="">
+        {% csrf_token %}
 
-          <div class="form-group">
-            <label for="nombre">Nombre</label>
-            <input type="text" id="nombre" name="nombre" value="{{ usuario.Nombre }}" required>
-          </div>
+        <div class="form-group">
+          <label for="nombre">Nombre</label>
+          <input type="text" id="nombre" name="nombre" value="{{ usuario.Nombre }}" required>
+        </div>
 
-          <div class="form-group">
-            <label for="apellido">Apellido</label>
-            <input type="text" id="apellido" name="apellido" value="{{ usuario.Apellido }}" required>
-          </div>
+        <div class="form-group">
+          <label for="apellido">Apellido</label>
+          <input type="text" id="apellido" name="apellido" value="{{ usuario.Apellido }}" required>
+        </div>
 
-          <div class="form-group">
-            <label for="correo">Correo Usuario</label>
-            <input type="email" id="correo" name="correo" value="{{ usuario.Correo_Usuario }}" required>
-          </div>
+        <div class="form-group">
+          <label for="correo">Correo Usuario</label>
+          <input type="email" id="correo" name="correo" value="{{ usuario.Correo_Usuario }}" required>
+        </div>
 
-          <div class="form-group">
-            <label for="password">Nueva Contraseña <small style="font-weight:400; color:#666;">(Dejar vacío para mantener la actual)</small></label>
-            <input type="password" id="password" name="password" placeholder="••••••••">
-          </div>
+        <div class="form-group">
+          <label for="password">Nueva Contraseña <small style="font-weight:400; color:#666;">(Dejar vacío para mantener
+              la actual)</small></label>
+          <input type="password" id="password" name="password" placeholder="••••••••">
+        </div>
 
-          <div class="form-group">
-            <label for="rol-actual">Rol</label>
-            <input type="text" id="rol-actual" value="{{ usuario.Rol.Nombre_Rol }}" readonly>
-          </div>
+        <div class="form-group">
+          <label for="rol-actual">Rol</label>
+          <input type="text" id="rol-actual" value="{{ usuario.Rol.Nombre_Rol }}" readonly>
+        </div>
 
-          <div class="form-group">
-            <label for="estado-actual">Estado</label>
-            <input type="text" id="estado-actual" value="{{ usuario.Estado }}" readonly>
-          </div>
+        <div class="form-group">
+          <label for="estado-actual">Estado</label>
+          <input type="text" id="estado-actual" value="{{ usuario.Estado }}" readonly>
+        </div>
 
-          <div class="form-buttons">
-            <button type="submit" class="btn btn-submit">Guardar Cambios</button>
-            <button type="button" class="btn btn-cancel" onclick="window.location.reload();">Restaurar</button>
-          </div>
-        </form>
-      </section>
+        <div class="form-buttons">
+          <button type="submit" class="btn btn-submit">Guardar Cambios</button>
+          <button type="button" class="btn btn-cancel" onclick="window.location.reload();">Restaurar</button>
+        </div>
+      </form>
+    </section>
     {% endif %}
 
   </main>
@@ -495,4 +492,5 @@
   {% endif %}
 
 </body>
+
 </html>

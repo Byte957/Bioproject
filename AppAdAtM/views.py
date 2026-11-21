@@ -11,18 +11,13 @@ from django.template.loader import get_template
 from django.db.models import Count, Sum
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
-from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import never_cache
 import reportlab
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
-
-# Create your views here.
 from functools import wraps
-from django.shortcuts import redirect
-from django.views.decorators.cache import never_cache
 
 def sesion_requerida(view_func):
     @wraps(view_func)
