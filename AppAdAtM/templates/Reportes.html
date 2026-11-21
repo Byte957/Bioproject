@@ -246,14 +246,6 @@
   </nav>
 </header>
 
-<script>
-  window.addEventListener('pageshow', function (event) {
-    if (event.persisted || (window.performance && window.performance.navigation.type === 2)) {
-      window.location.replace("{% url 'inicio_sesion' %}");
-    }
-  });
-</script>
-
   <main class="reports-wrapper">
 
     <!-- Barra de Filtro por Rango de Fechas -->

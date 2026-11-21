@@ -11,10 +11,30 @@ from django.template.loader import get_template
 from django.db.models import Count, Sum
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
-
-
+from django.contrib.auth.decorators import login_required
+from django.views.decorators.cache import never_cache
+import reportlab
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib import colors
 
 # Create your views here.
+from functools import wraps
+from django.shortcuts import redirect
+from django.views.decorators.cache import never_cache
+
+def sesion_requerida(view_func):
+    @wraps(view_func)
+    @never_cache
+    def _wrapped_view(request, *args, **kwargs):
+        if not request.session.get('usuario_id'):
+            return redirect('inicio_sesion')
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+@never_cache
+@sesion_requerida
 def gestionmedicamentos(request):
     if request.method == 'POST':
         accion = request.POST.get('accion', 'guardar')
@@ -75,8 +95,10 @@ def gestionmedicamentos(request):
         'medicamentos': medicamentos
     })
 
+@never_cache
+@sesion_requerida
 def registroatencion(request):
-    """Vista restringida para agendar citas únicamente en horarios previamente habilitados como 'Disponible'."""
+    # Vista restringida para agendar citas únicamente en horarios previamente habilitados como 'Disponible'.
     _asegurar_bloques_horario()
 
     usuario_id = request.session.get('usuario_id')
@@ -196,6 +218,8 @@ def registroatencion(request):
         'paciente_sesion': paciente_sesion,
     })
 
+@never_cache
+@sesion_requerida
 def gestionusuarios(request):
     usuario_id = request.session.get('usuario_id')
     rol_id = request.session.get('usuario_rol')
@@ -320,6 +344,8 @@ def gestionusuarios(request):
         'roles': roles,
     })
 
+@never_cache
+@sesion_requerida
 def gestionrecetas(request):
     usuario_id = request.session.get('usuario_id')
     rol_id = request.session.get('usuario_rol')
@@ -452,6 +478,8 @@ def cerrarsesion(request):
 
     return response
 
+@never_cache
+@sesion_requerida
 def gestionpacientes(request):
     if request.method == 'POST':
         paciente_id = request.POST.get('paciente_id', '').strip()
@@ -558,6 +586,8 @@ def gestionpacientes(request):
         'pacientes': pacientes
     })
 
+@never_cache
+@sesion_requerida
 def gestionmedicos(request):
     usuario_id = request.session.get('usuario_id')
     rol_id = request.session.get('usuario_rol')
@@ -667,7 +697,8 @@ def _str_a_time(hora_str):
     h, m = map(int, hora_str.split(':'))
     return time(h, m)
 
-
+@never_cache
+@sesion_requerida
 def gestiondisponibilidad(request):
     _asegurar_bloques_horario()
 
@@ -813,6 +844,8 @@ def gestiondisponibilidad(request):
         'eventos_json': json.dumps(eventos_semana),
     })
 
+@never_cache
+@sesion_requerida
 def gestionatencion(request):
     """Vista con privilegios administrativos para Recepcionistas (Rol 2) y Administradores (Rol 1)."""
     _asegurar_bloques_horario()
@@ -981,6 +1014,8 @@ def gestionatencion(request):
         'rol_id': rol_id,
     })
 
+@never_cache
+@sesion_requerida
 def cobro(request):
     if request.method == 'POST':
         atencion_id = request.POST.get('atencion_id', '').strip()
@@ -1083,12 +1118,22 @@ def cobro(request):
         'datos_atenciones': datos_atenciones,
     })
 
-from django.contrib.auth.hashers import check_password
+def redirigir_segun_rol(rol_id):
+    if rol_id == 1:      # Administrador
+        return redirect('gestionar_usuarios')
+    elif rol_id == 2:    # Recepcionista
+        return redirect('gestionar_atencion')
+    elif rol_id == 3:    # Médico
+        return redirect('gestionar_disponibilidad')
+    else:                # Paciente (Rol 4)
+        return redirect('registrar_atencion')
+
 
 def iniciosesion(request):
-    # <-- AQUÍ: Si retrocede hasta el login, limpiar el rol y la sesión automáticamente
-    if request.method == 'GET' and request.session.get('usuario_rol'):
-        request.session.flush()
+    # Si ya tiene una sesión activa, impedir entrar al login y devolverlo a su panel
+    rol_activo = request.session.get('usuario_rol')
+    if rol_activo:
+        return redirigir_segun_rol(rol_activo)
 
     if request.method == 'POST':
         identificador = request.POST.get('run', '').strip()  # Puede ser RUN o Correo
@@ -1130,17 +1175,9 @@ def iniciosesion(request):
         request.session['usuario_rol'] = usuario.Rol.ID_Rol
 
         # 6. Redirigir según el Rol del usuario
-        rol_id = usuario.Rol.ID_Rol
-        if rol_id == 1:      # Administrador
-            return redirect('gestionar_usuarios')
-        elif rol_id == 2:    # Recepcionista
-            return redirect('gestionar_atencion')
-        elif rol_id == 3:    # Médico
-            return redirect('gestionar_disponibilidad')
-        else:                # Paciente (Rol 4)
-            return redirect('registrar_atencion')
+        return redirigir_segun_rol(usuario.Rol.ID_Rol)
 
-    return render(request, 'InicioSesion.html')  # <-- Verifica el nombre de tu template de login
+    return render(request, 'InicioSesion.html')
 
 
 def registrousuario(request):
@@ -1210,6 +1247,8 @@ def registrousuario(request):
 
     return render(request, 'Registrarse.html') # <-- PON AQUÍ EL NOMBRE REAL DE TU HTML DE REGISTRO
 
+@never_cache
+@sesion_requerida
 def verauditoria(request):
     usuario_id = request.session.get('usuario_id')
     rol_id = request.session.get('usuario_rol')
@@ -1236,6 +1275,7 @@ def verauditoria(request):
         'registros': registros,
         'tablas': tablas,
     })
+
 
 def _obtener_datos_reportes(fecha_inicio, fecha_fin):
     # --- 1. REPORTE DE ATENCIONES POR ESTADO ---
@@ -1283,7 +1323,8 @@ def _obtener_datos_reportes(fecha_inicio, fecha_fin):
         'resumen_metodos': resumen_metodos,
     }
 
-
+@never_cache
+@sesion_requerida
 def reportes_clinica(request):
     usuario_id = request.session.get('usuario_id')
     rol_id = request.session.get('usuario_rol')
@@ -1424,11 +1465,6 @@ def exportar_reporte(request):
     # =========================================================================
     # EXPORTACIÓN A PDF (.pdf) CON REPORTLAB
     # =========================================================================
-    from reportlab.lib.pagesizes import letter, landscape
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.lib import colors
-
     response = HttpResponse(content_type='application/pdf')
     nombre_pdf = f"Reporte_{tipo.capitalize()}_{rango_txt}.pdf"
     response['Content-Disposition'] = f'attachment; filename="{nombre_pdf}"'
