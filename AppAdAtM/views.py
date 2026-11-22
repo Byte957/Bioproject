@@ -4,11 +4,15 @@ from django.contrib.auth.hashers import make_password
 from .models import Rol, Usuario, Paciente, Medico, Horario, HorarioMedico, Atencion, Medicamento, Receta, MedicamentoReceta, Boleta, Auditoria
 from django.contrib.auth.hashers import check_password
 from django.contrib import messages
+from django.conf import settings
+from django.core import signing
+from django.core.mail import send_mail
 from datetime import date, datetime, time, timedelta
 import json
 from django.http import HttpResponse
 from django.template.loader import get_template
 from django.db.models import Count, Sum
+from django.urls import reverse
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from django.views.decorators.cache import never_cache
@@ -18,6 +22,11 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from functools import wraps
+
+
+class ErrorEnvioActivacion(Exception):
+    pass
+
 
 def sesion_requerida(view_func):
     @wraps(view_func)
@@ -1153,15 +1162,15 @@ def iniciosesion(request):
 
         # 4. Verificar existencia, estado Activo y contraseña encriptada
         if not usuario:
-            messages.error(request, 'Usuario no encontrado. Verifica tu RUN o Correo.')
+            messages.error(request, 'Credenciales de acceso incorrectas. Verifica tu RUN, correo o contraseña.')
             return redirect('inicio_sesion')
 
         if usuario.Estado != 'Activo':
-            messages.error(request, 'Esta cuenta se encuentra Inactiva. Contacta al administrador.')
+            messages.error(request, 'Esta cuenta se encuentra Inactiva. Si acabas de registrarte, revisa tu correo para activarla.')
             return redirect('inicio_sesion')
 
         if not check_password(password, usuario.Contraseña):
-            messages.error(request, 'Contraseña incorrecta.')
+            messages.error(request, 'Credenciales de acceso incorrectas. Verifica tu RUN, correo o contraseña')
             return redirect('inicio_sesion')
 
         # 5. Guardar datos en la sesión de Django
@@ -1214,7 +1223,7 @@ def registrousuario(request):
                     Apellido=apellido_p[:20],
                     Correo_Usuario=correo[:50],
                     Contraseña=make_password(password),
-                    Estado='Activo',
+                    Estado='Inactivo',
                     Rol=rol_paciente
                 )
 
@@ -1232,15 +1241,61 @@ def registrousuario(request):
                     Usuario=nuevo_usuario
                 )
 
-            messages.success(request, '¡Registro exitoso! Ya puedes iniciar sesión con tu RUN y contraseña.')
-            return redirect('inicio_sesion') # <-- Coincide con name='inicio_sesion' de tu urls.py
+                token = signing.dumps(
+                    nuevo_usuario.pk,
+                    salt='AppAdAtM.activacion_cuenta'
+                )
+                url_activacion = request.build_absolute_uri(
+                    reverse('activar_cuenta', args=[token])
+                )
+                try:
+                    enviados = send_mail(
+                        'Activa tu cuenta de Biotechnica',
+                        f'Hola {nuevo_usuario.Nombre},\n\n'
+                        'Para activar tu cuenta, visita el siguiente enlace:\n'
+                        f'{url_activacion}\n\n'
+                        'Si no solicitaste esta cuenta, puedes ignorar este correo.',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [nuevo_usuario.Correo_Usuario],
+                        fail_silently=False,
+                    )
+                except Exception as error:
+                    raise ErrorEnvioActivacion from error
+                if enviados != 1:
+                    raise ErrorEnvioActivacion
+
+            messages.success(request, 'Registro exitoso. Revisa tu correo para activar tu cuenta antes de iniciar sesión.')
+            return redirect('inicio_sesion')
 
         except Rol.DoesNotExist:
             messages.error(request, 'Error del sistema: No existe el Rol de Paciente (ID 4) en la base de datos.')
+        except ErrorEnvioActivacion:
+            messages.error(request, 'No se pudo enviar el correo de activación. La cuenta no fue creada; inténtalo nuevamente más tarde.')
         except Exception as e:
             messages.error(request, f'Ocurrió un error inesperado al guardar: {str(e)}')
 
     return render(request, 'Registrarse.html') # <-- PON AQUÍ EL NOMBRE REAL DE TU HTML DE REGISTRO
+
+
+def activar_cuenta(request, token):
+    try:
+        usuario_id = signing.loads(token, salt='AppAdAtM.activacion_cuenta')
+    except signing.BadSignature:
+        messages.error(request, 'El enlace de activación no es válido.')
+        return redirect('inicio_sesion')
+
+    usuario = Usuario.objects.filter(pk=usuario_id).first()
+    if not usuario:
+        messages.error(request, 'El enlace de activación no es válido.')
+    elif usuario.Estado == 'Inactivo':
+        usuario.Estado = 'Activo'
+        usuario.save(update_fields=['Estado'])
+        messages.success(request, 'Tu cuenta ha sido activada. Ya puedes iniciar sesión.')
+    else:
+        messages.info(request, 'Esta cuenta ya se encuentra activa.')
+
+    return redirect('inicio_sesion')
+
 
 @never_cache
 @sesion_requerida

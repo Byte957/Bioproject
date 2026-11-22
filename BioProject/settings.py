@@ -117,16 +117,14 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-
-# Email
-# https://docs.djangoproject.com/en/6.1/topics/email/#topic-email-configuration
-
-MAILERS = {
-    'default': {
-        'BACKEND': 'django.core.mail.backends.console.EmailBackend',
-    },
-}
-
 SESSION_COOKIE_AGE = 900          # 900 segundos = 15 minutos de inactividad
 SESSION_SAVE_EVERY_REQUEST = True # Reinicia el contador cada vez que hace clic en algo
 SESSION_EXPIRE_AT_BROWSER_CLOSE = True  # Cierra la sesión al cerrar el navegador
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'allan.inzunza@virginiogomez.cl'
+EMAIL_HOST_PASSWORD = 'pzuj mtuh fyef sxgp'
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER

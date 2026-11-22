@@ -4,6 +4,7 @@ from . import views  # Importa el archivo views.py de esta misma carpeta
 urlpatterns = [
     path('', views.iniciosesion, name='inicio_sesion'),
     path('Registrarse', views.registrousuario, name='registrarse_usuario'),
+    path('ActivarCuenta/<str:token>', views.activar_cuenta, name='activar_cuenta'),
     path('RegistrarAtencion', views.registroatencion, name='registrar_atencion'),
     path('GestionarUsuario', views.gestionusuarios, name='gestionar_usuarios'),
     path('GestionarRecetasAtencion', views.gestionrecetas, name='gestionar_recetasatencion'),
