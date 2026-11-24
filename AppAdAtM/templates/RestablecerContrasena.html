@@ -1,0 +1,63 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Establecer contraseña nueva</title>
+  <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
+  <style>
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: #f2f5f2;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    main {
+      width: 100%;
+      max-width: 430px;
+      padding: 32px;
+      border-radius: 20px;
+      background: #fff;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, .16);
+    }
+    h1 { margin: 0 0 12px; color: #2e7d32; font-size: 1.5rem; }
+    p { margin: 0 0 20px; color: #555; line-height: 1.5; }
+    label { display: block; margin: 14px 0 6px; font-weight: 600; }
+    input { width: 100%; padding: 11px; border: 1px solid #8a9b8a; border-radius: 8px; }
+    button {
+      width: 100%;
+      margin-top: 20px;
+      padding: 12px;
+      border: 0;
+      border-radius: 8px;
+      color: #fff;
+      background: #2e7d32;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .back { display: block; margin-top: 18px; color: #2e7d32; text-align: center; }
+    .message { margin-bottom: 12px; color: #333; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Crear contraseña nueva</h1>
+    <p>La contraseña debe cumplir las reglas de seguridad configuradas para el sistema.</p>
+    {% if messages %}
+      {% for message in messages %}<div class="message">{{ message }}</div>{% endfor %}
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <label for="password">Contraseña nueva</label>
+      <input type="password" id="password" name="password" minlength="8" autocomplete="new-password" required>
+      <label for="confirmacion">Confirma la contraseña</label>
+      <input type="password" id="confirmacion" name="confirmacion" minlength="8" autocomplete="new-password" required>
+      <button type="submit">Guardar contraseña</button>
+    </form>
+    <a class="back" href="{% url 'inicio_sesion' %}">Volver al inicio de sesión</a>
+  </main>
+</body>
+</html>

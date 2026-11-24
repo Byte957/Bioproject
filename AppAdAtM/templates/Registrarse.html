@@ -242,50 +242,54 @@
         <div class="form-grid">
           <div class="form-group">
             <label for="run">RUN</label>
-            <input class="validar-run" type="text" id="run" name="run" placeholder="11.111.111-1" required>
+            <input class="validar-run" type="text" id="run" name="run" placeholder="12.345.678-5"
+              maxlength="12" autocomplete="off" required>
           </div>
           <div class="form-group">
             <label for="nombre">Nombre</label>
-            <input type="text" id="nombre" name="nombre" placeholder="Primer nombre" required>
+            <input type="text" id="nombre" name="nombre" maxlength="20" placeholder="Primer nombre" required>
           </div>
 
           <div class="form-group">
             <label for="segundo-nombre">Segundo Nombre</label>
-            <input type="text" id="segundo-nombre" name="segundo-nombre" placeholder="Opcional">
+            <input type="text" id="segundo-nombre" name="segundo-nombre" maxlength="20" placeholder="Opcional">
           </div>
           <div class="form-group">
             <label for="tercer-nombre">Tercer Nombre</label>
-            <input type="text" id="tercer-nombre" name="tercer-nombre" placeholder="Opcional">
+            <input type="text" id="tercer-nombre" name="tercer-nombre" maxlength="20" placeholder="Opcional">
           </div>
 
           <div class="form-group">
             <label for="apellido-paterno">Apellido Paterno</label>
-            <input type="text" id="apellido-paterno" name="apellido-paterno" placeholder="Apellido paterno" required>
+            <input type="text" id="apellido-paterno" name="apellido-paterno" maxlength="20" placeholder="Apellido paterno" required>
           </div>
           <div class="form-group">
             <label for="apellido-materno">Apellido Materno</label>
-            <input type="text" id="apellido-materno" name="apellido-materno" placeholder="Apellido materno">
+            <input type="text" id="apellido-materno" name="apellido-materno" maxlength="20" placeholder="Apellido materno">
           </div>
 
           <div class="form-group">
             <label for="fecha-nacimiento">Fecha de nacimiento</label>
-            <input type="date" id="fecha-nacimiento" name="fecha-nacimiento" required>
+            <input type="date" id="fecha-nacimiento" name="fecha-nacimiento" max="{{ fecha_maxima }}" required>
           </div>
           <div class="form-group">
             <label for="telefono">Numero Personal de Contacto</label>
             <div class="phone-input-group">
               <input type="text" class="phone-prefix" value="+56" readonly>
-              <input class="solo-numeros" type="tel" id="telefono" name="telefono" placeholder="912345678" required>
+              <input class="solo-numeros" type="tel" id="telefono" name="telefono" inputmode="numeric"
+                pattern="9[0-9]{8}" maxlength="9" placeholder="912345678" required>
             </div>
           </div>
 
           <div class="form-group">
             <label for="correo">Correo Personal de Contacto</label>
-            <input type="email" id="correo" name="correo" placeholder="ejemplo@correo.com" required>
+            <input type="email" id="correo" name="correo" maxlength="50" autocomplete="email"
+              placeholder="ejemplo@correo.com" required>
           </div>
           <div class="form-group">
             <label for="password">Contraseña de Acceso</label>
-            <input type="password" id="password" name="password" placeholder="Crea una contraseña" required>
+            <input type="password" id="password" name="password" minlength="8"
+              autocomplete="new-password" placeholder="Mínimo 8 caracteres; evita datos personales" required>
           </div>
 
           <div class="btn-submit-container">

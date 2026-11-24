@@ -188,57 +188,7 @@
         <span></span>
       </button>
       <div class="navbar-content" id="navbar-content">
-        <ul class="nav-ul">
-          {% with rol=request.session.usuario_rol %}
-
-          {# --- 1. ADMINISTRADOR (Rol 1) --- #}
-          {% if rol == 1 %}
-          <li class="nav-primary"><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-          <li class="nav-primary"><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-          <li class="nav-primary"><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
-          <li class="nav-secondary"><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
-          <li class="nav-secondary"><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-          <li class="nav-secondary"><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
-          <li class="nav-secondary"><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-          <li class="nav-secondary"><a href="{% url 'ver_auditoria' %}" class="nav-text">Auditoría</a></li>
-          <li class="nav-secondary"><a href="{% url 'reportes_clinica' %}" class="nav-text">Reportes</a></li>
-
-          {# --- 2. RECEPCIONISTA (Rol 2) --- #}
-          {% elif rol == 2 %}
-          <li class="nav-primary"><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
-          <li class="nav-primary"><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
-          <li class="nav-primary"><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-          <li class="nav-secondary"><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-          <li class="nav-secondary"><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-
-          {# --- 3. MÉDICO (Rol 3) --- #}
-          {% elif rol == 3 %}
-          <li class="nav-primary"><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Mi Disponibilidad</a></li>
-          <li class="nav-primary"><a href="{% url 'gestionar_atencion' %}" class="nav-text">Mis Atenciones</a></li>
-          <li class="nav-primary"><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-          <li class="nav-secondary"><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Medicamentos</a></li>
-          <li class="nav-secondary"><a href="{% url 'gestionar_medicos' %}" class="nav-text">Mis Datos Médicos</a></li>
-
-          {# --- 4. PACIENTE (Rol 4) --- #}
-          {% elif rol == 4 %}
-          <li class="nav-primary"><a href="{% url 'registrar_atencion' %}" class="nav-text">Agendar Atención</a></li>
-
-
-          {% endif %}
-
-          {# --- ENLACES COMUNES PARA TODOS LOS ROLES AUTENTICADOS --- #}
-          {% if rol %}
-          <li class="nav-primary">
-            <a href="{% url 'gestionar_usuarios' %}" class="nav-text">
-              {% if rol == 1 %}Gestionar Usuarios{% else %}Mi Cuenta{% endif %}
-            </a>
-          </li>
-          <li class="{% if rol == 4 %}nav-primary{% else %}nav-secondary{% endif %}"><a href="{% url 'cerrar_sesion' %}" class="nav-text logout-link">Cerrar
-              Sesión</a></li>
-          {% endif %}
-
-          {% endwith %}
-        </ul>
+        {% include "MenuPorRol.html" %}
       </div>
     </nav>
   </header>

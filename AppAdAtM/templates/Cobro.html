@@ -210,57 +210,7 @@
     </span>
   </div>
 
-  <nav class="navbar-content">
-    <ul class="nav-ul">
-      {% with rol=request.session.usuario_rol %}
-
-        {# --- 1. ADMINISTRADOR (Rol 1) --- #}
-        {% if rol == 1 %}
-          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
-          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
-          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
-          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-          <li><a href="{% url 'ver_auditoria' %}" class="nav-text">Auditoría</a></li>
-          <li><a href="{% url 'reportes_clinica' %}" class="nav-text">Reportes</a></li>
-
-        {# --- 2. RECEPCIONISTA (Rol 2) --- #}
-        {% elif rol == 2 %}
-          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
-          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
-          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-
-        {# --- 3. MÉDICO (Rol 3) --- #}
-        {% elif rol == 3 %}
-          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Mi Disponibilidad</a></li>
-          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Mis Atenciones</a></li>
-          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Medicamentos</a></li>
-          <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Mis Datos Médicos</a></li>
-
-        {# --- 4. PACIENTE (Rol 4) --- #}
-        {% elif rol == 4 %}
-          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Agendar Atención</a></li>
-
-        {% endif %}
-
-        {# --- ENLACES COMUNES PARA TODOS LOS ROLES AUTENTICADOS --- #}
-        {% if rol %}
-          <li>
-            <a href="{% url 'gestionar_usuarios' %}" class="nav-text">
-              {% if rol == 1 %}Gestionar Usuarios{% else %}Mi Cuenta{% endif %}
-            </a>
-          </li>
-          <li><a href="{% url 'cerrar_sesion' %}" class="nav-text" style="color:#ffebee; font-weight:700;">Cerrar Sesión</a></li>
-        {% endif %}
-
-      {% endwith %}
-    </ul>
-  </nav>
+  {% include "BarraNavegacionRol.html" %}
 </header>
   <!-- Contenedor Principal -->
   <main class="dashboard-container">
@@ -329,20 +279,11 @@
           <input type="text" id="run" name="run" placeholder="12.345.678-9" readonly required>
         </div>
 
-        <div class="form-group">
-          <label for="estado-atencion">Estado Atención</label>
-          <select id="estado-atencion" name="estado-atencion" required>
-            <option value="Pagada" selected>Pagada</option>
-            <option value="Realizada">Realizada</option>
-            <option value="Programada">Pendiente de Pago (Programada)</option>
-            <option value="Cancelada">Anulado (Cancelada)</option>
-          </select>
-        </div>
-
         <div class="form-buttons">
           <button type="submit" class="btn btn-submit" id="btn-cobrar">Cobrar</button>
           <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
         </div>
+        <p>Al registrar el cobro, la atención pasa a estado «En espera».</p>
       </form>
     </section>
 
@@ -401,7 +342,6 @@
     const inputTotal = document.getElementById('total');
     const inputPaciente = document.getElementById('paciente');
     const inputRun = document.getElementById('run');
-    const selectEstado = document.getElementById('estado-atencion');
     const tituloCobro = document.getElementById('titulo-cobro');
     const btnCobrar = document.getElementById('btn-cobrar');
 
@@ -467,7 +407,6 @@
         inputNeto.value = data.boleta.neto;
         inputIva.value = data.boleta.iva;
         inputTotal.value = data.boleta.total;
-        selectEstado.value = data.estado === 'Pagada' ? 'Pagada' : data.estado;
         btnCobrar.textContent = 'Actualizar Boleta';
       } else {
         tituloCobro.textContent = 'Cobro';
@@ -476,7 +415,6 @@
         inputNeto.value = '';
         inputIva.value = '';
         inputTotal.value = '';
-        selectEstado.value = 'Pagada';
         btnCobrar.textContent = 'Cobrar';
       }
     });
@@ -490,7 +428,6 @@
       inputTotal.value = '';
       inputPaciente.value = '';
       inputRun.value = '';
-      selectEstado.value = 'Pagada';
       tituloCobro.textContent = 'Cobro';
       headerBoleta.textContent = 'Detalle de Atención';
       btnCobrar.textContent = 'Cobrar';

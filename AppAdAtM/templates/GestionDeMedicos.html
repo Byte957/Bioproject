@@ -165,81 +165,32 @@
     </span>
   </div>
 
-  <nav class="navbar-content">
-    <ul class="nav-ul">
-      {% with rol=request.session.usuario_rol %}
-
-        {# --- 1. ADMINISTRADOR (Rol 1) --- #}
-        {% if rol == 1 %}
-          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
-          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
-          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
-          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-          <li><a href="{% url 'ver_auditoria' %}" class="nav-text">Auditoría</a></li>
-          <li><a href="{% url 'reportes_clinica' %}" class="nav-text">Reportes</a></li>
-
-        {# --- 2. RECEPCIONISTA (Rol 2) --- #}
-        {% elif rol == 2 %}
-          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
-          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
-          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-
-        {# --- 3. MÉDICO (Rol 3) --- #}
-        {% elif rol == 3 %}
-          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Mi Disponibilidad</a></li>
-          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Mis Atenciones</a></li>
-          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Medicamentos</a></li>
-          <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Mis Datos Médicos</a></li>
-
-        {# --- 4. PACIENTE (Rol 4) --- #}
-        {% elif rol == 4 %}
-          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Agendar Atención</a></li>
-
-        {% endif %}
-
-        {# --- ENLACES COMUNES PARA TODOS LOS ROLES AUTENTICADOS --- #}
-        {% if rol %}
-          <li>
-            <a href="{% url 'gestionar_usuarios' %}" class="nav-text">
-              {% if rol == 1 %}Gestionar Usuarios{% else %}Mi Cuenta{% endif %}
-            </a>
-          </li>
-          <li><a href="{% url 'cerrar_sesion' %}" class="nav-text" style="color:#ffebee; font-weight:700;">Cerrar Sesión</a></li>
-        {% endif %}
-
-      {% endwith %}
-    </ul>
-  </nav>
+  {% include "BarraNavegacionRol.html" %}
 </header>
 
   <!-- Contenedor Principal -->
   <main class="dashboard-container">
 
-    <!-- Panel Izquierdo: Ficha del Médico Conectado -->
+    <!-- Panel Izquierdo: Médicos registrados -->
     <section class="card left-panel">
-      <h2 class="section-title">Perfil Profesional Activo</h2>
+      <h2 class="section-title">Médicos</h2>
+      <p><a class="btn btn-submit" href="{% url 'gestionar_medicos' %}?nuevo=1">Registrar médico</a></p>
       <div class="user-list">
-        <div class="user-item">
-          <div><strong>Matrícula Profesional:</strong> #{{ medico.MatriculaProfesional }}</div>
-          <div><strong>Profesional:</strong> Dr(a). {{ medico.Nombre_Medico }} {{ medico.SegNombre_Medico }} {{ medico.TerNombre_Medico }} {{ medico.ApellidoP_Medico }} {{ medico.ApellidoM_Medico }}</div>
-          <div><strong>RUN:</strong> {{ medico.RUN_Medico }}</div>
-          <div><strong>Especialización:</strong> {{ medico.Especializacion|default:'Sin especialidad' }}</div>
-          <div><strong>Correo:</strong> {{ medico.CorreoContactoMedico }}</div>
-          <div><strong>Teléfono:</strong> {{ medico.NumeroContactoMedico }}</div>
-          <div><strong>Estado:</strong> {{ medico.Estado }}</div>
-        </div>
+        {% for m in medicos %}
+          <a class="user-item" href="{% url 'gestionar_medicos' %}?medico_id={{ m.MatriculaProfesional }}">
+            <div><strong>Matrícula:</strong> #{{ m.MatriculaProfesional }}</div>
+            <div>Dr(a). {{ m.Nombre_Medico }} {{ m.ApellidoP_Medico }}</div>
+            <div>{{ m.Especializacion|default:'Sin especialidad' }} · {{ m.Estado }}</div>
+          </a>
+        {% empty %}
+          <p>No hay médicos registrados.</p>
+        {% endfor %}
       </div>
     </section>
 
-    <!-- Panel Derecho: Formulario con los datos del Médico que inició sesión -->
+    <!-- Panel Derecho: Crear o editar médico -->
     <section class="card right-panel">
-      <h1 class="panel-header-title">Mis Datos Médicos</h1>
+      <h1 class="panel-header-title">{% if medico %}Gestionar Médico #{{ medico.MatriculaProfesional }}{% else %}Registrar Médico{% endif %}</h1>
 
       {% if messages %}
         {% for message in messages %}
@@ -251,11 +202,11 @@
 
       <form method="POST" action="">
         {% csrf_token %}
-        <input type="hidden" name="medico_id" value="{{ medico.MatriculaProfesional }}">
+        <input type="hidden" name="medico_id" value="{{ medico.MatriculaProfesional|default:'' }}">
 
         <div class="form-group">
           <label for="numero-matricula">Número de Matrícula</label>
-          <input class="solo-numeros" type="text" id="numero-matricula" name="numero-matricula" value="{{ medico.MatriculaProfesional }}" readonly required>
+          <input class="solo-numeros" type="text" id="numero-matricula" name="numero-matricula" value="{{ medico.MatriculaProfesional|default:'' }}" {% if medico %}readonly{% endif %} required>
         </div>
 
         <div class="form-group">
@@ -320,8 +271,8 @@
         </div>
 
         <div class="form-buttons">
-          <button type="submit" class="btn btn-submit">Guardar Cambios</button>
-          <button type="button" class="btn btn-cancel" onclick="window.location.reload();">Restaurar</button>
+          <button type="submit" class="btn btn-submit">{% if medico %}Guardar Cambios{% else %}Registrar Médico{% endif %}</button>
+          <a class="btn btn-cancel" href="{% url 'gestionar_medicos' %}">Limpiar</a>
         </div>
       </form>
     </section>

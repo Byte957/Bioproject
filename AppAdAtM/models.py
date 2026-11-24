@@ -63,6 +63,15 @@ class Medico(models.Model):
         db_table = 'Medico'
 
 
+class EstadoAtencion(models.TextChoices):
+    RESERVADA = 'RESERVADA', 'Reservada'
+    EN_ESPERA = 'EN ESPERA', 'En espera'
+    EN_ATENCION = 'EN ATENCIÓN', 'En atención'
+    FINALIZADA = 'FINALIZADA', 'Finalizada'
+    CANCELADA = 'CANCELADA', 'Cancelada'
+    NO_ASISTIO = 'NO ASISTIÓ', 'No asistió'
+
+
 class Horario(models.Model):
     ID_Horario = models.AutoField(primary_key=True)
     Hora_Inicio = models.TimeField()
@@ -91,10 +100,21 @@ class Atencion(models.Model):
     Descripcion = models.CharField(max_length=500)
     ID_Horario = models.ForeignKey(Horario, on_delete=models.RESTRICT, db_column='ID_Horario')
     Dia = models.DateField()
-    Estado = models.CharField(max_length=20, default='Programada')
+    Estado = models.CharField(
+        max_length=20,
+        choices=EstadoAtencion.choices,
+        default=EstadoAtencion.RESERVADA,
+    )
 
     class Meta:
         db_table = 'Atencion'
+        constraints = [
+            models.UniqueConstraint(
+                fields=('ID_Medico', 'Dia', 'ID_Horario'),
+                condition=~models.Q(Estado=EstadoAtencion.CANCELADA),
+                name='uq_atencion_medico_bloque_activo',
+            ),
+        ]
 
 
 class Medicamento(models.Model):

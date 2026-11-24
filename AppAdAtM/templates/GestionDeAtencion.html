@@ -18,60 +18,16 @@
       flex-direction: column;
     }
 
-    /* Barra de pestañas para navegar las 3 listas */
-.tabs-bar {
-      display: flex !important;
-      gap: 8px;
-      margin-bottom: 16px;
-      border-bottom: 2px solid #2e7d32;
-      padding-bottom: 12px;
-      width: 100%;
-    }
-
-    .tab-btn {
-      display: inline-block !important;
-      flex: 1;
-      padding: 10px 8px !important;
-      border-radius: 10px !important;
-      border: 2px solid #2e7d32 !important;
-      background-color: #ffffff !important;
-      color: #2e7d32 !important;
-      font-size: 0.85rem !important;
-      font-weight: 700 !important;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: center;
-    }
-
-    .tab-btn:hover {
-      background-color: #e8f5e9 !important;
-    }
-
-    .tab-btn.active {
-      background-color: #2e7d32 !important;
-      color: #ffffff !important;
-    }
-
-    .tab-panel {
-      display: none;
-      flex-direction: column;
-      flex: 1;
-    }
-
-    .tab-panel.active {
-      display: flex;
-    }
-
     .filters-row {
       display: flex;
-      gap: 14px;
-      margin-bottom: 18px;
+      margin-bottom: 14px;
     }
 
     .filter-item {
       flex: 1;
       display: flex;
       flex-direction: column;
+      min-width: 0;
     }
 
     .filter-item label {
@@ -88,13 +44,6 @@
       color: #222222;
       margin-bottom: 12px;
       padding-left: 4px;
-    }
-
-    .list-wrapper {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      flex: 1;
     }
 
     .user-list {
@@ -133,26 +82,6 @@
       font-weight: 600;
     }
 
-    .btn-add-action {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      background-color: #2e7d32;
-      color: #ffffff;
-      font-size: 1.5rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      text-decoration: none;
-      flex-shrink: 0;
-      transition: background-color 0.2s;
-    }
-
-    .btn-add-action:hover {
-      background-color: #1b5e20;
-    }
-
     .right-panel {
       flex: 1;
       display: flex;
@@ -181,6 +110,7 @@
     }
 
     input[type="text"],
+    input[type="search"],
     input[type="time"],
     input[type="date"],
     select,
@@ -244,8 +174,6 @@
       .dashboard-container { flex-direction: column; }
       .navbar { flex-direction: column; align-items: flex-start; }
       .filters-row { flex-direction: column; }
-      .list-wrapper { flex-direction: column; }
-      .btn-add-action { width: 100%; border-radius: 10px; }
     }
   </style>
   <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
@@ -266,157 +194,53 @@
     </span>
   </div>
 
-  <nav class="navbar-content">
-    <ul class="nav-ul">
-      {% with rol=request.session.usuario_rol %}
-
-        {# --- 1. ADMINISTRADOR (Rol 1) --- #}
-        {% if rol == 1 %}
-          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
-          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
-          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Gestionar Medicamentos</a></li>
-          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-          <li><a href="{% url 'ver_auditoria' %}" class="nav-text">Auditoría</a></li>
-          <li><a href="{% url 'reportes_clinica' %}" class="nav-text">Reportes</a></li>
-
-        {# --- 2. RECEPCIONISTA (Rol 2) --- #}
-        {% elif rol == 2 %}
-          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atención</a></li>
-          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Registrar Atención</a></li>
-          <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Gestionar Disponibilidad</a></li>
-          <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Gestionar Cobros</a></li>
-
-        {# --- 3. MÉDICO (Rol 3) --- #}
-        {% elif rol == 3 %}
-          <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Mi Disponibilidad</a></li>
-          <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Mis Atenciones</a></li>
-          <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Gestionar Recetas</a></li>
-          <li><a href="{% url 'gestionar_medicamentos' %}" class="nav-text">Medicamentos</a></li>
-          <li><a href="{% url 'gestionar_medicos' %}" class="nav-text">Mis Datos Médicos</a></li>
-
-        {# --- 4. PACIENTE (Rol 4) --- #}
-        {% elif rol == 4 %}
-          <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Agendar Atención</a></li>
-
-        {% endif %}
-
-        {# --- ENLACES COMUNES PARA TODOS LOS ROLES AUTENTICADOS --- #}
-        {% if rol %}
-          <li>
-            <a href="{% url 'gestionar_usuarios' %}" class="nav-text">
-              {% if rol == 1 %}Gestionar Usuarios{% else %}Mi Cuenta{% endif %}
-            </a>
-          </li>
-          <li><a href="{% url 'cerrar_sesion' %}" class="nav-text" style="color:#ffebee; font-weight:700;">Cerrar Sesión</a></li>
-        {% endif %}
-
-      {% endwith %}
-    </ul>
-  </nav>
+  {% include "BarraNavegacionRol.html" %}
 </header>
 
   <!-- Contenedor Principal -->
   <main class="dashboard-container">
 
-    <!-- Panel Izquierdo: Navegación entre Atenciones, Médicos y Pacientes -->
+    <!-- Panel Izquierdo: Atenciones -->
     <section class="card left-panel">
 
-      <!-- Botones de Pestañas -->
-      <div class="tabs-bar">
-        <button type="button" class="tab-btn active" data-tab="tab-atenciones">Atenciones ({{ atenciones|length }})</button>
-        <button type="button" class="tab-btn" data-tab="tab-medicos">Médicos ({{ medicos|length }})</button>
-        <button type="button" class="tab-btn" data-tab="tab-pacientes">Pacientes ({{ pacientes|length }})</button>
-      </div>
-
-      <!-- ================= PESTAÑA 1: ATENCIONES ================= -->
-      <div class="tab-panel active" id="tab-atenciones">
-        <div class="filters-row">
-          <div class="filter-item">
-            <label for="filtro-paciente">Filtrar por Paciente (RUN)</label>
-            <select id="filtro-paciente">
-              <option value="">Todos los pacientes...</option>
-              {% for p in pacientes %}
-                <option value="{{ p.RUN_Paciente }}">{{ p.RUN_Paciente }} - {{ p.Nombre_Paciente }} {{ p.ApellidoP }}</option>
-              {% endfor %}
-            </select>
-          </div>
-
-          <div class="filter-item">
-            <label for="filtro-fecha">Fecha</label>
-            <input type="date" id="filtro-fecha">
-          </div>
-        </div>
-
-        <h2 class="section-title">Atenciones Registradas (Clic para editar)</h2>
-        <div class="list-wrapper">
-          <div class="user-list">
-            {% for a in atenciones %}
-              <div class="user-item item-atencion"
-                   data-id="{{ a.ID_Atencion }}"
-                   data-paciente="{{ a.Paciente.ID }}"
-                   data-run="{{ a.Paciente.RUN_Paciente }}"
-                   data-medico="{{ a.ID_Medico.MatriculaProfesional }}"
-                   data-dia="{{ a.Dia|date:'Y-m-d' }}"
-                   data-horario="{{ a.ID_Horario.ID_Horario }}"
-                   data-descripcion="{{ a.Descripcion }}"
-                   data-estado="{{ a.Estado }}">
-                #{{ a.ID_Atencion }} | Dr(a). {{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} - {{ a.Dia|date:'d/m/Y' }} {{ a.ID_Horario.Hora_Inicio|time:'H:i' }} - {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} [{{ a.Estado }}]
-              </div>
-            {% empty %}
-              <p style="color:#666; font-size:0.9rem; padding:10px;">No hay atenciones registradas todavía.</p>
-            {% endfor %}
-          </div>
-
-          
+      <div class="filters-row">
+        <div class="filter-item">
+          <label for="buscar-atenciones">
+            {% if rol_id == 4 %}Buscar por médico{% elif rol_id == 3 %}Buscar paciente por nombre o RUN{% else %}Buscar por paciente, RUN o médico{% endif %}
+          </label>
+          <input
+            type="search"
+            id="buscar-atenciones"
+            placeholder="{% if rol_id == 4 %}Nombre o apellido del médico{% elif rol_id == 3 %}Nombre, apellido o RUN del paciente{% else %}Nombre, apellido, RUN o médico{% endif %}"
+            autocomplete="off">
         </div>
       </div>
 
-      <!-- ================= PESTAÑA 2: MÉDICOS ================= -->
-      <div class="tab-panel" id="tab-medicos">
-        <div class="filters-row">
-          <div class="filter-item">
-            <label for="filtro-buscar-medico">Buscar Médico o Especialidad</label>
-            <input type="text" id="filtro-buscar-medico" placeholder="Nombre, apellido, RUN o especialidad...">
+      <h2 class="section-title">Atenciones ({{ atenciones|length }})</h2>
+      <div class="user-list" id="lista-atenciones">
+        {% for a in atenciones %}
+          <div class="user-item item-atencion"
+               data-id="{{ a.ID_Atencion }}"
+               data-paciente="{{ a.Paciente.ID }}"
+               data-run="{{ a.Paciente.RUN_Paciente }}"
+               data-medico="{{ a.ID_Medico.MatriculaProfesional }}"
+               data-dia="{{ a.Dia|date:'Y-m-d' }}"
+               data-horario="{{ a.ID_Horario.ID_Horario }}"
+               data-descripcion="{{ a.Descripcion }}"
+               data-estado="{{ a.Estado }}"
+               data-busqueda="{% if rol_id == 4 %}{{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} {{ a.ID_Medico.ApellidoM_Medico }}{% elif rol_id == 3 %}{{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.SegNombre_Paciente }} {{ a.Paciente.ApellidoP }} {{ a.Paciente.ApellidoM }} {{ a.Paciente.RUN_Paciente }}{% else %}{{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} {{ a.Paciente.RUN_Paciente }}{% endif %}">
+            #{{ a.ID_Atencion }} |
+            Dr(a). {{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} -
+            {{ a.Dia|date:'d/m/Y' }} {{ a.ID_Horario.Hora_Inicio|time:'H:i' }} -
+            {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }}
+            [{{ a.Estado }}]
           </div>
-        </div>
-
-        <h2 class="section-title">Médicos Activos (Clic para asignar al formulario)</h2>
-        <div class="user-list">
-          {% for m in medicos %}
-            <div class="user-item item-medico"
-                 data-medico-id="{{ m.MatriculaProfesional }}">
-              Mat. #{{ m.MatriculaProfesional }} - Dr(a). {{ m.Nombre_Medico }} {{ m.ApellidoP_Medico }} {{ m.ApellidoM_Medico }} | {{ m.Especializacion|default:"Medicina General" }} ({{ m.RUN_Medico }})
-            </div>
-          {% empty %}
-            <p style="color:#666; font-size:0.9rem; padding:10px;">No hay médicos activos registrados.</p>
-          {% endfor %}
-        </div>
-      </div>
-
-      <!-- ================= PESTAÑA 3: PACIENTES ================= -->
-      <div class="tab-panel" id="tab-pacientes">
-        <div class="filters-row">
-          <div class="filter-item">
-            <label for="filtro-buscar-paciente">Buscar Paciente por Nombre o RUN</label>
-            <input type="text" id="filtro-buscar-paciente" placeholder="Nombre, apellido o RUN...">
-          </div>
-        </div>
-
-        <h2 class="section-title">Pacientes Activos (Clic para asignar al formulario)</h2>
-        <div class="user-list">
-          {% for p in pacientes %}
-            <div class="user-item item-paciente"
-                 data-paciente-id="{{ p.ID }}">
-              {{ p.RUN_Paciente }} - {{ p.Nombre_Paciente }} {{ p.ApellidoP }} {{ p.ApellidoM }} | Tel: {{ p.NumeroContactoPaciente }}
-            </div>
-          {% empty %}
-            <p style="color:#666; font-size:0.9rem; padding:10px;">No hay pacientes activos registrados.</p>
-          {% endfor %}
-        </div>
+        {% empty %}
+          <p style="color:#666; font-size:0.9rem; padding:10px;">No hay atenciones registradas.</p>
+        {% endfor %}
+        <p id="sin-resultados" style="display:none; color:#666; font-size:0.9rem; padding:10px;">
+          No hay atenciones que coincidan con la búsqueda.
+        </p>
       </div>
 
     </section>
@@ -438,7 +262,7 @@
         <input type="hidden" id="atencion_id" name="atencion_id" value="">
         <input type="hidden" id="accion" name="accion" value="guardar">
 
-        <div class="form-group">
+        <div class="form-group" {% if rol_id == 3 or rol_id == 4 %}style="display:none;"{% endif %}>
           <label for="paciente">Paciente</label>
           <select id="paciente" name="paciente" required>
             <option value="" disabled selected>Seleccione paciente...</option>
@@ -448,7 +272,7 @@
           </select>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" {% if rol_id == 3 or rol_id == 4 %}style="display:none;"{% endif %}>
           <label for="medico">Médico</label>
           <select id="medico" name="medico" required>
             <option value="" disabled selected>Seleccione médico...</option>
@@ -458,12 +282,12 @@
           </select>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" {% if rol_id == 3 or rol_id == 4 %}style="display:none;"{% endif %}>
           <label for="dia">Fecha de Atención</label>
           <input type="date" id="dia" name="dia" required>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" {% if rol_id == 3 or rol_id == 4 %}style="display:none;"{% endif %}>
           <label for="horario">Bloque Horario (20 min)</label>
           <select id="horario" name="horario" required>
             <option value="" disabled selected>Seleccione bloque...</option>
@@ -473,27 +297,27 @@
           </select>
         </div>
 
-        <div class="form-group">
+        <div class="form-group" {% if rol_id == 3 or rol_id == 4 %}style="display:none;"{% endif %}>
           <label for="descripcion">Motivo / Descripción</label>
           <textarea id="descripcion" name="descripcion" placeholder="Motivo de la consulta o observaciones..." required></textarea>
         </div>
 
-        <div class="form-group">
-          <label for="estado">Estado de la Atención</label>
-          <select id="estado" name="estado" required>
-            <option value="Programada" selected>Programada</option>
-            <option value="Realizada">Realizada</option>
-            <option value="No Asistió">No Asistió</option>
-            <option value="Cancelada">Cancelada</option>
-          </select>
-        </div>
-
         <div class="form-buttons">
-          <button type="submit" class="btn btn-submit" id="btn-guardar">Agendar Atención</button>
-          {% if rol_id == 1 or rol_id == 2 or not rol_id %}
-            <button type="button" class="btn" id="btn-eliminar" style="display:none; background-color:#c62828; color:#fff; border:none;">Eliminar</button>
+          {% if rol_id == 3 %}
+            <p id="mensaje-iniciar">Selecciona una atención en espera para comenzar.</p>
+            <button type="button" class="btn btn-submit" id="btn-iniciar" style="display:none;">Iniciar atención</button>
+            <button type="button" class="btn" id="btn-eliminar" style="display:none; background-color:#c62828; color:#fff; border:none;">Cancelar cita</button>
+          {% elif rol_id == 4 %}
+            <p>Selecciona una cita para cancelarla o abandonar la espera.</p>
+            <button type="button" class="btn" id="btn-eliminar" style="display:none; background-color:#c62828; color:#fff; border:none;">Cancelar cita</button>
+            <button type="button" class="btn" id="btn-abandonar" style="display:none; background-color:#6a1b9a; color:#fff; border:none;">Abandonar espera</button>
+          {% else %}
+            <button type="submit" class="btn btn-submit" id="btn-guardar">Agendar Atención</button>
+            <button type="button" class="btn" id="btn-eliminar" style="display:none; background-color:#c62828; color:#fff; border:none;">Cancelar cita</button>
+            <button type="button" class="btn" id="btn-no-asistio" style="display:none; background-color:#6a1b9a; color:#fff; border:none;">Marcar no asistió</button>
+            <button type="button" class="btn" id="btn-abandonar" style="display:none; background-color:#6a1b9a; color:#fff; border:none;">Abandonar espera</button>
+            <button type="button" class="btn btn-cancel" id="btn-cancelar">Limpiar</button>
           {% endif %}
-          <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
         </div>
       </form>
     </section>
@@ -501,21 +325,7 @@
   </main>
 
   <script>
-    // --- 1. NAVEGACIÓN ENTRE LAS 3 PESTAÑAS ---
-    const tabBtns = document.querySelectorAll('.tab-btn');
-    const tabPanels = document.querySelectorAll('.tab-panel');
-
-    tabBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        tabBtns.forEach(b => b.classList.remove('active'));
-        tabPanels.forEach(p => p.classList.remove('active'));
-
-        btn.classList.add('active');
-        document.getElementById(btn.dataset.tab).classList.add('active');
-      });
-    });
-
-    // --- 2. REFERENCIAS AL FORMULARIO DERECHO ---
+    // --- REFERENCIAS AL FORMULARIO DERECHO ---
     const titulo = document.getElementById('titulo-formulario');
     const inputId = document.getElementById('atencion_id');
     const inputAccion = document.getElementById('accion');
@@ -524,16 +334,16 @@
     const inputDia = document.getElementById('dia');
     const selectHorario = document.getElementById('horario');
     const inputDescripcion = document.getElementById('descripcion');
-    const selectEstado = document.getElementById('estado');
     const btnGuardar = document.getElementById('btn-guardar');
     const btnEliminar = document.getElementById('btn-eliminar');
+    const btnNoAsistio = document.getElementById('btn-no-asistio');
+    const btnAbandonar = document.getElementById('btn-abandonar');
+    const btnIniciar = document.getElementById('btn-iniciar');
 
     const itemsAtencion = document.querySelectorAll('.item-atencion');
-    const itemsMedico = document.querySelectorAll('.item-medico');
-    const itemsPaciente = document.querySelectorAll('.item-paciente');
 
     function limpiarFormulario() {
-      document.querySelectorAll('.user-item').forEach(i => i.classList.remove('selected'));
+      itemsAtencion.forEach(i => i.classList.remove('selected'));
       inputId.value = '';
       inputAccion.value = 'guardar';
       selectPaciente.selectedIndex = 0;
@@ -541,11 +351,12 @@
       inputDia.value = '';
       selectHorario.selectedIndex = 0;
       inputDescripcion.value = '';
-      selectEstado.value = 'Programada';
-
       if (btnEliminar) btnEliminar.style.display = 'none';
+      if (btnNoAsistio) btnNoAsistio.style.display = 'none';
+      if (btnAbandonar) btnAbandonar.style.display = 'none';
+      if (btnIniciar) btnIniciar.style.display = 'none';
       titulo.textContent = 'Nueva Atención';
-      btnGuardar.textContent = 'Agendar Atención';
+      if (btnGuardar) btnGuardar.textContent = 'Agendar Atención';
     }
 
     // Clic en ATENCIÓN -> carga todo en modo Edición
@@ -561,80 +372,80 @@
         inputDia.value = item.dataset.dia;
         selectHorario.value = item.dataset.horario;
         inputDescripcion.value = item.dataset.descripcion;
-        selectEstado.value = item.dataset.estado;
-
-        if (btnEliminar) btnEliminar.style.display = 'inline-block';
+        if (btnEliminar) btnEliminar.style.display = item.dataset.estado === 'RESERVADA' ? 'inline-block' : 'none';
+        if (btnNoAsistio) btnNoAsistio.style.display = item.dataset.estado === 'RESERVADA' ? 'inline-block' : 'none';
+        if (btnAbandonar) btnAbandonar.style.display = item.dataset.estado === 'EN ESPERA' ? 'inline-block' : 'none';
+        if (btnIniciar) {
+          btnIniciar.style.display = item.dataset.estado === 'EN ESPERA' ? 'inline-block' : 'none';
+        }
         titulo.textContent = `Gestionar Atención #${item.dataset.id}`;
-        btnGuardar.textContent = 'Guardar Cambios';
+        if (btnGuardar) btnGuardar.textContent = 'Guardar Cambios';
       });
     });
 
-    // Clic en MÉDICO -> selecciona ese médico en el formulario derecho
-    itemsMedico.forEach(item => {
-      item.addEventListener('click', () => {
-        itemsMedico.forEach(i => i.classList.remove('selected'));
-        item.classList.add('selected');
-        selectMedico.value = item.dataset.medicoId;
-      });
-    });
-
-    // Clic en PACIENTE -> selecciona ese paciente en el formulario derecho
-    itemsPaciente.forEach(item => {
-      item.addEventListener('click', () => {
-        itemsPaciente.forEach(i => i.classList.remove('selected'));
-        item.classList.add('selected');
-        selectPaciente.value = item.dataset.pacienteId;
-      });
-    });
-
-    // Eliminar atención
+    // Cancelar cita
     if (btnEliminar) {
       btnEliminar.addEventListener('click', () => {
-        if (confirm('¿Seguro que deseas eliminar esta atención y liberar el horario del médico?')) {
-          inputAccion.value = 'eliminar';
+        if (confirm('¿Seguro que deseas cancelar esta cita?')) {
+          inputAccion.value = 'cancelar';
           document.getElementById('form-atencion').submit();
         }
       });
     }
 
-    document.getElementById('btn-cancelar').addEventListener('click', limpiarFormulario);
-    document.getElementById('btn-nueva-atencion').addEventListener('click', (e) => {
-      e.preventDefault();
-      limpiarFormulario();
-    });
-
-    // --- 3. FILTROS INDEPENDIENTES DE CADA PESTAÑA ---
-    // Filtro Atenciones
-    const filtroPaciente = document.getElementById('filtro-paciente');
-    const filtroFecha = document.getElementById('filtro-fecha');
-
-    function filtrarAtenciones() {
-      const runSel = filtroPaciente.value;
-      const fechaSel = filtroFecha.value;
-
-      itemsAtencion.forEach(item => {
-        const coincideRun = !runSel || item.dataset.run === runSel;
-        const coincideFecha = !fechaSel || item.dataset.dia === fechaSel;
-        item.style.display = (coincideRun && coincideFecha) ? 'block' : 'none';
+    if (btnNoAsistio) {
+      btnNoAsistio.addEventListener('click', () => {
+        if (confirm('¿Confirmas que el paciente no asistió?')) {
+          inputAccion.value = 'no_asistio';
+          document.getElementById('form-atencion').submit();
+        }
       });
     }
-    filtroPaciente.addEventListener('change', filtrarAtenciones);
-    filtroFecha.addEventListener('change', filtrarAtenciones);
 
-    // Filtro Médicos
-    document.getElementById('filtro-buscar-medico').addEventListener('input', function () {
-      const q = this.value.toLowerCase();
-      itemsMedico.forEach(item => {
-        item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+    if (btnAbandonar) {
+      btnAbandonar.addEventListener('click', () => {
+        if (confirm('¿Confirmas que deseas abandonar la espera?')) {
+          inputAccion.value = 'abandonar';
+          document.getElementById('form-atencion').submit();
+        }
       });
-    });
+    }
 
-    // Filtro Pacientes
-    document.getElementById('filtro-buscar-paciente').addEventListener('input', function () {
-      const q = this.value.toLowerCase();
-      itemsPaciente.forEach(item => {
-        item.style.display = item.textContent.toLowerCase().includes(q) ? 'block' : 'none';
+    if (btnIniciar) {
+      btnIniciar.addEventListener('click', () => {
+        inputAccion.value = 'iniciar';
+        document.getElementById('form-atencion').submit();
       });
+    }
+
+    const btnCancelarFormulario = document.getElementById('btn-cancelar');
+    if (btnCancelarFormulario) btnCancelarFormulario.addEventListener('click', limpiarFormulario);
+    const btnNuevaAtencion = document.getElementById('btn-nueva-atencion');
+    if (btnNuevaAtencion) {
+      btnNuevaAtencion.addEventListener('click', (e) => {
+        e.preventDefault();
+        limpiarFormulario();
+      });
+    }
+
+    const busquedaAtenciones = document.getElementById('buscar-atenciones');
+    const mensajeSinResultados = document.getElementById('sin-resultados');
+
+    function normalizarTexto(valor) {
+      return valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
+    }
+
+    busquedaAtenciones.addEventListener('input', () => {
+      const consulta = normalizarTexto(busquedaAtenciones.value.trim());
+      let coincidencias = 0;
+
+      itemsAtencion.forEach(item => {
+        const coincide = normalizarTexto(item.dataset.busqueda).includes(consulta);
+        item.style.display = coincide ? 'block' : 'none';
+        if (coincide) coincidencias += 1;
+      });
+
+      mensajeSinResultados.style.display = coincidencias === 0 && itemsAtencion.length > 0 ? 'block' : 'none';
     });
   </script>
 

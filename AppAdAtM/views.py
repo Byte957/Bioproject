@@ -1,21 +1,31 @@
 from django.shortcuts import render, redirect
 from django.db import transaction, IntegrityError
+from django.db.models import Count, F, Q, Sum, Value
+from django.db.models.functions import Replace, Upper
 from django.contrib.auth.hashers import make_password
-from .models import Rol, Usuario, Paciente, Medico, Horario, HorarioMedico, Atencion, Medicamento, Receta, MedicamentoReceta, Boleta, Auditoria
+from .models import Rol, Usuario, Paciente, Medico, Horario, HorarioMedico, Atencion, EstadoAtencion, Medicamento, Receta, MedicamentoReceta, Boleta, Auditoria
 from django.contrib.auth.hashers import check_password
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.contrib import messages
 from django.conf import settings
 from django.core import signing
 from django.core.mail import send_mail
 from datetime import date, datetime, time, timedelta
 import json
+import hashlib
+import hmac
+import logging
+import re
+import smtplib
 from django.http import HttpResponse
 from django.template.loader import get_template
-from django.db.models import Count, Sum
 from django.urls import reverse
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from django.views.decorators.cache import never_cache
+from django.utils import timezone
 import reportlab
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
@@ -24,21 +34,190 @@ from reportlab.lib import colors
 from functools import wraps
 
 
+logger = logging.getLogger(__name__)
+
+
 class ErrorEnvioActivacion(Exception):
     pass
+
+
+def _validar_run(run):
+    run = (run or '').strip().upper()
+    if not re.fullmatch(r'[0-9.\-\s]*[0-9K]', run):
+        raise ValidationError('Ingresa un RUN válido.')
+
+    digitos = re.sub(r'[.\-\s]', '', run)
+    cuerpo, digito_verificador = digitos[:-1], digitos[-1]
+    if not 7 <= len(cuerpo) <= 8:
+        raise ValidationError('Ingresa un RUN válido.')
+
+    suma = 0
+    multiplicador = 2
+    for digito in reversed(cuerpo):
+        suma += int(digito) * multiplicador
+        multiplicador = 2 if multiplicador == 7 else multiplicador + 1
+
+    resto = 11 - suma % 11
+    esperado = '0' if resto == 11 else 'K' if resto == 10 else str(resto)
+    if digito_verificador != esperado:
+        raise ValidationError('El dígito verificador del RUN no es válido.')
+
+    return f'{int(cuerpo):,}'.replace(',', '.') + f'-{digito_verificador}'
+
+
+def _run_clave_expression(field_name):
+    expression = Upper(F(field_name))
+    for caracter in ('.', '-', ' '):
+        expression = Replace(expression, Value(caracter), Value(''))
+    return expression
+
+
+def _run_ya_registrado(run, *, excluir_paciente_id=None, excluir_matricula=None):
+    clave = re.sub(r'[.\-\s]', '', run).upper()
+    pacientes = Paciente.objects.annotate(_run_clave=_run_clave_expression('RUN_Paciente')).filter(
+        _run_clave=clave,
+    )
+    medicos = Medico.objects.annotate(_run_clave=_run_clave_expression('RUN_Medico')).filter(
+        _run_clave=clave,
+    )
+    if excluir_paciente_id is not None:
+        pacientes = pacientes.exclude(pk=excluir_paciente_id)
+    if excluir_matricula is not None:
+        medicos = medicos.exclude(pk=excluir_matricula)
+    return pacientes.exists() or medicos.exists()
+
+
+def _validar_correo(correo):
+    correo = (correo or '').strip().lower()
+    if not correo or len(correo) > 50:
+        raise ValidationError('Ingresa un correo válido de hasta 50 caracteres.')
+    validate_email(correo)
+    return correo
+
+
+def _validar_nombre(valor, etiqueta, max_length=20, requerido=True):
+    valor = (valor or '').strip()
+    if requerido and not valor:
+        raise ValidationError(f'{etiqueta} es obligatorio.')
+    if len(valor) > max_length:
+        raise ValidationError(f'{etiqueta} no puede superar los {max_length} caracteres.')
+    if any(ord(caracter) < 32 for caracter in valor):
+        raise ValidationError(f'{etiqueta} contiene caracteres no válidos.')
+    return valor
+
+
+def _validar_telefono_chileno(telefono):
+    telefono = (telefono or '').strip()
+    if not re.fullmatch(r'[\d\s()+.-]+', telefono):
+        raise ValidationError('Ingresa un teléfono móvil chileno válido de 9 dígitos.')
+    digitos = re.sub(r'\D', '', telefono or '')
+    if digitos.startswith('56') and len(digitos) == 11:
+        digitos = digitos[2:]
+    if not re.fullmatch(r'9\d{8}', digitos):
+        raise ValidationError('Ingresa un teléfono móvil chileno válido de 9 dígitos.')
+    return f'+56{digitos}'
+
+
+def _validar_password(password, usuario=None):
+    try:
+        validate_password(password, user=usuario)
+    except ValidationError as error:
+        raise ValidationError(error.messages) from error
+
+
+def _usuario_tiene_perfil_activo(usuario):
+    if usuario.Rol_id == 4:
+        return Paciente.objects.filter(Usuario=usuario, Estado='Activo').exists()
+    if usuario.Rol_id == 3:
+        return Medico.objects.filter(Usuario=usuario, Estado='Activo').exists()
+    return True
+
+
+def _huella_contrasena(usuario):
+    return hmac.new(
+        settings.SECRET_KEY.encode(),
+        usuario.Contraseña.encode(),
+        hashlib.sha256,
+    ).hexdigest()
 
 
 def sesion_requerida(view_func):
     @wraps(view_func)
     @never_cache
     def _wrapped_view(request, *args, **kwargs):
-        if not request.session.get('usuario_id'):
+        usuario = Usuario.objects.select_related('Rol').filter(
+            pk=request.session.get('usuario_id'),
+        ).first()
+        if (
+            not usuario
+            or usuario.Estado != 'Activo'
+            or not _usuario_tiene_perfil_activo(usuario)
+            or request.session.get('usuario_password_fingerprint') != _huella_contrasena(usuario)
+        ):
+            request.session.flush()
             return redirect('inicio_sesion')
+        request.session['usuario_rol'] = usuario.Rol_id
+        request.session['usuario_nombre'] = f'{usuario.Nombre} {usuario.Apellido}'
         return view_func(request, *args, **kwargs)
     return _wrapped_view
 
+
+def roles_requeridos(*roles_permitidos):
+    def decorator(view_func):
+        @wraps(view_func)
+        def _wrapped_view(request, *args, **kwargs):
+            if request.session.get('usuario_rol') not in roles_permitidos:
+                messages.error(request, 'No tienes permisos para acceder a esta sección.')
+                return redirigir_segun_rol(request.session.get('usuario_rol'))
+            return view_func(request, *args, **kwargs)
+        return _wrapped_view
+    return decorator
+
+
+def _enviar_confirmacion_atencion(request, atencion):
+    paciente = atencion.Paciente
+    destinatario = paciente.CorreoContactoPaciente
+    if not destinatario and paciente.Usuario_id:
+        destinatario = paciente.Usuario.Correo_Usuario
+    if not destinatario:
+        messages.warning(request, 'La cita quedó reservada, pero el paciente no tiene un correo de contacto.')
+        return
+
+    try:
+        enviado = send_mail(
+            'Confirmación de cita médica',
+            (
+                f'Hola {paciente.Nombre_Paciente}, tu cita quedó reservada '
+                f'para el {atencion.Dia.strftime("%d/%m/%Y")} a las '
+                f'{atencion.ID_Horario.Hora_Inicio.strftime("%H:%M")} con '
+                f'Dr(a). {atencion.ID_Medico.Nombre_Medico} '
+                f'{atencion.ID_Medico.ApellidoP_Medico}.'
+            ),
+            settings.DEFAULT_FROM_EMAIL,
+            [destinatario],
+            fail_silently=False,
+        )
+        if not enviado:
+            messages.warning(request, 'La cita quedó reservada, pero no se pudo enviar el correo de confirmación.')
+    except (OSError, smtplib.SMTPException, ValueError) as exc:
+        messages.warning(request, f'La cita quedó reservada, pero falló el correo de confirmación: {exc}')
+
+
+def _cancelar_atencion_y_liberar_bloque(atencion):
+    with transaction.atomic():
+        atencion.Estado = EstadoAtencion.CANCELADA
+        atencion.save(update_fields=['Estado'])
+        HorarioMedico.objects.filter(
+            ID_Medico=atencion.ID_Medico,
+            Dia=atencion.Dia,
+            ID_Horario=atencion.ID_Horario,
+            Estado__iexact='Ocupado',
+        ).update(Estado='Disponible')
+
+
 @never_cache
 @sesion_requerida
+@roles_requeridos(1)
 def gestionmedicamentos(request):
     if request.method == 'POST':
         accion = request.POST.get('accion', 'guardar')
@@ -101,6 +280,7 @@ def gestionmedicamentos(request):
 
 @never_cache
 @sesion_requerida
+@roles_requeridos(2, 4)
 def registroatencion(request):
     # Vista restringida para agendar citas únicamente en horarios previamente habilitados como 'Disponible'.
     _asegurar_bloques_horario()
@@ -112,6 +292,9 @@ def registroatencion(request):
     paciente_sesion = None
     if rol_id == 4 and usuario_id:
         paciente_sesion = Paciente.objects.filter(Usuario_id=usuario_id).first()
+        if not paciente_sesion:
+            messages.error(request, 'No se encontró un perfil de paciente vinculado a tu cuenta.')
+            return redirect('inicio_sesion')
 
     if request.method == 'POST':
         medico_id = request.POST.get('medico_id', '').strip()
@@ -125,36 +308,44 @@ def registroatencion(request):
             return redirect('registrar_atencion')
 
         try:
-            medico_obj = Medico.objects.get(MatriculaProfesional=medico_id)
+            medico_obj = Medico.objects.get(MatriculaProfesional=medico_id, Estado='Activo')
             horario_obj = Horario.objects.get(ID_Horario=horario_id)
             fecha_obj = datetime.strptime(fecha_str, '%Y-%m-%d').date()
+            inicio_atencion = timezone.make_aware(datetime.combine(fecha_obj, horario_obj.Hora_Inicio))
+            if inicio_atencion <= timezone.now():
+                messages.error(request, 'No se pueden reservar horarios que ya comenzaron.')
+                return redirect('registrar_atencion')
 
-            paciente_obj = Paciente.objects.filter(RUN_Paciente=run_paciente).first()
+            paciente_obj = Paciente.objects.filter(
+                RUN_Paciente=run_paciente,
+                Estado='Activo',
+            ).first()
             if not paciente_obj:
                 messages.error(request, f'No existe un paciente registrado con el RUN {run_paciente}.')
                 return redirect('registrar_atencion')
 
-            usuario_obj = Usuario.objects.filter(ID_Usuario=usuario_id).first() or paciente_obj.Usuario or Usuario.objects.first()
-
-            # En Registrar Atención EXIGIMOS que el bloque esté explícitamente 'Disponible'
-            bloque_habilitado = HorarioMedico.objects.filter(
-                ID_Medico=medico_obj,
-                Dia=fecha_obj,
-                ID_Horario=horario_obj,
-                Estado__iexact='Disponible'
-            ).exists()
-
-            ya_ocupado = Atencion.objects.filter(
-                ID_Medico=medico_obj,
-                Dia=fecha_obj,
-                ID_Horario=horario_obj
-            ).exclude(Estado__iexact='Cancelada').exists()
-
-            if not bloque_habilitado or ya_ocupado:
-                messages.error(request, 'Este horario ya no se encuentra disponible. Selecciona otro bloque.')
-                return redirect('registrar_atencion')
+            usuario_obj = Usuario.objects.filter(ID_Usuario=usuario_id).first()
+            if not usuario_obj:
+                messages.error(request, 'La cuenta de usuario ya no está disponible.')
+                return redirect('inicio_sesion')
 
             with transaction.atomic():
+                bloque_habilitado = HorarioMedico.objects.filter(
+                    ID_Medico=medico_obj,
+                    Dia=fecha_obj,
+                    ID_Horario=horario_obj,
+                    Estado__iexact='Disponible'
+                ).exists()
+                ya_ocupado = Atencion.objects.filter(
+                    ID_Medico=medico_obj,
+                    Dia=fecha_obj,
+                    ID_Horario=horario_obj
+                ).exclude(Estado=EstadoAtencion.CANCELADA).exists()
+
+                if not bloque_habilitado or ya_ocupado:
+                    messages.error(request, 'Este horario ya no se encuentra disponible. Selecciona otro bloque.')
+                    return redirect('registrar_atencion')
+
                 nueva_atencion = Atencion.objects.create(
                     Paciente=paciente_obj,
                     Usuario=usuario_obj,
@@ -162,7 +353,7 @@ def registroatencion(request):
                     Descripcion=descripcion[:500],
                     ID_Horario=horario_obj,
                     Dia=fecha_obj,
-                    Estado='Programada'
+                    Estado=EstadoAtencion.RESERVADA
                 )
 
                 HorarioMedico.objects.filter(
@@ -175,7 +366,10 @@ def registroatencion(request):
                 request,
                 f'¡Cita #{nueva_atencion.ID_Atencion} agendada con Dr(a). {medico_obj.Nombre_Medico} {medico_obj.ApellidoP_Medico} para el {fecha_obj.strftime("%d/%m/%Y")} a las {horario_obj.Hora_Inicio.strftime("%H:%M")}.'
             )
+            _enviar_confirmacion_atencion(request, nueva_atencion)
 
+        except IntegrityError:
+            messages.error(request, 'Este horario acaba de ser reservado. Selecciona otro bloque.')
         except (Medico.DoesNotExist, Horario.DoesNotExist):
             messages.error(request, 'El médico o bloque horario seleccionado no es válido.')
         except ValueError:
@@ -186,16 +380,27 @@ def registroatencion(request):
         return redirect('registrar_atencion')
 
     # --- PETICIÓN GET ---
-    hoy = date.today()
+    ahora_local = timezone.localtime()
+    hoy = ahora_local.date()
     disponibles_raw = HorarioMedico.objects.filter(
         Estado__iexact='Disponible',
-        Dia__gte=hoy,
         ID_Medico__Estado='Activo'
-    ).select_related('ID_Medico', 'ID_Horario').order_by('Dia', 'ID_Horario__Hora_Inicio')
+    ).filter(
+        Q(Dia__gt=hoy)
+        | Q(Dia=hoy, ID_Horario__Hora_Inicio__gt=ahora_local.time())
+    ).select_related(
+        'ID_Medico',
+        'ID_Horario',
+    ).order_by(
+        'Dia',
+        'ID_Horario__Hora_Inicio',
+        'ID_Medico__ApellidoP_Medico',
+        'ID_Medico__Nombre_Medico',
+    )
 
     ocupados_set = set(
         Atencion.objects.filter(Dia__gte=hoy)
-        .exclude(Estado__iexact='Cancelada')
+        .exclude(Estado=EstadoAtencion.CANCELADA)
         .values_list('ID_Medico_id', 'Dia', 'ID_Horario_id')
     )
 
@@ -224,6 +429,7 @@ def registroatencion(request):
 
 @never_cache
 @sesion_requerida
+@roles_requeridos(1, 2, 3, 4)
 def gestionusuarios(request):
     usuario_id = request.session.get('usuario_id')
     rol_id = request.session.get('usuario_rol')
@@ -243,10 +449,21 @@ def gestionusuarios(request):
         nombre = request.POST.get('nombre', '').strip()
         apellido = request.POST.get('apellido', '').strip()
         correo = request.POST.get('correo', '').strip()
-        password = request.POST.get('password', '').strip()
+        password = request.POST.get('password', '')
 
-        if not nombre or not apellido or not correo:
-            messages.error(request, 'Nombre, apellido y correo son obligatorios.')
+        try:
+            nombre = _validar_nombre(nombre, 'El nombre')
+            apellido = _validar_nombre(apellido, 'El apellido')
+            correo = _validar_correo(correo)
+            if password:
+                usuario_validar = Usuario(
+                    Nombre=nombre,
+                    Apellido=apellido,
+                    Correo_Usuario=correo,
+                )
+                _validar_password(password, usuario_validar)
+        except ValidationError as error:
+            messages.error(request, ' '.join(error.messages))
             return redirect('gestionar_usuarios')
 
         # --- MODO ADMINISTRADOR (Puede crear y editar cualquier usuario) ---
@@ -272,6 +489,8 @@ def gestionusuarios(request):
                         if password:
                             u_obj.Contraseña = make_password(password)
                         u_obj.save()
+                        if str(u_obj.ID_Usuario) == str(usuario_id):
+                            request.session['usuario_password_fingerprint'] = _huella_contrasena(u_obj)
 
                         # Sincronizar si tiene ficha asociada
                         Paciente.objects.filter(Usuario=u_obj).update(
@@ -322,6 +541,7 @@ def gestionusuarios(request):
                     if password:
                         usuario_actual.Contraseña = make_password(password)
                     usuario_actual.save()
+                    request.session['usuario_password_fingerprint'] = _huella_contrasena(usuario_actual)
 
                     Paciente.objects.filter(Usuario=usuario_actual).update(
                         Nombre_Paciente=nombre, ApellidoP=apellido, CorreoContactoPaciente=correo
@@ -350,6 +570,7 @@ def gestionusuarios(request):
 
 @never_cache
 @sesion_requerida
+@roles_requeridos(3)
 def gestionrecetas(request):
     usuario_id = request.session.get('usuario_id')
     rol_id = request.session.get('usuario_rol')
@@ -383,10 +604,17 @@ def gestionrecetas(request):
                 return redirect('gestionar_recetasatencion')
 
             with transaction.atomic():
-                # 1. Actualizar diagnóstico/descripción y marcar atención como Realizada
+                if atencion_obj.ID_Medico.Usuario_id != usuario_id:
+                    messages.error(request, 'Solo el médico asignado puede emitir la receta.')
+                    return redirect('gestionar_recetasatencion')
+                if atencion_obj.Estado != EstadoAtencion.EN_ATENCION:
+                    messages.error(request, 'Solo se puede finalizar una atención que esté en curso.')
+                    return redirect('gestionar_recetasatencion')
+
+                # 1. Actualizar diagnóstico/descripción y finalizar la atención
                 if diagnostico:
                     atencion_obj.Descripcion = diagnostico[:500]
-                atencion_obj.Estado = 'Realizada'
+                atencion_obj.Estado = EstadoAtencion.FINALIZADA
                 atencion_obj.save()
 
                 # 2. Crear o actualizar la Receta asociada a esta Atención
@@ -427,13 +655,10 @@ def gestionrecetas(request):
         return redirect('gestionar_recetasatencion')
 
     # --- PETICIÓN GET ---
-    if rol_id == 3 and usuario_id:
-        atenciones_qs = Atencion.objects.filter(ID_Medico__Usuario_id=usuario_id)
-    else:
-        atenciones_qs = Atencion.objects.all()
+    atenciones_qs = Atencion.objects.filter(ID_Medico__Usuario_id=usuario_id)
 
     atenciones = (
-        atenciones_qs.exclude(Estado__iexact='Cancelada')
+        atenciones_qs.exclude(Estado=EstadoAtencion.CANCELADA)
         .select_related('Paciente', 'ID_Medico', 'ID_Horario')
         .order_by('-Dia', 'ID_Horario__Hora_Inicio')
     )
@@ -463,6 +688,31 @@ def gestionrecetas(request):
         'recetas_json': json.dumps(recetas_map),
     })
 
+
+@never_cache
+@sesion_requerida
+@roles_requeridos(3, 4)
+def historial_atenciones(request):
+    usuario_id = request.session.get('usuario_id')
+    rol_id = request.session.get('usuario_rol')
+
+    atenciones = Atencion.objects.select_related(
+        'Paciente',
+        'ID_Medico',
+        'ID_Horario',
+    ).prefetch_related(
+        'receta_set__medicamentoreceta_set__ID_Medicamento',
+    )
+    if rol_id == 3:
+        atenciones = atenciones.filter(ID_Medico__Usuario_id=usuario_id)
+    else:
+        atenciones = atenciones.filter(Paciente__Usuario_id=usuario_id)
+
+    return render(request, 'HistorialAtenciones.html', {
+        'atenciones': atenciones.order_by('-Dia', '-ID_Horario__Hora_Inicio'),
+        'rol_id': rol_id,
+    })
+
 def cerrarsesion(request):
     # 1. Eliminar explícitamente el rol y los datos de la sesión
     request.session.pop('usuario_rol', None)
@@ -484,6 +734,7 @@ def cerrarsesion(request):
 
 @never_cache
 @sesion_requerida
+@roles_requeridos(1, 2)
 def gestionpacientes(request):
     if request.method == 'POST':
         paciente_id = request.POST.get('paciente_id', '').strip()
@@ -592,29 +843,11 @@ def gestionpacientes(request):
 
 @never_cache
 @sesion_requerida
+@roles_requeridos(1)
 def gestionmedicos(request):
-    usuario_id = request.session.get('usuario_id')
-    rol_id = request.session.get('usuario_rol')
-
-    # 1. Prohibir el ingreso a cualquier rol distinto de Médico (Rol 3)
-    if not usuario_id or rol_id != 3:
-        messages.error(request, 'Acceso denegado: Esta sección es exclusiva para médicos.')
-        if rol_id == 1:
-            return redirect('gestionar_usuarios')
-        elif rol_id == 2:
-            return redirect('gestionar_atencion')
-        elif rol_id == 4:
-            return redirect('registrar_atencion')
-        return redirect('inicio_sesion')
-
-    # 2. Obtener únicamente el perfil del médico que inició sesión
-    medico_actual = Medico.objects.select_related('Usuario').filter(Usuario_id=usuario_id).first()
-
-    if not medico_actual:
-        messages.error(request, 'No se encontró un perfil de médico vinculado a tu usuario.')
-        return redirect('inicio_sesion')
-
     if request.method == 'POST':
+        medico_id = request.POST.get('medico_id', '').strip()
+        matricula_str = request.POST.get('numero-matricula', '').strip()
         run_medico = request.POST.get('run-medico', '').strip()
         nombre = request.POST.get('nombre-medico', '').strip()
         seg_nombre = request.POST.get('segundo-nombre-medico', '').strip()
@@ -626,55 +859,129 @@ def gestionmedicos(request):
         password = request.POST.get('password-medico', '').strip()
         telefono_raw = request.POST.get('numero-contacto', '').strip()
         estado = request.POST.get('estado', 'Activo').strip()
-
         telefono = f"+56{telefono_raw.replace('+56', '')}"
 
-        # Validar que el RUN o correo no choque con otro médico distinto
-        if Medico.objects.filter(RUN_Medico=run_medico).exclude(MatriculaProfesional=medico_actual.MatriculaProfesional).exists():
-            messages.error(request, f'El RUN {run_medico} ya pertenece a otro médico.')
-            return redirect('gestionar_medicos')
-
-        if Usuario.objects.filter(Correo_Usuario__iexact=correo).exclude(ID_Usuario=usuario_id).exists():
-            messages.error(request, f'El correo {correo} ya está registrado por otro usuario.')
+        if not matricula_str or not run_medico or not nombre or not apellido_p or not especializacion or not correo or not telefono_raw:
+            messages.error(request, 'Completa matrícula, RUN, nombre, apellido, especialidad, correo y teléfono.')
             return redirect('gestionar_medicos')
 
         try:
+            matricula = int(matricula_str)
+        except ValueError:
+            messages.error(request, 'La matrícula profesional debe ser numérica.')
+            return redirect('gestionar_medicos')
+        if matricula <= 0 or estado not in ('Activo', 'Inactivo'):
+            messages.error(request, 'La matrícula o el estado del médico no son válidos.')
+            return redirect('gestionar_medicos')
+
+        try:
+            medico_actual = Medico.objects.select_related('Usuario').filter(
+                MatriculaProfesional=medico_id,
+            ).first() if medico_id else None
+            if medico_id and not medico_actual:
+                messages.error(request, 'El médico seleccionado ya no existe.')
+                return redirect('gestionar_medicos')
+
+            if medico_actual and medico_actual.MatriculaProfesional != matricula:
+                messages.error(request, 'No se puede cambiar la matrícula de un médico existente.')
+                return redirect(f"{reverse('gestionar_medicos')}?medico_id={medico_id}")
+            elif not medico_actual and Medico.objects.filter(MatriculaProfesional=matricula).exists():
+                messages.error(request, 'La matrícula ya está asociada a otro médico.')
+                return redirect('gestionar_medicos')
+
+            run_duplicado = Medico.objects.filter(RUN_Medico=run_medico)
+            if medico_actual:
+                run_duplicado = run_duplicado.exclude(MatriculaProfesional=medico_actual.MatriculaProfesional)
+            if run_duplicado.exists() or Paciente.objects.filter(RUN_Paciente=run_medico).exists():
+                messages.error(request, f'El RUN {run_medico} ya pertenece a otra persona.')
+                return redirect(
+                    f"{reverse('gestionar_medicos')}?medico_id={medico_id}"
+                    if medico_id else 'gestionar_medicos'
+                )
+
+            usuario_actual = medico_actual.Usuario if medico_actual else None
+            usuario_duplicado = Usuario.objects.filter(Correo_Usuario__iexact=correo)
+            if usuario_actual:
+                usuario_duplicado = usuario_duplicado.exclude(ID_Usuario=usuario_actual.ID_Usuario)
+            if usuario_duplicado.exists():
+                messages.error(request, f'El correo {correo} ya está registrado por otro usuario.')
+                return redirect(
+                    f"{reverse('gestionar_medicos')}?medico_id={medico_id}"
+                    if medico_id else 'gestionar_medicos'
+                )
+            if not usuario_actual and not password:
+                messages.error(request, 'Debes asignar una contraseña inicial al crear un médico.')
+                return redirect('gestionar_medicos')
+
             with transaction.atomic():
-                # Actualizar datos en tabla Medico (manteniendo su MatriculaProfesional original)
-                medico_actual.RUN_Medico = run_medico
-                medico_actual.Nombre_Medico = nombre
-                medico_actual.SegNombre_Medico = seg_nombre
-                medico_actual.TerNombre_Medico = ter_nombre
-                medico_actual.ApellidoP_Medico = apellido_p
-                medico_actual.ApellidoM_Medico = apellido_m
-                medico_actual.Especializacion = especializacion
-                medico_actual.CorreoContactoMedico = correo
-                medico_actual.NumeroContactoMedico = telefono
-                medico_actual.Estado = estado
-                medico_actual.save()
+                rol_medico = Rol.objects.get(ID_Rol=3)
+                if usuario_actual:
+                    usuario_obj = usuario_actual
+                else:
+                    usuario_obj = Usuario.objects.create(
+                        Nombre=nombre[:20],
+                        Apellido=apellido_p[:20],
+                        Correo_Usuario=correo[:50],
+                        Contraseña=make_password(password),
+                        Estado=estado,
+                        Rol=rol_medico,
+                    )
 
-                # Sincronizar datos en su cuenta de Usuario asociada
-                if medico_actual.Usuario:
-                    usuario_obj = medico_actual.Usuario
-                    usuario_obj.Nombre = nombre
-                    usuario_obj.Apellido = apellido_p
-                    usuario_obj.Correo_Usuario = correo
-                    usuario_obj.Estado = estado
-                    if password:
-                        usuario_obj.Contraseña = make_password(password)
-                    usuario_obj.save()
+                if medico_actual:
+                    medico_obj = medico_actual
+                else:
+                    medico_obj = Medico(MatriculaProfesional=matricula)
+                medico_obj.Usuario = usuario_obj
 
-                    request.session['usuario_nombre'] = f"{nombre} {apellido_p}"
+                medico_obj.RUN_Medico = run_medico[:25]
+                medico_obj.Nombre_Medico = nombre[:20]
+                medico_obj.SegNombre_Medico = seg_nombre[:20]
+                medico_obj.TerNombre_Medico = ter_nombre[:20]
+                medico_obj.ApellidoP_Medico = apellido_p[:20]
+                medico_obj.ApellidoM_Medico = apellido_m[:20]
+                medico_obj.Especializacion = especializacion[:50]
+                medico_obj.CorreoContactoMedico = correo[:50]
+                medico_obj.NumeroContactoMedico = telefono[:15]
+                medico_obj.Estado = estado
+                medico_obj.save()
 
-            messages.success(request, 'Tus datos profesionales se han actualizado correctamente.')
+                usuario_obj.Nombre = nombre[:20]
+                usuario_obj.Apellido = apellido_p[:20]
+                usuario_obj.Correo_Usuario = correo[:50]
+                usuario_obj.Estado = estado
+                usuario_obj.Rol = rol_medico
+                if password and usuario_actual:
+                    usuario_obj.Contraseña = make_password(password)
+                usuario_obj.save()
+
+            messages.success(
+                request,
+                f'Médico {nombre} {apellido_p} '
+                f'{"registrado" if not medico_id else "actualizado"} correctamente.',
+            )
         except Exception as e:
-            messages.error(request, f'Error al actualizar tus datos: {str(e)}')
+            messages.error(request, f'Error al guardar médico: {str(e)}')
 
-        return redirect('gestionar_medicos')
+        return redirect(
+            f"{reverse('gestionar_medicos')}?medico_id={medico_obj.MatriculaProfesional}"
+            if 'medico_obj' in locals() else 'gestionar_medicos'
+        )
 
+    medicos = Medico.objects.select_related('Usuario').all().order_by('ApellidoP_Medico', 'Nombre_Medico')
+    if request.GET.get('nuevo') == '1':
+        medico_actual = None
+    elif request.GET.get('medico_id'):
+        medico_actual = medicos.filter(
+            MatriculaProfesional=request.GET.get('medico_id'),
+        ).first()
+        if not medico_actual:
+            messages.error(request, 'El médico seleccionado no existe.')
+    else:
+        medico_actual = medicos.first()
     return render(request, 'GestionDeMedicos.html', {  # <-- Verifica que coincida con el nombre de tu archivo HTML
         'medico': medico_actual,
-        'medicos': [medico_actual],
+        'medicos': medicos,
+        'es_admin': True,
     })
 
 def _asegurar_bloques_horario():
@@ -703,23 +1010,16 @@ def _str_a_time(hora_str):
 
 @never_cache
 @sesion_requerida
+@roles_requeridos(3)
 def gestiondisponibilidad(request):
     _asegurar_bloques_horario()
 
-    # 1. Identificar el Médico activo (si inició sesión como Médico, o elegido por filtro si es Admin/Recepcionista)
     usuario_id = request.session.get('usuario_id')
     rol_id = request.session.get('usuario_rol')
-
-    medico_actual = None
-    if rol_id == 3 and usuario_id:
-        medico_actual = Medico.objects.filter(Usuario_id=usuario_id).first()
-
-    medico_param = request.GET.get('medico') or request.POST.get('medico_id')
-    if not medico_actual and medico_param:
-        medico_actual = Medico.objects.filter(MatriculaProfesional=medico_param).first()
-
+    medico_actual = Medico.objects.filter(Usuario_id=usuario_id, Estado='Activo').first()
     if not medico_actual:
-        medico_actual = Medico.objects.filter(Estado='Activo').first()
+        messages.error(request, 'No se encontró un perfil médico activo vinculado a tu cuenta.')
+        return redirect('gestionar_atencion')
 
     # 2. Calcular la semana (Lunes a Domingo) según la fecha seleccionada en el filtro
     fecha_str = request.GET.get('fecha') or request.POST.get('fecha_semana')
@@ -834,7 +1134,7 @@ def gestiondisponibilidad(request):
                 'detalle': f"{nombre_pac} ({at.Estado}) - {at.Descripcion}"
             })
 
-    medicos_lista = Medico.objects.filter(Estado='Activo').order_by('ApellidoP_Medico')
+    medicos_lista = [medico_actual]
 
     return render(request, 'GestionDeDisponibilidad.html', {
         'medico': medico_actual,
@@ -850,126 +1150,223 @@ def gestiondisponibilidad(request):
 
 @never_cache
 @sesion_requerida
+@roles_requeridos(2, 3, 4)
 def gestionatencion(request):
-    """Vista con privilegios administrativos para Recepcionistas (Rol 2) y Administradores (Rol 1)."""
+    """Recepción administra reservas; cada médico solo inicia sus propias atenciones."""
     _asegurar_bloques_horario()
 
     rol_id = request.session.get('usuario_rol')
     usuario_id = request.session.get('usuario_id')
 
-    # Control de privilegios: bloquear acceso si un Paciente (Rol 4) intenta entrar por URL
-    if rol_id == 4:
-        messages.error(request, 'Acceso denegado: No tienes privilegios para administrar atenciones.')
-        return redirect('registrar_atencion')
-
     if request.method == 'POST':
         accion = request.POST.get('accion', 'guardar')
         atencion_id = request.POST.get('atencion_id', '').strip()
 
-        # --- PRIVILEGIO EXCLUSIVO DE RECEPCIÓN/ADMIN: ELIMINAR ATENCIÓN ---
-        if accion == 'eliminar' and atencion_id:
-            if rol_id not in (1, 2):
-                messages.error(request, 'Solo Recepción o Administración pueden eliminar atenciones.')
+        if rol_id == 4:
+            paciente = Paciente.objects.filter(Usuario_id=usuario_id).first()
+            if accion == 'abandonar' and atencion_id and paciente:
+                try:
+                    atencion = Atencion.objects.get(
+                        ID_Atencion=atencion_id,
+                        Paciente=paciente,
+                        Estado=EstadoAtencion.EN_ESPERA,
+                    )
+                    _cancelar_atencion_y_liberar_bloque(atencion)
+                    messages.success(request, f'Abandonaste la espera de la atención #{atencion_id}.')
+                except Atencion.DoesNotExist:
+                    messages.error(request, 'La atención no está en espera o no te pertenece.')
+                return redirect('gestionar_atencion')
+
+            if accion not in ('cancelar', 'eliminar') or not atencion_id or not paciente:
+                messages.error(request, 'Solo puedes cancelar tus propias citas reservadas.')
+                return redirect('gestionar_atencion')
+            try:
+                atencion = Atencion.objects.get(
+                    ID_Atencion=atencion_id,
+                    Paciente=paciente,
+                    Estado=EstadoAtencion.RESERVADA,
+                )
+                inicio = timezone.make_aware(datetime.combine(atencion.Dia, atencion.ID_Horario.Hora_Inicio))
+                if inicio - timezone.now() < timedelta(hours=24):
+                    messages.error(request, 'Solo puedes cancelar una cita con al menos 24 horas de anticipación.')
+                else:
+                    _cancelar_atencion_y_liberar_bloque(atencion)
+                    messages.success(request, f'La cita #{atencion_id} fue cancelada.')
+            except Atencion.DoesNotExist:
+                messages.error(request, 'La cita no existe, ya no está reservada o no te pertenece.')
+            return redirect('gestionar_atencion')
+
+        if accion == 'abandonar' and atencion_id:
+            try:
+                atencion = Atencion.objects.get(
+                    ID_Atencion=atencion_id,
+                    Estado=EstadoAtencion.EN_ESPERA,
+                )
+                _cancelar_atencion_y_liberar_bloque(atencion)
+                messages.success(request, f'La espera de la atención #{atencion_id} fue abandonada.')
+            except Atencion.DoesNotExist:
+                messages.error(request, 'La atención no está en espera.')
+            return redirect('gestionar_atencion')
+
+        if rol_id == 3:
+            if accion in ('cancelar', 'eliminar') and atencion_id:
+                try:
+                    atencion = Atencion.objects.get(
+                        ID_Atencion=atencion_id,
+                        ID_Medico__Usuario_id=usuario_id,
+                        Estado=EstadoAtencion.RESERVADA,
+                    )
+                    inicio = timezone.make_aware(datetime.combine(atencion.Dia, atencion.ID_Horario.Hora_Inicio))
+                    if inicio - timezone.now() < timedelta(hours=24):
+                        messages.error(request, 'Solo puedes cancelar una cita con al menos 24 horas de anticipación.')
+                    else:
+                        _cancelar_atencion_y_liberar_bloque(atencion)
+                        messages.success(request, f'La cita #{atencion_id} fue cancelada.')
+                except Atencion.DoesNotExist:
+                    messages.error(request, 'La cita no existe, ya no está reservada o no está asignada a tu agenda.')
+                return redirect('gestionar_atencion')
+
+            if accion != 'iniciar' or not atencion_id:
+                messages.error(request, 'El médico solo puede iniciar una atención asignada.')
                 return redirect('gestionar_atencion')
 
             try:
-                with transaction.atomic():
-                    atencion = Atencion.objects.get(ID_Atencion=atencion_id)
-                    # Liberar el bloque en HorarioMedico si estaba marcado como Ocupado
-                    HorarioMedico.objects.filter(
-                        ID_Medico=atencion.ID_Medico,
-                        Dia=atencion.Dia,
-                        ID_Horario=atencion.ID_Horario,
-                        Estado__iexact='Ocupado'
-                    ).update(Estado='Disponible')
-                    atencion.delete()
-                messages.success(request, f'Atención #{atencion_id} eliminada y bloque horario liberado.')
+                atencion = Atencion.objects.get(
+                    ID_Atencion=atencion_id,
+                    ID_Medico__Usuario_id=usuario_id,
+                    Estado=EstadoAtencion.EN_ESPERA,
+                )
+                atencion.Estado = EstadoAtencion.EN_ATENCION
+                atencion.save(update_fields=['Estado'])
+                messages.success(request, f'La atención #{atencion_id} comenzó.')
             except Atencion.DoesNotExist:
-                messages.error(request, 'La atención que intentas eliminar no existe.')
-            except Exception as e:
-                messages.error(request, f'No se pudo eliminar (puede tener cobros o recetas asociadas): {str(e)}')
+                messages.error(request, 'La atención no existe, no está en espera o no está asignada a tu agenda.')
 
             return redirect('gestionar_atencion')
 
-        # --- CREAR O EDITAR / REAGENDAR ATENCIÓN ---
+        if accion in ('eliminar', 'cancelar') and atencion_id:
+            try:
+                atencion = Atencion.objects.get(ID_Atencion=atencion_id)
+                inicio = timezone.make_aware(datetime.combine(atencion.Dia, atencion.ID_Horario.Hora_Inicio))
+                if atencion.Estado != EstadoAtencion.RESERVADA or inicio - timezone.now() < timedelta(hours=24):
+                    messages.error(request, 'Solo puedes cancelar una cita reservada con al menos 24 horas de anticipación.')
+                else:
+                    _cancelar_atencion_y_liberar_bloque(atencion)
+                    messages.success(request, f'La atención #{atencion_id} fue cancelada.')
+            except Atencion.DoesNotExist:
+                messages.error(request, 'La atención que intentas cancelar no existe.')
+            return redirect('gestionar_atencion')
+
+        if accion == 'no_asistio' and atencion_id:
+            try:
+                atencion = Atencion.objects.get(ID_Atencion=atencion_id)
+                inicio = timezone.make_aware(datetime.combine(atencion.Dia, atencion.ID_Horario.Hora_Inicio))
+                if atencion.Estado != EstadoAtencion.RESERVADA or timezone.now() < inicio:
+                    messages.error(request, 'Solo puedes registrar inasistencia cuando una cita reservada ya comenzó.')
+                else:
+                    atencion.Estado = EstadoAtencion.NO_ASISTIO
+                    atencion.save(update_fields=['Estado'])
+                    messages.success(request, f'La atención #{atencion_id} quedó como no asistida.')
+            except Atencion.DoesNotExist:
+                messages.error(request, 'La atención seleccionada no existe.')
+            return redirect('gestionar_atencion')
+
+        if rol_id != 2:
+            messages.error(request, 'No tienes permisos para modificar la agenda.')
+            return redirect('gestionar_atencion')
+
+        # Recepción puede crear o reagendar una reserva; el estado no proviene del formulario.
         paciente_id = request.POST.get('paciente')
         medico_id = request.POST.get('medico')
         dia_str = request.POST.get('dia')
         horario_id = request.POST.get('horario')
         descripcion = request.POST.get('descripcion', '').strip()
-        estado = request.POST.get('estado', 'Programada')
 
         try:
-            paciente_obj = Paciente.objects.get(ID=paciente_id)
-            medico_obj = Medico.objects.get(MatriculaProfesional=medico_id)
+            paciente_obj = Paciente.objects.get(ID=paciente_id, Estado='Activo')
+            medico_obj = Medico.objects.get(MatriculaProfesional=medico_id, Estado='Activo')
             horario_obj = Horario.objects.get(ID_Horario=horario_id)
             fecha_obj = datetime.strptime(dia_str, '%Y-%m-%d').date()
+            inicio_atencion = timezone.make_aware(datetime.combine(fecha_obj, horario_obj.Hora_Inicio))
+            if inicio_atencion <= timezone.now():
+                messages.error(request, 'No se pueden reservar horarios que ya comenzaron.')
+                return redirect('gestionar_atencion')
 
-            usuario_obj = Usuario.objects.filter(ID_Usuario=usuario_id).first() or Usuario.objects.first()
-
-            # Validar que no exista doble reserva en el mismo bloque (salvo si la cita está Cancelada)
-            if estado.lower() != 'cancelada':
-                qs_choque = Atencion.objects.filter(
-                    ID_Medico=medico_obj,
-                    Dia=fecha_obj,
-                    ID_Horario=horario_obj
-                ).exclude(Estado__iexact='Cancelada')
-
-                if atencion_id:
-                    qs_choque = qs_choque.exclude(ID_Atencion=atencion_id)
-
-                if qs_choque.exists():
-                    messages.error(request, 'Conflicto de horario: Ese médico ya tiene otro paciente asignado en ese bloque.')
-                    return redirect('gestionar_atencion')
-
-                bloqueado = HorarioMedico.objects.filter(
-                    ID_Medico=medico_obj,
-                    Dia=fecha_obj,
-                    ID_Horario=horario_obj,
-                    Estado__iexact='Bloqueado'
-                ).exists()
-
-                if bloqueado:
-                    messages.error(request, 'El médico tiene este bloque marcado como Bloqueado.')
-                    return redirect('gestionar_atencion')
+            usuario_obj = Usuario.objects.filter(ID_Usuario=usuario_id).first()
+            if not usuario_obj:
+                messages.error(request, 'La cuenta de usuario ya no está disponible.')
+                return redirect('inicio_sesion')
 
             with transaction.atomic():
+                atencion = None
                 if atencion_id:
                     atencion = Atencion.objects.get(ID_Atencion=atencion_id)
-
-                    # Si se reagendó (cambió médico, día o bloque) o se canceló, liberar el bloque anterior
+                    if atencion.Estado != EstadoAtencion.RESERVADA:
+                        messages.error(request, 'Solo se pueden reagendar citas que aún estén reservadas.')
+                        return redirect('gestionar_atencion')
+                    inicio_actual = timezone.make_aware(datetime.combine(
+                        atencion.Dia,
+                        atencion.ID_Horario.Hora_Inicio,
+                    ))
+                    if inicio_actual - timezone.now() < timedelta(hours=24):
+                        messages.error(request, 'Solo se pueden reagendar citas con al menos 24 horas de anticipación.')
+                        return redirect('gestionar_atencion')
                     cambio_bloque = (
-                        atencion.ID_Medico_id != medico_obj.MatriculaProfesional or
-                        atencion.Dia != fecha_obj or
-                        atencion.ID_Horario_id != horario_obj.ID_Horario
+                        atencion.ID_Medico_id != medico_obj.MatriculaProfesional
+                        or atencion.Dia != fecha_obj
+                        or atencion.ID_Horario_id != horario_obj.ID_Horario
                     )
-                    if cambio_bloque or estado.lower() == 'cancelada':
-                        HorarioMedico.objects.filter(
-                            ID_Medico=atencion.ID_Medico,
-                            Dia=atencion.Dia,
-                            ID_Horario=atencion.ID_Horario,
-                            Estado__iexact='Ocupado'
-                        ).update(Estado='Disponible')
+                else:
+                    cambio_bloque = True
 
+                if cambio_bloque:
+                    disponible = HorarioMedico.objects.filter(
+                        ID_Medico=medico_obj,
+                        Dia=fecha_obj,
+                        ID_Horario=horario_obj,
+                        Estado__iexact='Disponible',
+                    ).exists()
+                    if not disponible:
+                        messages.error(request, 'El bloque seleccionado no está disponible.')
+                        return redirect('gestionar_atencion')
+
+                    qs_choque = Atencion.objects.filter(
+                        ID_Medico=medico_obj,
+                        Dia=fecha_obj,
+                        ID_Horario=horario_obj,
+                    ).exclude(Estado=EstadoAtencion.CANCELADA)
+                    if atencion:
+                        qs_choque = qs_choque.exclude(ID_Atencion=atencion.ID_Atencion)
+                    if qs_choque.exists():
+                        messages.error(request, 'Conflicto de horario: ese médico ya tiene una atención reservada en ese bloque.')
+                        return redirect('gestionar_atencion')
+
+                if atencion_id:
+                    medico_anterior = atencion.ID_Medico
+                    dia_anterior = atencion.Dia
+                    horario_anterior = atencion.ID_Horario
                     atencion.Paciente = paciente_obj
                     atencion.ID_Medico = medico_obj
                     atencion.Dia = fecha_obj
                     atencion.ID_Horario = horario_obj
                     atencion.Descripcion = descripcion[:500]
-                    atencion.Estado = estado
                     atencion.save()
-
-                    if estado.lower() != 'cancelada':
-                        HorarioMedico.objects.update_or_create(
+                    if cambio_bloque:
+                        HorarioMedico.objects.filter(
+                            ID_Medico=medico_anterior,
+                            Dia=dia_anterior,
+                            ID_Horario=horario_anterior,
+                            Estado__iexact='Ocupado',
+                        ).update(Estado='Disponible')
+                        HorarioMedico.objects.filter(
                             ID_Medico=medico_obj,
                             Dia=fecha_obj,
                             ID_Horario=horario_obj,
-                            defaults={'Estado': 'Ocupado'}
-                        )
+                        ).update(Estado='Ocupado')
 
-                    messages.success(request, f'Atención #{atencion.ID_Atencion} actualizada y agenda sincronizada.')
+                    mensaje_exito = f'Atención #{atencion.ID_Atencion} actualizada y agenda sincronizada.'
+                    atencion_para_confirmar = atencion
                 else:
-                    # Recepción puede agendar directamente en cualquier bloque libre (sobrecupo / asignación directa)
                     nueva = Atencion.objects.create(
                         Paciente=paciente_obj,
                         Usuario=usuario_obj,
@@ -977,23 +1374,26 @@ def gestionatencion(request):
                         Descripcion=descripcion[:500],
                         ID_Horario=horario_obj,
                         Dia=fecha_obj,
-                        Estado=estado
+                        Estado=EstadoAtencion.RESERVADA
                     )
 
-                    if estado.lower() != 'cancelada':
-                        HorarioMedico.objects.update_or_create(
-                            ID_Medico=medico_obj,
-                            Dia=fecha_obj,
-                            ID_Horario=horario_obj,
-                            defaults={'Estado': 'Ocupado'}
-                        )
+                    HorarioMedico.objects.filter(
+                        ID_Medico=medico_obj,
+                        Dia=fecha_obj,
+                        ID_Horario=horario_obj,
+                    ).update(Estado='Ocupado')
 
-                    messages.success(request, f'Atención #{nueva.ID_Atencion} creada por Recepción para {paciente_obj.Nombre_Paciente} {paciente_obj.ApellidoP}.')
+                    mensaje_exito = f'Atención #{nueva.ID_Atencion} creada por Recepción para {paciente_obj.Nombre_Paciente} {paciente_obj.ApellidoP}.'
+                    atencion_para_confirmar = nueva
 
+            messages.success(request, mensaje_exito)
+            _enviar_confirmacion_atencion(request, atencion_para_confirmar)
         except (Paciente.DoesNotExist, Medico.DoesNotExist, Horario.DoesNotExist, Atencion.DoesNotExist):
             messages.error(request, 'Alguno de los registros seleccionados no es válido.')
         except ValueError:
             messages.error(request, 'La fecha ingresada no es válida.')
+        except IntegrityError:
+            messages.error(request, 'Este bloque acaba de ser reservado. Selecciona otro horario.')
         except Exception as e:
             messages.error(request, f'Error al procesar la atención: {str(e)}')
 
@@ -1003,11 +1403,19 @@ def gestionatencion(request):
     # Si es Médico (Rol 3), ve solo sus atenciones; si es Admin (1) o Recepcionista (2), ve TODAS
     if rol_id == 3 and usuario_id:
         atenciones = Atencion.objects.filter(ID_Medico__Usuario_id=usuario_id).select_related('Paciente', 'ID_Medico', 'ID_Horario').order_by('-Dia', 'ID_Horario__Hora_Inicio')
+        pacientes = Paciente.objects.filter(
+            atencion__in=atenciones,
+        ).distinct().order_by('ApellidoP')
+        medicos = Medico.objects.filter(Usuario_id=usuario_id)
+    elif rol_id == 4 and usuario_id:
+        atenciones = Atencion.objects.filter(Paciente__Usuario_id=usuario_id).select_related('Paciente', 'ID_Medico', 'ID_Horario').order_by('-Dia', 'ID_Horario__Hora_Inicio')
+        pacientes = Paciente.objects.none()
+        medicos = Medico.objects.none()
     else:
         atenciones = Atencion.objects.select_related('Paciente', 'ID_Medico', 'ID_Horario').all().order_by('-Dia', 'ID_Horario__Hora_Inicio')
+        pacientes = Paciente.objects.filter(Estado='Activo').order_by('ApellidoP')
+        medicos = Medico.objects.filter(Estado='Activo').order_by('ApellidoP_Medico')
 
-    pacientes = Paciente.objects.filter(Estado='Activo').order_by('ApellidoP')
-    medicos = Medico.objects.filter(Estado='Activo').order_by('ApellidoP_Medico')
     horarios = Horario.objects.all().order_by('Hora_Inicio')
 
     return render(request, 'GestionDeAtencion.html', {
@@ -1020,6 +1428,7 @@ def gestionatencion(request):
 
 @never_cache
 @sesion_requerida
+@roles_requeridos(2)
 def cobro(request):
     if request.method == 'POST':
         atencion_id = request.POST.get('atencion_id', '').strip()
@@ -1027,7 +1436,6 @@ def cobro(request):
         neto_str = request.POST.get('neto', '0').replace('$', '').replace('.', '').replace(',', '.').strip()
         iva_str = request.POST.get('iva', '0').replace('$', '').replace('.', '').replace(',', '.').strip()
         total_str = request.POST.get('total', '0').replace('$', '').replace('.', '').replace(',', '.').strip()
-        estado_atencion = request.POST.get('estado-atencion', '').strip()
 
         if not atencion_id:
             messages.error(request, 'Debes seleccionar una atención médica para emitir el cobro.')
@@ -1035,6 +1443,12 @@ def cobro(request):
 
         try:
             atencion_obj = Atencion.objects.get(ID_Atencion=atencion_id)
+            if atencion_obj.Estado not in (
+                EstadoAtencion.RESERVADA,
+                EstadoAtencion.EN_ESPERA,
+            ):
+                messages.error(request, 'Solo se pueden cobrar atenciones reservadas o en espera.')
+                return redirect('gestionar_cobros')
             monto_neto = float(neto_str or 0)
             monto_iva = float(iva_str or round(monto_neto * 0.19, 2))
             monto_total = float(total_str or round(monto_neto + monto_iva, 2))
@@ -1054,9 +1468,9 @@ def cobro(request):
                     }
                 )
 
-                if estado_atencion:
-                    atencion_obj.Estado = estado_atencion[:20]
-                    atencion_obj.save()
+                if atencion_obj.Estado == EstadoAtencion.RESERVADA:
+                    atencion_obj.Estado = EstadoAtencion.EN_ESPERA
+                    atencion_obj.save(update_fields=['Estado'])
 
             accion_txt = 'emitida' if creada else 'actualizada'
             messages.success(
@@ -1075,7 +1489,7 @@ def cobro(request):
 
     # --- PETICIÓN GET ---
     atenciones = (
-        Atencion.objects.exclude(Estado__iexact='Cancelada')
+        Atencion.objects.exclude(Estado=EstadoAtencion.CANCELADA)
         .select_related('Paciente', 'ID_Medico', 'ID_Horario')
         .order_by('-Dia', 'ID_Horario__Hora_Inicio')
     )
@@ -1134,116 +1548,141 @@ def redirigir_segun_rol(rol_id):
 
 
 def iniciosesion(request):
-    # Si ya tiene una sesión activa, impedir entrar al login y devolverlo a su panel
     rol_activo = request.session.get('usuario_rol')
     if rol_activo:
-        return redirigir_segun_rol(rol_activo)
+        usuario_activo = Usuario.objects.filter(
+            pk=request.session.get('usuario_id'),
+            Estado='Activo',
+        ).first()
+        if (
+            usuario_activo
+            and _usuario_tiene_perfil_activo(usuario_activo)
+            and request.session.get('usuario_password_fingerprint') == _huella_contrasena(usuario_activo)
+        ):
+            return redirigir_segun_rol(usuario_activo.Rol_id)
+        request.session.flush()
 
     if request.method == 'POST':
-        identificador = request.POST.get('run', '').strip()  # Puede ser RUN o Correo
-        password = request.POST.get('password', '').strip()
+        modo = request.POST.get('modo', 'run')
+        identificador = request.POST.get('identificador', request.POST.get('run', '')).strip()
+        password = request.POST.get('password', '')
 
         usuario = None
+        try:
+            if modo == 'run':
+                run = _validar_run(identificador)
+                clave_run = re.sub(r'[.\-\s]', '', run)
+                pacientes = list(
+                    Paciente.objects.annotate(
+                        _run_clave=_run_clave_expression('RUN_Paciente'),
+                    ).filter(_run_clave=clave_run).select_related('Usuario')[:2]
+                )
+                medicos = list(
+                    Medico.objects.annotate(
+                        _run_clave=_run_clave_expression('RUN_Medico'),
+                    ).filter(_run_clave=clave_run).select_related('Usuario')[:2]
+                )
+                perfiles = [perfil for perfil in pacientes + medicos if perfil.Usuario_id]
+                usuarios = {perfil.Usuario_id: perfil.Usuario for perfil in perfiles}
+                if len(usuarios) == 1 and len(perfiles) == 1:
+                    usuario = next(iter(usuarios.values()))
+            elif modo == 'correo':
+                correo = _validar_correo(identificador)
+                usuario = Usuario.objects.filter(Correo_Usuario__iexact=correo).first()
+            else:
+                raise ValidationError('Selecciona iniciar sesión con RUN o correo.')
+        except ValidationError:
+            usuario = None
 
-        # 1. Buscar si corresponde al RUN de un Paciente
-        paciente = Paciente.objects.select_related('Usuario').filter(RUN_Paciente=identificador).first()
-        if paciente and paciente.Usuario:
-            usuario = paciente.Usuario
-
-        # 2. Si no es Paciente, buscar si corresponde al RUN de un Médico
-        if not usuario:
-            medico = Medico.objects.select_related('Usuario').filter(RUN_Medico=identificador).first()
-            if medico and medico.Usuario:
-                usuario = medico.Usuario
-
-        # 3. Si no tiene Paciente ni Médico asignado (Admin / Recepcionista), buscar por Correo
-        if not usuario:
-            usuario = Usuario.objects.filter(Correo_Usuario__iexact=identificador).first()
-
-        # 4. Verificar existencia, estado Activo y contraseña encriptada
-        if not usuario:
-            messages.error(request, 'Credenciales de acceso incorrectas. Verifica tu RUN, correo o contraseña.')
+        if not usuario or not check_password(password, usuario.Contraseña):
+            messages.error(request, 'Credenciales de acceso incorrectas.')
             return redirect('inicio_sesion')
 
-        if usuario.Estado != 'Activo':
-            messages.error(request, 'Esta cuenta se encuentra Inactiva. Si acabas de registrarte, revisa tu correo para activarla.')
+        if usuario.Estado != 'Activo' or not _usuario_tiene_perfil_activo(usuario):
+            messages.error(request, 'Esta cuenta se encuentra inactiva. Si acabas de registrarte, revisa tu correo para activarla.')
             return redirect('inicio_sesion')
 
-        if not check_password(password, usuario.Contraseña):
-            messages.error(request, 'Credenciales de acceso incorrectas. Verifica tu RUN, correo o contraseña')
-            return redirect('inicio_sesion')
-
-        # 5. Guardar datos en la sesión de Django
+        request.session.cycle_key()
         request.session['usuario_id'] = usuario.ID_Usuario
-        request.session['usuario_nombre'] = f"{usuario.Nombre} {usuario.Apellido}"
-        request.session['usuario_rol'] = usuario.Rol.ID_Rol
-
-        # 6. Redirigir según el Rol del usuario
-        return redirigir_segun_rol(usuario.Rol.ID_Rol)
+        request.session['usuario_nombre'] = f'{usuario.Nombre} {usuario.Apellido}'
+        request.session['usuario_rol'] = usuario.Rol_id
+        request.session['usuario_password_fingerprint'] = _huella_contrasena(usuario)
+        return redirigir_segun_rol(usuario.Rol_id)
 
     return render(request, 'InicioSesion.html')
 
 
 def registrousuario(request):
     if request.method == 'POST':
-        run = request.POST.get('run', '').strip()
-        nombre = request.POST.get('nombre', '').strip()
-        seg_nombre = request.POST.get('segundo-nombre', '').strip()
-        ter_nombre = request.POST.get('tercer-nombre', '').strip()
-        apellido_p = request.POST.get('apellido-paterno', '').strip()
-        apellido_m = request.POST.get('apellido-materno', '').strip()
-        fecha_nac = request.POST.get('fecha-nacimiento')
-        telefono = request.POST.get('telefono', '').strip()
-        correo = request.POST.get('correo', '').strip()
+        run = request.POST.get('run', '')
+        nombre = request.POST.get('nombre', '')
+        seg_nombre = request.POST.get('segundo-nombre', '')
+        ter_nombre = request.POST.get('tercer-nombre', '')
+        apellido_p = request.POST.get('apellido-paterno', '')
+        apellido_m = request.POST.get('apellido-materno', '')
+        fecha_nac = request.POST.get('fecha-nacimiento', '')
+        telefono = request.POST.get('telefono', '')
+        correo = request.POST.get('correo', '')
         password = request.POST.get('password', '')
 
-        # Validar RUN duplicado
-        if Paciente.objects.filter(RUN_Paciente=run).exists() or Medico.objects.filter(RUN_Medico=run).exists():
-            messages.error(request, f'No se pudo registrar: El RUN {run} ya está registrado en el sistema.')
-            return render(request, 'Registrarse.html') # <-- PON AQUÍ EL NOMBRE REAL DE TU HTML DE REGISTRO
-
-        # Validar Correo duplicado
-        if Usuario.objects.filter(Correo_Usuario=correo).exists():
-            messages.error(request, f'No se pudo registrar: El correo {correo} ya está en uso.')
-            return render(request, 'Registrarse.html') # <-- PON AQUÍ EL NOMBRE REAL DE TU HTML DE REGISTRO
-
-        # Validar longitud mínima de contraseña
-        if len(password) < 4:
-            messages.error(request, 'La contraseña debe tener al menos 4 caracteres.')
-            return render(request, 'Registrarse.html') # <-- PON AQUÍ EL NOMBRE REAL DE TU HTML DE REGISTRO
-
-        telefono_completo = f"+56{telefono}"[:15]
-
         try:
+            run = _validar_run(run)
+            nombre = _validar_nombre(nombre, 'El nombre')
+            seg_nombre = _validar_nombre(seg_nombre, 'El segundo nombre', requerido=False)
+            ter_nombre = _validar_nombre(ter_nombre, 'El tercer nombre', requerido=False)
+            apellido_p = _validar_nombre(apellido_p, 'El apellido paterno')
+            apellido_m = _validar_nombre(apellido_m, 'El apellido materno', requerido=False)
+            correo = _validar_correo(correo)
+            telefono_completo = _validar_telefono_chileno(telefono)
+            try:
+                fecha_nacimiento = date.fromisoformat(fecha_nac)
+            except ValueError as error:
+                raise ValidationError('Ingresa una fecha de nacimiento válida.') from error
+            if fecha_nacimiento >= timezone.localdate():
+                raise ValidationError('La fecha de nacimiento debe ser anterior a hoy.')
+            if _run_ya_registrado(run):
+                raise ValidationError('El RUN ya está registrado en el sistema.')
+            if Usuario.objects.filter(Correo_Usuario__iexact=correo).exists():
+                raise ValidationError('El correo ya está en uso.')
+            usuario_temporal = Usuario(
+                Nombre=nombre,
+                Apellido=apellido_p,
+                Correo_Usuario=correo,
+            )
+            _validar_password(password, usuario_temporal)
+
             with transaction.atomic():
                 rol_paciente = Rol.objects.get(ID_Rol=4)
 
                 nuevo_usuario = Usuario.objects.create(
-                    Nombre=nombre[:20],
-                    Apellido=apellido_p[:20],
-                    Correo_Usuario=correo[:50],
+                    Nombre=nombre,
+                    Apellido=apellido_p,
+                    Correo_Usuario=correo,
                     Contraseña=make_password(password),
                     Estado='Inactivo',
                     Rol=rol_paciente
                 )
 
                 Paciente.objects.create(
-                    RUN_Paciente=run[:25],
-                    Nombre_Paciente=nombre[:20],
-                    SegNombre_Paciente=seg_nombre[:20],
-                    TerNombre_Paciente=ter_nombre[:20],
-                    ApellidoP=apellido_p[:20],
-                    ApellidoM=apellido_m[:20],
-                    Fecha_Nacimiento=fecha_nac,
-                    CorreoContactoPaciente=correo[:50],
+                    RUN_Paciente=run,
+                    Nombre_Paciente=nombre,
+                    SegNombre_Paciente=seg_nombre,
+                    TerNombre_Paciente=ter_nombre,
+                    ApellidoP=apellido_p,
+                    ApellidoM=apellido_m,
+                    Fecha_Nacimiento=fecha_nacimiento,
+                    CorreoContactoPaciente=correo,
                     NumeroContactoPaciente=telefono_completo,
-                    Estado='Activo',
+                    Estado='Inactivo',
                     Usuario=nuevo_usuario
                 )
 
                 token = signing.dumps(
-                    nuevo_usuario.pk,
-                    salt='AppAdAtM.activacion_cuenta'
+                    {
+                        'usuario_id': nuevo_usuario.pk,
+                        'password_fingerprint': _huella_contrasena(nuevo_usuario),
+                    },
+                    salt='AppAdAtM.activacion_cuenta',
                 )
                 url_activacion = request.build_absolute_uri(
                     reverse('activar_cuenta', args=[token])
@@ -1267,29 +1706,56 @@ def registrousuario(request):
             messages.success(request, 'Registro exitoso. Revisa tu correo para activar tu cuenta antes de iniciar sesión.')
             return redirect('inicio_sesion')
 
+        except ValidationError as error:
+            messages.error(request, ' '.join(error.messages))
         except Rol.DoesNotExist:
             messages.error(request, 'Error del sistema: No existe el Rol de Paciente (ID 4) en la base de datos.')
         except ErrorEnvioActivacion:
             messages.error(request, 'No se pudo enviar el correo de activación. La cuenta no fue creada; inténtalo nuevamente más tarde.')
-        except Exception as e:
-            messages.error(request, f'Ocurrió un error inesperado al guardar: {str(e)}')
+        except Exception:
+            logger.exception('Error inesperado durante el registro de usuario.')
+            messages.error(request, 'Ocurrió un error inesperado al guardar. Inténtalo nuevamente más tarde.')
 
-    return render(request, 'Registrarse.html') # <-- PON AQUÍ EL NOMBRE REAL DE TU HTML DE REGISTRO
+    return render(request, 'Registrarse.html', {
+        'fecha_maxima': timezone.localdate().isoformat(),
+    })
 
 
 def activar_cuenta(request, token):
     try:
-        usuario_id = signing.loads(token, salt='AppAdAtM.activacion_cuenta')
+        datos = signing.loads(token, salt='AppAdAtM.activacion_cuenta', max_age=60 * 60 * 24)
+    except signing.SignatureExpired:
+        messages.error(request, 'El enlace de activación expiró. Solicita uno nuevo.')
+        return redirect('inicio_sesion')
     except signing.BadSignature:
         messages.error(request, 'El enlace de activación no es válido.')
         return redirect('inicio_sesion')
 
+    if isinstance(datos, int) and not isinstance(datos, bool):
+        usuario_id = datos
+        huella = None
+        token_legacy = True
+    elif isinstance(datos, dict):
+        usuario_id = datos.get('usuario_id')
+        huella = datos.get('password_fingerprint')
+        token_legacy = False
+    else:
+        messages.error(request, 'El enlace de activación no es válido.')
+        return redirect('inicio_sesion')
+
     usuario = Usuario.objects.filter(pk=usuario_id).first()
-    if not usuario:
+    if not usuario or (
+        not token_legacy
+        and (
+            not isinstance(huella, str)
+            or not hmac.compare_digest(huella, _huella_contrasena(usuario))
+        )
+    ):
         messages.error(request, 'El enlace de activación no es válido.')
     elif usuario.Estado == 'Inactivo':
         usuario.Estado = 'Activo'
         usuario.save(update_fields=['Estado'])
+        Paciente.objects.filter(Usuario=usuario).update(Estado='Activo')
         messages.success(request, 'Tu cuenta ha sido activada. Ya puedes iniciar sesión.')
     else:
         messages.info(request, 'Esta cuenta ya se encuentra activa.')
@@ -1297,23 +1763,104 @@ def activar_cuenta(request, token):
     return redirect('inicio_sesion')
 
 
+def solicitar_restauracion_contrasena(request):
+    if request.method == 'POST':
+        try:
+            correo = _validar_correo(request.POST.get('correo', ''))
+            usuario = Usuario.objects.filter(
+                Correo_Usuario__iexact=correo,
+                Estado='Activo',
+            ).first()
+            if usuario:
+                token = signing.dumps(
+                    {
+                        'usuario_id': usuario.pk,
+                        'password_fingerprint': _huella_contrasena(usuario),
+                    },
+                    salt='AppAdAtM.restaurar_contrasena',
+                )
+                url = request.build_absolute_uri(
+                    reverse('restablecer_contrasena', args=[token])
+                )
+                try:
+                    enviados = send_mail(
+                        'Recuperación de contraseña',
+                        f'Hola {usuario.Nombre},\n\n'
+                        'Para elegir una nueva contraseña, visita este enlace (válido por una hora):\n'
+                        f'{url}\n\n'
+                        'Si no solicitaste este cambio, puedes ignorar este correo.',
+                        settings.DEFAULT_FROM_EMAIL,
+                        [usuario.Correo_Usuario],
+                        fail_silently=False,
+                    )
+                    if enviados != 1:
+                        raise OSError('El backend de correo no confirmó el envío.')
+                except Exception:
+                    logger.exception('No se pudo enviar el correo de recuperación de contraseña.')
+            messages.success(
+                request,
+                'Si existe una cuenta activa con ese correo, recibirás instrucciones para recuperar la contraseña.',
+            )
+            return redirect('solicitar_restauracion_contrasena')
+        except ValidationError as error:
+            messages.error(request, ' '.join(error.messages))
+
+    return render(request, 'RecuperarContrasena.html')
+
+
+def restablecer_contrasena(request, token):
+    try:
+        datos = signing.loads(
+            token,
+            salt='AppAdAtM.restaurar_contrasena',
+            max_age=60 * 60,
+        )
+    except signing.SignatureExpired:
+        messages.error(request, 'El enlace de recuperación expiró. Solicita uno nuevo.')
+        return redirect('solicitar_restauracion_contrasena')
+    except signing.BadSignature:
+        messages.error(request, 'El enlace de recuperación no es válido.')
+        return redirect('solicitar_restauracion_contrasena')
+
+    if not isinstance(datos, dict):
+        messages.error(request, 'El enlace de recuperación no es válido.')
+        return redirect('solicitar_restauracion_contrasena')
+
+    usuario = Usuario.objects.filter(
+        pk=datos.get('usuario_id'),
+        Estado='Activo',
+    ).first()
+    huella = datos.get('password_fingerprint')
+    if (
+        not usuario
+        or not isinstance(huella, str)
+        or not hmac.compare_digest(huella, _huella_contrasena(usuario))
+    ):
+        messages.error(request, 'El enlace ya no es válido. Solicita uno nuevo.')
+        return redirect('solicitar_restauracion_contrasena')
+
+    if request.method == 'POST':
+        password = request.POST.get('password', '')
+        confirmacion = request.POST.get('confirmacion', '')
+        if password != confirmacion:
+            messages.error(request, 'Las contraseñas no coinciden.')
+        else:
+            try:
+                _validar_password(password, usuario)
+                usuario.Contraseña = make_password(password)
+                usuario.save(update_fields=['Contraseña'])
+                messages.success(request, 'Tu contraseña fue actualizada. Ya puedes iniciar sesión.')
+                return redirect('inicio_sesion')
+            except ValidationError as error:
+                messages.error(request, ' '.join(error.messages))
+
+    return render(request, 'RestablecerContrasena.html')
+
+
 @never_cache
 @sesion_requerida
+@roles_requeridos(1)
 def verauditoria(request):
-    usuario_id = request.session.get('usuario_id')
-    rol_id = request.session.get('usuario_rol')
-
-    # Acceso exclusivo para Administrador (Rol 1)
-    if not usuario_id or rol_id != 1:
-        messages.error(request, 'Acceso denegado: Solo el Administrador puede consultar el registro de auditoría.')
-        if rol_id == 2:
-            return redirect('gestionar_atencion')
-        elif rol_id == 3:
-            return redirect('gestionar_disponibilidad')
-        elif rol_id == 4:
-            return redirect('registrar_atencion')
-        return redirect('inicio_sesion')
-
     registros = Auditoria.objects.all().order_by('-ID_Auditoria')
     tablas = (
         Auditoria.objects.values_list('Tabla_Afectada', flat=True)
@@ -1375,15 +1922,8 @@ def _obtener_datos_reportes(fecha_inicio, fecha_fin):
 
 @never_cache
 @sesion_requerida
+@roles_requeridos(1)
 def reportes_clinica(request):
-    usuario_id = request.session.get('usuario_id')
-    rol_id = request.session.get('usuario_rol')
-
-    # Solo Administrador (1) y Recepcionista (2)
-    if not usuario_id or rol_id not in (1, 2):
-        messages.error(request, 'Acceso denegado: No tienes permisos para ver reportes.')
-        return redirect('inicio_sesion')
-
     hoy = date.today()
     primer_dia_mes = hoy.replace(day=1).strftime('%Y-%m-%d')
     fecha_inicio = request.GET.get('fecha_inicio', primer_dia_mes)
@@ -1396,13 +1936,10 @@ def reportes_clinica(request):
     return render(request, 'Reportes.html', datos)
 
 
+@never_cache
+@sesion_requerida
+@roles_requeridos(1)
 def exportar_reporte(request):
-    usuario_id = request.session.get('usuario_id')
-    rol_id = request.session.get('usuario_rol')
-
-    if not usuario_id or rol_id not in (1, 2):
-        return redirect('inicio_sesion')
-
     tipo = request.GET.get('tipo', 'atenciones')      # 'atenciones' o 'ingresos'
     formato = request.GET.get('formato', 'excel')     # 'excel' o 'pdf'
     fecha_inicio = request.GET.get('fecha_inicio', '')
