@@ -60,6 +60,9 @@
     .patient-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
 
     .patient-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
       padding: 12px 16px;
       background-color: #ffffff;
       border: 1.5px solid #2e7d32;
@@ -68,9 +71,46 @@
       color: #333333;
       cursor: pointer;
       transition: all 0.2s ease;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      line-height: 1.45;
+    }
+
+    .patient-item[data-estado="Activo"] {
+      background-color: #e8f5e9;
+      border-color: #2e7d32;
+    }
+
+    .patient-item[data-estado="Inactivo"] {
+      background-color: #fff3e0;
+      border-color: #ef6c00;
+    }
+
+    .record-heading {
+      font-weight: 700;
+      color: #222;
+    }
+
+    .record-details {
+      color: #555;
+      font-size: 0.82rem;
+    }
+
+    .status-badge {
+      align-self: flex-start;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .patient-item[data-estado="Activo"] .status-badge {
+      color: #1b5e20;
+      background: #c8e6c9;
+    }
+
+    .patient-item[data-estado="Inactivo"] .status-badge {
+      color: #a84300;
+      background: #ffe0b2;
     }
 
     .patient-item:hover,
@@ -215,9 +255,18 @@
           <label for="filtro-fecha-nac">Filtrar por Fecha Nac.</label>
           <input type="date" id="filtro-fecha-nac">
         </div>
+
+        <div class="filter-item">
+          <label for="filtro-estado">Filtrar por Estado</label>
+          <select id="filtro-estado">
+            <option value="">Todos los estados</option>
+            <option value="Activo">Activos</option>
+            <option value="Inactivo">Inactivos</option>
+          </select>
+        </div>
       </div>
 
-      <h2 class="section-title">Pacientes Registrados</h2>
+      <h2 class="section-title">Pacientes Registrados ({{ pacientes|length }})</h2>
       <div class="patient-list">
         {% for p in pacientes %}
           <div class="patient-item"
@@ -232,7 +281,9 @@
                data-correo="{{ p.CorreoContactoPaciente }}"
                data-telefono="{{ p.NumeroContactoPaciente }}"
                data-estado="{{ p.Estado }}">
-            {{ p.Nombre_Paciente }} {{ p.ApellidoP }} {{ p.ApellidoM }} - {{ p.edad }} años ({{ p.RUN_Paciente }})
+            <span class="record-heading">{{ p.Nombre_Paciente }} {{ p.SegNombre_Paciente }} {{ p.TerNombre_Paciente }} {{ p.ApellidoP }} {{ p.ApellidoM }}</span>
+            <span class="record-details">ID: #{{ p.ID }} · RUN: {{ p.RUN_Paciente }} · Correo: {{ p.CorreoContactoPaciente|default:'Sin correo' }} · Edad: {{ p.edad }} años</span>
+            <span class="status-badge">Estado: {{ p.Estado }}</span>
           </div>
         {% empty %}
           <p style="color:#666; font-size:0.9rem; padding:10px;">No hay pacientes registrados todavía.</p>
@@ -389,20 +440,24 @@
     // Filtros en vivo (Nombre/RUN y Fecha de Nacimiento)
     const filtroNombre = document.getElementById('filtro-nombre');
     const filtroFechaNac = document.getElementById('filtro-fecha-nac');
+    const filtroEstado = document.getElementById('filtro-estado');
 
     function filtrarPacientes() {
       const texto = filtroNombre.value.toLowerCase();
       const fecha = filtroFechaNac.value;
+      const estado = filtroEstado.value;
 
       items.forEach(item => {
         const coincideTexto = item.textContent.toLowerCase().includes(texto);
         const coincideFecha = !fecha || item.dataset.fechanac === fecha;
-        item.style.display = (coincideTexto && coincideFecha) ? 'block' : 'none';
+        const coincideEstado = !estado || item.dataset.estado === estado;
+        item.style.display = (coincideTexto && coincideFecha && coincideEstado) ? 'flex' : 'none';
       });
     }
 
     filtroNombre.addEventListener('input', filtrarPacientes);
     filtroFechaNac.addEventListener('change', filtrarPacientes);
+    filtroEstado.addEventListener('change', filtrarPacientes);
   </script>
 
 </body>

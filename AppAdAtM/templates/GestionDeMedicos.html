@@ -18,6 +18,34 @@
       flex-direction: column;
     }
 
+    .filters-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 22px;
+    }
+
+    .filter-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .filter-item label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #333;
+      margin: 0 0 6px 4px;
+    }
+
+    .filter-item input,
+    .filter-item select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid #2e7d32;
+      border-radius: 10px;
+      font-size: 0.9rem;
+    }
+
     .section-title {
       font-size: 1.15rem;
       font-weight: 700;
@@ -35,20 +63,57 @@
     .user-item {
       display: block;
       padding: 14px 16px;
-      background-color: #e8f5e9;
+      background-color: #ffffff;
       border: 1.5px solid #2e7d32;
       border-radius: 10px;
       font-size: 0.88rem;
-      color: #1b5e20;
-      font-weight: 600;
+      color: #333;
       line-height: 1.5;
       text-decoration: none;
       cursor: pointer;
     }
 
+    .user-item[data-estado="Activo"] { background-color: #e8f5e9; }
+    .user-item[data-estado="Inactivo"] {
+      background-color: #fff3e0;
+      border-color: #ef6c00;
+    }
+
     .user-item.selected,
     .user-item:hover {
-      background-color: #dceddc;
+      filter: brightness(0.97);
+    }
+
+    .record-heading {
+      display: block;
+      margin-bottom: 3px;
+      color: #222;
+      font-weight: 700;
+    }
+
+    .record-details {
+      display: block;
+      color: #555;
+      font-size: 0.82rem;
+    }
+
+    .status-badge {
+      display: inline-block;
+      margin-top: 6px;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .user-item[data-estado="Activo"] .status-badge {
+      color: #1b5e20;
+      background: #c8e6c9;
+    }
+
+    .user-item[data-estado="Inactivo"] .status-badge {
+      color: #a84300;
+      background: #ffe0b2;
     }
 
     .right-panel {
@@ -161,6 +226,7 @@
     @media (max-width: 900px) {
       .dashboard-container { flex-direction: column; }
       .navbar { flex-direction: column; align-items: flex-start; }
+      .filters-row { flex-direction: column; }
     }
   </style>
   <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
@@ -189,14 +255,31 @@
 
     <!-- Panel Izquierdo: Médicos registrados -->
     <section class="card left-panel">
-      <h2 class="section-title">Médicos</h2>
+      <div class="filters-row">
+        <div class="filter-item">
+          <label for="filtro-nombre-medico">Buscar por nombre</label>
+          <input type="search" id="filtro-nombre-medico" placeholder="Nombre o apellido del médico">
+        </div>
+        <div class="filter-item">
+          <label for="filtro-estado-medico">Filtrar por estado</label>
+          <select id="filtro-estado-medico">
+            <option value="">Todos los estados</option>
+            <option value="Activo">Activos</option>
+            <option value="Inactivo">Inactivos</option>
+          </select>
+        </div>
+      </div>
+
+      <h2 class="section-title">Médicos ({{ medicos|length }})</h2>
       <div class="user-list">
         {% for m in medicos %}
           <a class="user-item {% if medico and medico.MatriculaProfesional == m.MatriculaProfesional %}selected{% endif %}"
+             data-nombre="{{ m.Nombre_Medico }} {{ m.SegNombre_Medico }} {{ m.TerNombre_Medico }} {{ m.ApellidoP_Medico }} {{ m.ApellidoM_Medico }}"
+             data-estado="{{ m.Estado }}"
              href="{% url 'gestionar_medicos' %}?medico_id={{ m.MatriculaProfesional }}">
-            <div><strong>Matrícula:</strong> #{{ m.MatriculaProfesional }}</div>
-            <div>Dr(a). {{ m.Nombre_Medico }} {{ m.ApellidoP_Medico }}</div>
-            <div>{{ m.Especializacion|default:'Sin especialidad' }} · {{ m.Estado }}</div>
+            <span class="record-heading">{{ m.Nombre_Medico }} {{ m.SegNombre_Medico }} {{ m.TerNombre_Medico }} {{ m.ApellidoP_Medico }} {{ m.ApellidoM_Medico }}</span>
+            <span class="record-details">Matrícula: #{{ m.MatriculaProfesional }} · RUN: {{ m.RUN_Medico }} · Correo: {{ m.CorreoContactoMedico }} · Especialidad: {{ m.Especializacion|default:'Sin especialidad' }}</span>
+            <span class="status-badge">Estado: {{ m.Estado }}</span>
           </a>
         {% empty %}
           <p>No hay médicos registrados.</p>
@@ -298,6 +381,25 @@
     </section>
 
   </main>
+
+  <script>
+    const registrosMedicos = document.querySelectorAll('.user-item');
+    const buscarMedico = document.getElementById('filtro-nombre-medico');
+    const filtrarEstadoMedico = document.getElementById('filtro-estado-medico');
+
+    function filtrarMedicos() {
+      const texto = buscarMedico.value.trim().toLocaleLowerCase();
+      const estado = filtrarEstadoMedico.value;
+      registrosMedicos.forEach(registro => {
+        const coincideNombre = registro.dataset.nombre.toLocaleLowerCase().includes(texto);
+        const coincideEstado = !estado || registro.dataset.estado === estado;
+        registro.style.display = coincideNombre && coincideEstado ? 'block' : 'none';
+      });
+    }
+
+    buscarMedico.addEventListener('input', filtrarMedicos);
+    filtrarEstadoMedico.addEventListener('change', filtrarMedicos);
+  </script>
 
 </body>
 </html>

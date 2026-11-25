@@ -66,6 +66,9 @@
     }
 
     .user-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
       padding: 12px 16px;
       background-color: #ffffff;
       border: 1.5px solid #2e7d32;
@@ -74,9 +77,46 @@
       color: #333333;
       cursor: pointer;
       transition: all 0.2s ease;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      line-height: 1.45;
+    }
+
+    .user-item[data-estado="Activo"] {
+      background-color: #e8f5e9;
+      border-color: #2e7d32;
+    }
+
+    .user-item[data-estado="Inactivo"] {
+      background-color: #fff3e0;
+      border-color: #ef6c00;
+    }
+
+    .record-heading {
+      font-weight: 700;
+      color: #222;
+    }
+
+    .record-details {
+      color: #555;
+      font-size: 0.82rem;
+    }
+
+    .status-badge {
+      align-self: flex-start;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .user-item[data-estado="Activo"] .status-badge {
+      color: #1b5e20;
+      background: #c8e6c9;
+    }
+
+    .user-item[data-estado="Inactivo"] .status-badge {
+      color: #a84300;
+      background: #ffe0b2;
     }
 
     .user-item:hover,
@@ -216,6 +256,15 @@
             {% endfor %}
           </select>
         </div>
+
+        <div class="filter-item">
+          <label for="filtro-estado">Filtrar por Estado</label>
+          <select id="filtro-estado">
+            <option value="">Todos los estados</option>
+            <option value="Activo">Activos</option>
+            <option value="Inactivo">Inactivos</option>
+          </select>
+        </div>
       </div>
 
       <h2 class="section-title">Usuarios Registrados ({{ usuarios|length }})</h2>
@@ -224,7 +273,9 @@
         <div class="user-item" data-id="{{ u.ID_Usuario }}" data-nombre="{{ u.Nombre }}"
           data-apellido="{{ u.Apellido }}" data-correo="{{ u.Correo_Usuario }}" data-rol="{{ u.Rol.ID_Rol }}"
           data-estado="{{ u.Estado }}">
-          #{{ u.ID_Usuario }} - {{ u.Nombre }} {{ u.Apellido }} | {{ u.Correo_Usuario }} ({{ u.Rol.Nombre_Rol }} - {{u.Estado }})
+          <span class="record-heading">{{ u.Nombre }} {{ u.Apellido }}</span>
+          <span class="record-details">ID: #{{ u.ID_Usuario }} · Correo: {{ u.Correo_Usuario }} · Rol: {{ u.Rol.Nombre_Rol }}</span>
+          <span class="status-badge">Estado: {{ u.Estado }}</span>
         </div>
         {% empty %}
         <p style="color:#666; font-size:0.9rem; padding:10px;">No hay usuarios registrados todavía.</p>
@@ -300,12 +351,10 @@
     <section class="card left-panel">
       <h2 class="section-title">Mi Cuenta de Usuario</h2>
       <div class="user-list">
-        <div class="user-item selected" style="white-space: normal; line-height: 1.6; cursor: default;">
-          <div><strong>ID Usuario:</strong> #{{ usuario.ID_Usuario }}</div>
-          <div><strong>Nombre Completo:</strong> {{ usuario.Nombre }} {{ usuario.Apellido }}</div>
-          <div><strong>Correo Electrónico:</strong> {{ usuario.Correo_Usuario }}</div>
-          <div><strong>Rol Asignado:</strong> {{ usuario.Rol.Nombre_Rol }}</div>
-          <div><strong>Estado:</strong> {{ usuario.Estado }}</div>
+        <div class="user-item selected" data-estado="{{ usuario.Estado }}" style="cursor: default;">
+          <span class="record-heading">{{ usuario.Nombre }} {{ usuario.Apellido }}</span>
+          <span class="record-details">ID: #{{ usuario.ID_Usuario }} · Correo: {{ usuario.Correo_Usuario }} · Rol: {{ usuario.Rol.Nombre_Rol }}</span>
+          <span class="status-badge">Estado: {{ usuario.Estado }}</span>
         </div>
       </div>
     </section>
@@ -423,20 +472,24 @@
     // Filtros en vivo (Nombre/Correo y Rol)
     const filtroNombre = document.getElementById('filtro-nombre');
     const filtroRol = document.getElementById('filtro-rol');
+    const filtroEstado = document.getElementById('filtro-estado');
 
     function filtrarLista() {
       const texto = filtroNombre.value.toLowerCase();
       const rolSeleccionado = filtroRol.value;
+      const estadoSeleccionado = filtroEstado.value;
 
       items.forEach(item => {
         const coincideTexto = item.textContent.toLowerCase().includes(texto);
         const coincideRol = !rolSeleccionado || item.dataset.rol === rolSeleccionado;
-        item.style.display = (coincideTexto && coincideRol) ? 'block' : 'none';
+        const coincideEstado = !estadoSeleccionado || item.dataset.estado === estadoSeleccionado;
+        item.style.display = (coincideTexto && coincideRol && coincideEstado) ? 'flex' : 'none';
       });
     }
 
     filtroNombre.addEventListener('input', filtrarLista);
     filtroRol.addEventListener('change', filtrarLista);
+    filtroEstado.addEventListener('change', filtrarLista);
   </script>
   {% endif %}
 

@@ -519,9 +519,17 @@ def gestionusuarios(request):
             estado_nuevo = request.POST.get('estado', 'Activo').strip()
 
             try:
+                if rol_nuevo_id not in ('1', '2'):
+                    raise ValidationError('Solo puedes asignar los roles Administrador o Recepcionista.')
+                if estado_nuevo not in ('Activo', 'Inactivo'):
+                    raise ValidationError('Selecciona un estado válido.')
+
                 with transaction.atomic():
                     if target_id:
-                        u_obj = Usuario.objects.get(ID_Usuario=target_id)
+                        u_obj = Usuario.objects.get(
+                            ID_Usuario=target_id,
+                            Rol_id__in=(1, 2),
+                        )
                         if Usuario.objects.filter(Correo_Usuario__iexact=correo).exclude(ID_Usuario=target_id).exists():
                             messages.error(request, f'El correo {correo} ya está en uso por otro usuario.')
                             return redirect('gestionar_usuarios')
@@ -529,8 +537,7 @@ def gestionusuarios(request):
                         u_obj.Nombre = nombre
                         u_obj.Apellido = apellido
                         u_obj.Correo_Usuario = correo
-                        if rol_nuevo_id:
-                            u_obj.Rol = Rol.objects.get(ID_Rol=rol_nuevo_id)
+                        u_obj.Rol = Rol.objects.get(ID_Rol=rol_nuevo_id)
                         u_obj.Estado = estado_nuevo
                         if password:
                             u_obj.Contraseña = make_password(password)
@@ -570,6 +577,8 @@ def gestionusuarios(request):
                         )
                         messages.success(request, f'Usuario "{nuevo_u.Nombre} {nuevo_u.Apellido}" creado correctamente.')
 
+            except ValidationError as error:
+                messages.error(request, ' '.join(error.messages))
             except Exception as e:
                 messages.error(request, f'Error al guardar usuario: {str(e)}')
 
@@ -604,8 +613,12 @@ def gestionusuarios(request):
         return redirect('gestionar_usuarios')
 
     # --- PETICIÓN GET ---
-    usuarios = Usuario.objects.select_related('Rol').all().order_by('ID_Usuario') if es_admin else []
-    roles = Rol.objects.all().order_by('ID_Rol') if es_admin else []
+    usuarios = Usuario.objects.select_related('Rol').filter(
+        Rol_id__in=(1, 2),
+    ).order_by('ID_Usuario') if es_admin else []
+    roles = Rol.objects.filter(
+        ID_Rol__in=(1, 2),
+    ).order_by('ID_Rol') if es_admin else []
 
     return render(request, 'GestionDeUsuarios.html', {  # <-- Verifica el nombre exacto de tu HTML
         'es_admin': es_admin,
@@ -879,7 +892,7 @@ def gestionpacientes(request):
         else:
             p.edad = 'N/A'
 
-    return render(request, 'GestionDePacientes.html', {
+    return render(request, 'GestiondePacientes.html', {
         'pacientes': pacientes
     })
 
@@ -1030,7 +1043,7 @@ def gestionmedicos(request):
             messages.error(request, 'El médico seleccionado no existe.')
     else:
         medico_actual = None
-    return render(request, 'GestionDeMedicos.html', {  # <-- Verifica que coincida con el nombre de tu archivo HTML
+    return render(request, 'GestionDeMedicos.html', {
         'medico': medico_actual,
         'medicos': medicos,
         'es_admin': True,

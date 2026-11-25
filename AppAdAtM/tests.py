@@ -822,6 +822,74 @@ class FlujoAtencionesTests(TestCase):
             fetch_redirect_response=False,
         )
 
+    def test_user_management_only_lists_and_assigns_admin_or_reception_roles(self):
+        admin = self.crear_usuario('admin@example.com', self.rol_admin)
+        self.iniciar_sesion_de_prueba(admin)
+
+        response = self.client.get(reverse('gestionar_usuarios'))
+
+        self.assertEqual(
+            set(response.context['usuarios'].values_list('ID_Usuario', flat=True)),
+            {admin.ID_Usuario, self.recepcionista.ID_Usuario},
+        )
+        self.assertEqual(
+            list(response.context['roles'].values_list('ID_Rol', flat=True)),
+            [1, 2],
+        )
+
+        response = self.client.post(reverse('gestionar_usuarios'), {
+            'usuario_id': str(self.usuario_paciente.ID_Usuario),
+            'nombre': 'Pablo',
+            'apellido': 'Ejemplo',
+            'correo': 'paciente@example.com',
+            'password': '',
+            'rol': '4',
+            'estado': 'Activo',
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.usuario_paciente.refresh_from_db()
+        self.assertEqual(self.usuario_paciente.Rol_id, 4)
+
+    def test_patient_and_doctor_lists_have_name_or_date_and_state_filters(self):
+        admin = self.crear_usuario('admin@example.com', self.rol_admin)
+        Medico.objects.create(
+            MatriculaProfesional=98765,
+            RUN_Medico='88.888.888-8',
+            Nombre_Medico='Elena',
+            SegNombre_Medico='',
+            TerNombre_Medico='',
+            ApellidoP_Medico='Inactiva',
+            ApellidoM_Medico='',
+            CorreoContactoMedico='elena@example.com',
+            NumeroContactoMedico='912345678',
+            Estado='Inactivo',
+        )
+        Paciente.objects.create(
+            RUN_Paciente='99.999.999-9',
+            Nombre_Paciente='Paciente',
+            SegNombre_Paciente='',
+            TerNombre_Paciente='',
+            ApellidoP='Inactivo',
+            ApellidoM='',
+            Fecha_Nacimiento=date(2000, 1, 1),
+            CorreoContactoPaciente='inactivo@example.com',
+            Estado='Inactivo',
+        )
+        self.iniciar_sesion_de_prueba(admin)
+
+        response_medicos = self.client.get(reverse('gestionar_medicos'))
+        self.assertContains(response_medicos, 'Buscar por nombre')
+        self.assertContains(response_medicos, 'filtro-estado-medico')
+        self.assertContains(response_medicos, 'Elena')
+        self.assertContains(response_medicos, 'Estado: Inactivo')
+
+        self.iniciar_sesion_de_prueba(self.recepcionista)
+        response_pacientes = self.client.get(reverse('gestionar_pacientes'))
+        self.assertContains(response_pacientes, 'filtro-estado')
+        self.assertContains(response_pacientes, 'filtro-fecha-nac')
+        self.assertContains(response_pacientes, 'Estado: Inactivo')
+
     def test_admin_can_create_doctor_and_login_account(self):
         admin = self.crear_usuario('admin@example.com', self.rol_admin)
         self.iniciar_sesion_de_prueba(admin)
