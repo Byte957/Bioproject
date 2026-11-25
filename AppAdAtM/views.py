@@ -19,7 +19,7 @@ import hmac
 import logging
 import re
 import smtplib
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.template.loader import get_template
 from django.urls import reverse
 import openpyxl
@@ -1223,6 +1223,97 @@ def gestionatencion(request):
     rol_id = request.session.get('usuario_rol')
     usuario_id = request.session.get('usuario_id')
 
+    if request.method == 'GET' and request.GET.get('disponibilidad') == '1':
+        if rol_id != 2:
+            return JsonResponse({'error': 'No autorizado.'}, status=403)
+
+        medico_id = request.GET.get('medico_id', '').strip()
+        dia_str = request.GET.get('dia', '').strip()
+        if not medico_id or not dia_str:
+            return JsonResponse({'error': 'Indica médico y fecha.'}, status=400)
+
+        try:
+            fecha_obj = date.fromisoformat(dia_str)
+            medico_obj = Medico.objects.get(
+                MatriculaProfesional=medico_id,
+                Estado='Activo',
+            )
+        except (ValueError, Medico.DoesNotExist):
+            return JsonResponse({'error': 'Médico o fecha no válidos.'}, status=400)
+
+        inicio_minimo = timezone.now()
+        atencion_id_actual = request.GET.get('atencion_id', '').strip()
+        atencion_actual = None
+        if atencion_id_actual:
+            atencion_actual = Atencion.objects.filter(
+                ID_Atencion=atencion_id_actual,
+                Estado=EstadoAtencion.RESERVADA,
+            ).first()
+            if not atencion_actual:
+                return JsonResponse({'error': 'La atención que se está editando no es válida.'}, status=400)
+
+        atenciones_activas = Atencion.objects.filter(
+            ID_Medico=medico_obj,
+            Dia=fecha_obj,
+        ).exclude(Estado=EstadoAtencion.CANCELADA)
+        if atencion_actual and (
+            atencion_actual.ID_Medico_id == medico_obj.MatriculaProfesional
+            and atencion_actual.Dia == fecha_obj
+        ):
+            atenciones_activas = atenciones_activas.exclude(
+                ID_Atencion=atencion_actual.ID_Atencion,
+            )
+        horarios_ocupados = set(
+            atenciones_activas.values_list('ID_Horario_id', flat=True)
+        )
+
+        bloques = []
+        ids_bloques_disponibles = set()
+        disponibilidades = HorarioMedico.objects.filter(
+            ID_Medico=medico_obj,
+            Dia=fecha_obj,
+            Estado__iexact='Disponible',
+        ).select_related('ID_Horario').order_by('ID_Horario__Hora_Inicio')
+        for disponibilidad in disponibilidades:
+            horario = disponibilidad.ID_Horario
+            inicio_bloque = timezone.make_aware(
+                datetime.combine(fecha_obj, horario.Hora_Inicio)
+            )
+            if (
+                inicio_bloque > inicio_minimo
+                and horario.ID_Horario not in horarios_ocupados
+            ):
+                bloques.append({
+                    'id': horario.ID_Horario,
+                    'texto': (
+                        f'{horario.Hora_Inicio.strftime("%H:%M")} - '
+                        f'{horario.Hora_Fin.strftime("%H:%M")}'
+                    ),
+                })
+                ids_bloques_disponibles.add(horario.ID_Horario)
+
+        if (
+            atencion_actual
+            and atencion_actual.ID_Medico_id == medico_obj.MatriculaProfesional
+            and atencion_actual.Dia == fecha_obj
+            and atencion_actual.ID_Horario_id not in ids_bloques_disponibles
+        ):
+            horario_actual = atencion_actual.ID_Horario
+            inicio_actual = timezone.make_aware(
+                datetime.combine(fecha_obj, horario_actual.Hora_Inicio)
+            )
+            if inicio_actual > inicio_minimo:
+                bloques.append({
+                    'id': horario_actual.ID_Horario,
+                    'texto': (
+                        f'{horario_actual.Hora_Inicio.strftime("%H:%M")} - '
+                        f'{horario_actual.Hora_Fin.strftime("%H:%M")} (cita actual)'
+                    ),
+                })
+                bloques.sort(key=lambda bloque: bloque['texto'])
+
+        return JsonResponse({'bloques': bloques})
+
     if request.method == 'POST':
         accion = request.POST.get('accion', 'guardar')
         atencion_id = request.POST.get('atencion_id', '').strip()
@@ -1351,7 +1442,7 @@ def gestionatencion(request):
             paciente_obj = Paciente.objects.get(ID=paciente_id, Estado='Activo')
             medico_obj = Medico.objects.get(MatriculaProfesional=medico_id, Estado='Activo')
             horario_obj = Horario.objects.get(ID_Horario=horario_id)
-            fecha_obj = datetime.strptime(dia_str, '%Y-%m-%d').date()
+            fecha_obj = date.fromisoformat(dia_str)
             inicio_atencion = timezone.make_aware(datetime.combine(fecha_obj, horario_obj.Hora_Inicio))
             if inicio_atencion <= timezone.now():
                 messages.error(request, 'No se pueden reservar horarios que ya comenzaron.')
@@ -1481,14 +1572,13 @@ def gestionatencion(request):
         pacientes = Paciente.objects.filter(Estado='Activo').order_by('ApellidoP')
         medicos = Medico.objects.filter(Estado='Activo').order_by('ApellidoP_Medico')
 
-    horarios = Horario.objects.all().order_by('Hora_Inicio')
-
     return render(request, 'GestionDeAtencion.html', {
         'atenciones': atenciones,
         'pacientes': pacientes,
         'medicos': medicos,
-        'horarios': horarios,
         'rol_id': rol_id,
+        'fecha_minima': timezone.localdate().isoformat(),
+        'atencion_estados': EstadoAtencion.choices,
     })
 
 @never_cache

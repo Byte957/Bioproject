@@ -9,7 +9,7 @@
   <style>
     .navbar,
     .dashboard-container {
-      max-width: 1400px;
+      max-width: 1700px;
     }
 
     .left-panel {
@@ -20,6 +20,7 @@
 
     .filters-row {
       display: flex;
+      gap: 12px;
       margin-bottom: 14px;
     }
 
@@ -61,6 +62,9 @@
     .user-list::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
 
     .user-item {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
       padding: 11px 14px;
       background-color: #ffffff;
       border: 1.5px solid #2e7d32;
@@ -69,9 +73,8 @@
       color: #333333;
       cursor: pointer;
       transition: all 0.2s ease;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      line-height: 1.45;
     }
 
     .user-item:hover,
@@ -79,7 +82,61 @@
       background-color: #e8f5e9;
       transform: translateX(4px);
       box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
-      font-weight: 600;
+    }
+
+    .record-heading {
+      color: #222;
+      font-weight: 700;
+    }
+
+    .record-details {
+      color: #555;
+      font-size: 0.82rem;
+      overflow-wrap: anywhere;
+    }
+
+    .status-badge {
+      align-self: flex-start;
+      padding: 2px 9px;
+      border-radius: 999px;
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .user-item[data-estado="RESERVADA"] .status-badge {
+      color: #0d47a1;
+      background: #dbeafe;
+    }
+
+    .user-item[data-estado="EN ESPERA"] .status-badge {
+      color: #8a4b08;
+      background: #ffecb3;
+    }
+
+    .user-item[data-estado="EN ATENCIÓN"] .status-badge {
+      color: #4a148c;
+      background: #e1bee7;
+    }
+
+    .user-item[data-estado="FINALIZADA"] .status-badge {
+      color: #1b5e20;
+      background: #c8e6c9;
+    }
+
+    .user-item[data-estado="CANCELADA"] .status-badge {
+      color: #424242;
+      background: #e0e0e0;
+    }
+
+    .user-item[data-estado="NO ASISTIÓ"] .status-badge {
+      color: #b71c1c;
+      background: #ffcdd2;
+    }
+
+    .patient-search-hint {
+      margin-top: 4px;
+      color: #666;
+      font-size: 0.78rem;
     }
 
     .right-panel {
@@ -214,6 +271,19 @@
             placeholder="{% if rol_id == 4 %}Nombre o apellido del médico{% elif rol_id == 3 %}Nombre, apellido o RUN del paciente{% else %}Nombre, apellido, RUN o médico{% endif %}"
             autocomplete="off">
         </div>
+        <div class="filter-item">
+          <label for="filtrar-fecha-atencion">Filtrar por fecha</label>
+          <input type="date" id="filtrar-fecha-atencion">
+        </div>
+        <div class="filter-item">
+          <label for="filtrar-estado-atencion">Filtrar por estado</label>
+          <select id="filtrar-estado-atencion">
+            <option value="">Todos los estados</option>
+            {% for valor, etiqueta in atencion_estados %}
+              <option value="{{ valor }}">{{ etiqueta }}</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
 
       <h2 class="section-title">Atenciones ({{ atenciones|length }})</h2>
@@ -229,11 +299,10 @@
                data-descripcion="{{ a.Descripcion }}"
                data-estado="{{ a.Estado }}"
                data-busqueda="{% if rol_id == 4 %}{{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} {{ a.ID_Medico.ApellidoM_Medico }}{% elif rol_id == 3 %}{{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.SegNombre_Paciente }} {{ a.Paciente.ApellidoP }} {{ a.Paciente.ApellidoM }} {{ a.Paciente.RUN_Paciente }}{% else %}{{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} {{ a.Paciente.RUN_Paciente }}{% endif %}">
-            #{{ a.ID_Atencion }} |
-            Dr(a). {{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} -
-            {{ a.Dia|date:'d/m/Y' }} {{ a.ID_Horario.Hora_Inicio|time:'H:i' }} -
-            {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }}
-            [{{ a.Estado }}]
+            <span class="record-heading">Atención #{{ a.ID_Atencion }} · {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }}</span>
+            <span class="record-details">RUN: {{ a.Paciente.RUN_Paciente }} · Médico: {{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} · Fecha: {{ a.Dia|date:'d/m/Y' }} · Hora: {{ a.ID_Horario.Hora_Inicio|time:'H:i' }}</span>
+            <span class="record-details">Motivo: {{ a.Descripcion|default:'Sin descripción' }}</span>
+            <span class="status-badge">Estado: {{ a.get_Estado_display }}</span>
           </div>
         {% empty %}
           <p style="color:#666; font-size:0.9rem; padding:10px;">No hay atenciones registradas.</p>
@@ -263,13 +332,19 @@
         <input type="hidden" id="accion" name="accion" value="guardar">
 
         <div class="form-group" {% if rol_id == 3 or rol_id == 4 %}style="display:none;"{% endif %}>
-          <label for="paciente">Paciente</label>
-          <select id="paciente" name="paciente" required>
-            <option value="" disabled selected>Seleccione paciente...</option>
+          <label for="buscar-paciente">Paciente (RUN o nombre)</label>
+          <input type="search" id="buscar-paciente" list="sugerencias-pacientes"
+                 placeholder="Escribe un RUN o nombre para buscar" autocomplete="off" required>
+          <datalist id="sugerencias-pacientes">
             {% for p in pacientes %}
-              <option value="{{ p.ID }}">{{ p.RUN_Paciente }} - {{ p.Nombre_Paciente }} {{ p.ApellidoP }} {{ p.ApellidoM }}</option>
+              <option value="{{ p.RUN_Paciente }} - {{ p.Nombre_Paciente }} {{ p.SegNombre_Paciente }} {{ p.ApellidoP }} {{ p.ApellidoM }}"
+                      data-id="{{ p.ID }}"
+                      data-run="{{ p.RUN_Paciente }}"
+                      data-busqueda="{{ p.RUN_Paciente }} {{ p.Nombre_Paciente }} {{ p.SegNombre_Paciente }} {{ p.ApellidoP }} {{ p.ApellidoM }}"></option>
             {% endfor %}
-          </select>
+          </datalist>
+          <input type="hidden" id="paciente" name="paciente">
+          <span class="patient-search-hint">Selecciona una sugerencia para asociar la ficha correcta.</span>
         </div>
 
         <div class="form-group" {% if rol_id == 3 or rol_id == 4 %}style="display:none;"{% endif %}>
@@ -284,16 +359,13 @@
 
         <div class="form-group" {% if rol_id == 3 or rol_id == 4 %}style="display:none;"{% endif %}>
           <label for="dia">Fecha de Atención</label>
-          <input type="date" id="dia" name="dia" required>
+          <input type="date" id="dia" name="dia" min="{{ fecha_minima }}" required>
         </div>
 
         <div class="form-group" {% if rol_id == 3 or rol_id == 4 %}style="display:none;"{% endif %}>
           <label for="horario">Bloque Horario (20 min)</label>
           <select id="horario" name="horario" required>
-            <option value="" disabled selected>Seleccione bloque...</option>
-            {% for h in horarios %}
-              <option value="{{ h.ID_Horario }}">{{ h.Hora_Inicio|time:'H:i' }} - {{ h.Hora_Fin|time:'H:i' }}</option>
-            {% endfor %}
+            <option value="" selected>Selecciona médico y fecha...</option>
           </select>
         </div>
 
@@ -329,7 +401,9 @@
     const titulo = document.getElementById('titulo-formulario');
     const inputId = document.getElementById('atencion_id');
     const inputAccion = document.getElementById('accion');
-    const selectPaciente = document.getElementById('paciente');
+    const buscarPaciente = document.getElementById('buscar-paciente');
+    const idPaciente = document.getElementById('paciente');
+    const sugerenciasPacientes = document.getElementById('sugerencias-pacientes');
     const selectMedico = document.getElementById('medico');
     const inputDia = document.getElementById('dia');
     const selectHorario = document.getElementById('horario');
@@ -341,15 +415,89 @@
     const btnIniciar = document.getElementById('btn-iniciar');
 
     const itemsAtencion = document.querySelectorAll('.item-atencion');
+    const opcionesPaciente = sugerenciasPacientes
+      ? Array.from(sugerenciasPacientes.querySelectorAll('option'))
+      : [];
+    const puedeGestionarAgenda = {{ rol_id }} === 2;
+    let solicitudBloques = 0;
+
+    function normalizarTexto(valor) {
+      return valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
+    }
+
+    function actualizarSugerenciasPaciente() {
+      if (!buscarPaciente || !sugerenciasPacientes) return;
+      const consulta = normalizarTexto(buscarPaciente.value.trim());
+      const consultaRun = consulta.replace(/[.\-\s]/g, '');
+      const opcionesVisibles = opcionesPaciente.filter(opcion =>
+        normalizarTexto(opcion.dataset.busqueda).includes(consulta)
+        || normalizarTexto(opcion.dataset.run).replace(/[.\-\s]/g, '').includes(consultaRun)
+      );
+      sugerenciasPacientes.replaceChildren(...opcionesVisibles);
+
+      const seleccion = opcionesPaciente.find(opcion =>
+        normalizarTexto(opcion.value) === normalizarTexto(buscarPaciente.value.trim())
+      );
+      idPaciente.value = seleccion ? seleccion.dataset.id : '';
+      buscarPaciente.setCustomValidity(
+        buscarPaciente.value && !seleccion
+          ? 'Selecciona un paciente de las sugerencias.'
+          : ''
+      );
+    }
+
+    async function cargarBloquesDisponibles(horarioSeleccionado = '', atencionActual = '') {
+      if (!selectHorario) return;
+      const solicitudActual = ++solicitudBloques;
+      selectHorario.replaceChildren(new Option('Selecciona médico y fecha...', ''));
+
+      if (!puedeGestionarAgenda || !selectMedico.value || !inputDia.value) return;
+
+      const parametros = new URLSearchParams({
+        disponibilidad: '1',
+        medico_id: selectMedico.value,
+        dia: inputDia.value,
+      });
+      if (atencionActual) parametros.set('atencion_id', atencionActual);
+      selectHorario.replaceChildren(new Option('Cargando bloques...', ''));
+
+      try {
+        const respuesta = await fetch(`${window.location.pathname}?${parametros.toString()}`);
+        const datos = await respuesta.json();
+        if (solicitudActual !== solicitudBloques) return;
+        if (!respuesta.ok) throw new Error(datos.error || 'No se pudieron cargar los bloques.');
+
+        selectHorario.replaceChildren(new Option('Selecciona un bloque...', ''));
+        datos.bloques.forEach(bloque => {
+          selectHorario.add(new Option(bloque.texto, bloque.id));
+        });
+        if (horarioSeleccionado && datos.bloques.some(
+          bloque => String(bloque.id) === String(horarioSeleccionado)
+        )) {
+          selectHorario.value = horarioSeleccionado;
+        }
+        if (datos.bloques.length === 0) {
+          selectHorario.replaceChildren(new Option('No hay bloques disponibles para esta fecha.', ''));
+        }
+      } catch (error) {
+        if (solicitudActual !== solicitudBloques) return;
+        selectHorario.replaceChildren(new Option('Error al cargar bloques. Cambia médico o fecha.', ''));
+        console.error(error);
+      }
+    }
 
     function limpiarFormulario() {
       itemsAtencion.forEach(i => i.classList.remove('selected'));
       inputId.value = '';
       inputAccion.value = 'guardar';
-      selectPaciente.selectedIndex = 0;
+      if (buscarPaciente) {
+        buscarPaciente.value = '';
+        buscarPaciente.setCustomValidity('');
+      }
+      if (idPaciente) idPaciente.value = '';
       selectMedico.selectedIndex = 0;
       inputDia.value = '';
-      selectHorario.selectedIndex = 0;
+      cargarBloquesDisponibles();
       inputDescripcion.value = '';
       if (btnEliminar) btnEliminar.style.display = 'none';
       if (btnNoAsistio) btnNoAsistio.style.display = 'none';
@@ -367,10 +515,17 @@
 
         inputId.value = item.dataset.id;
         inputAccion.value = 'guardar';
-        selectPaciente.value = item.dataset.paciente;
+        if (buscarPaciente && idPaciente) {
+          const opcionPaciente = opcionesPaciente.find(
+            opcion => opcion.dataset.id === item.dataset.paciente
+          );
+          buscarPaciente.value = opcionPaciente ? opcionPaciente.value : '';
+          idPaciente.value = opcionPaciente ? opcionPaciente.dataset.id : '';
+          buscarPaciente.setCustomValidity('');
+        }
         selectMedico.value = item.dataset.medico;
         inputDia.value = item.dataset.dia;
-        selectHorario.value = item.dataset.horario;
+        cargarBloquesDisponibles(item.dataset.horario, item.dataset.id);
         inputDescripcion.value = item.dataset.descripcion;
         if (btnEliminar) btnEliminar.style.display = item.dataset.estado === 'RESERVADA' ? 'inline-block' : 'none';
         if (btnNoAsistio) btnNoAsistio.style.display = item.dataset.estado === 'RESERVADA' ? 'inline-block' : 'none';
@@ -429,24 +584,35 @@
     }
 
     const busquedaAtenciones = document.getElementById('buscar-atenciones');
+    const filtrarFechaAtencion = document.getElementById('filtrar-fecha-atencion');
+    const filtrarEstadoAtencion = document.getElementById('filtrar-estado-atencion');
     const mensajeSinResultados = document.getElementById('sin-resultados');
 
-    function normalizarTexto(valor) {
-      return valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
-    }
-
-    busquedaAtenciones.addEventListener('input', () => {
+    function filtrarAtenciones() {
       const consulta = normalizarTexto(busquedaAtenciones.value.trim());
+      const fecha = filtrarFechaAtencion.value;
+      const estado = filtrarEstadoAtencion.value;
       let coincidencias = 0;
 
       itemsAtencion.forEach(item => {
-        const coincide = normalizarTexto(item.dataset.busqueda).includes(consulta);
-        item.style.display = coincide ? 'block' : 'none';
-        if (coincide) coincidencias += 1;
+        const coincideTexto = normalizarTexto(item.dataset.busqueda).includes(consulta);
+        const coincideFecha = !fecha || item.dataset.dia === fecha;
+        const coincideEstado = !estado || item.dataset.estado === estado;
+        const visible = coincideTexto && coincideFecha && coincideEstado;
+        item.style.display = visible ? 'flex' : 'none';
+        if (visible) coincidencias += 1;
       });
 
-      mensajeSinResultados.style.display = coincidencias === 0 && itemsAtencion.length > 0 ? 'block' : 'none';
-    });
+      mensajeSinResultados.style.display = coincidencias === 0 ? 'block' : 'none';
+    }
+
+    busquedaAtenciones.addEventListener('input', filtrarAtenciones);
+    filtrarFechaAtencion.addEventListener('change', filtrarAtenciones);
+    filtrarEstadoAtencion.addEventListener('change', filtrarAtenciones);
+
+    if (buscarPaciente) buscarPaciente.addEventListener('input', actualizarSugerenciasPaciente);
+    if (selectMedico) selectMedico.addEventListener('change', () => cargarBloquesDisponibles('', inputId.value));
+    if (inputDia) inputDia.addEventListener('change', () => cargarBloquesDisponibles('', inputId.value));
   </script>
 
 </body>

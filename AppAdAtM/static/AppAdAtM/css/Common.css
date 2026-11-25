@@ -29,7 +29,7 @@ body {
     0 5px 10px rgba(0, 0, 0, 0.15);
   margin: 0 auto 25px auto;     /* Centra la navbar horizontalmente */
   width: 96%;
-  max-width: 1420px;
+  max-width: 1700px;
 }
 
 .brand-section {
@@ -343,6 +343,7 @@ body {
   display: flex;
   gap: 25px;
   width: 100%;
+  max-width: 1700px;
   margin: 0 auto;
   flex: 1;
   align-items: flex-start;
@@ -412,7 +413,7 @@ select {
 .login-card {
   background-color: #ffffff;
   width: 100%;
-  max-width: 400px;
+  max-width: 480px;
   padding: 35px 30px;
   border-radius: 28px;
   border: none;
@@ -485,7 +486,7 @@ select {
 .registration-wrapper {
   display: flex;
   gap: 24px;
-  max-width: 1050px;
+  max-width: 1200px;
   width: 100%;
   align-items: stretch;
 }

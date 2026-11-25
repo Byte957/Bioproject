@@ -618,6 +618,164 @@ class FlujoAtencionesTests(TestCase):
             ],
         )
 
+    def test_schedule_api_returns_only_future_available_slots_for_selected_doctor_and_date(self):
+        fecha = date(2026, 11, 25)
+        ahora = timezone.make_aware(datetime(2026, 11, 25, 16, 0))
+        horarios = [
+            Horario.objects.create(
+                Hora_Inicio=inicio,
+                Hora_Fin=(datetime.combine(date.min, inicio) + timedelta(minutes=20)).time(),
+            )
+            for inicio in (time(15, 0), time(16, 20), time(17, 0))
+        ]
+        for indice, horario in enumerate(horarios):
+            HorarioMedico.objects.create(
+                ID_Medico=self.medico,
+                ID_Horario=horario,
+                Dia=fecha,
+                Estado='Ocupado' if indice == 2 else 'Disponible',
+            )
+        atencion_actual = Atencion.objects.create(
+            Paciente=self.paciente,
+            Usuario=self.usuario_paciente,
+            ID_Medico=self.medico,
+            Descripcion='Bloque ocupado',
+            ID_Horario=horarios[2],
+            Dia=fecha,
+            Estado=EstadoAtencion.RESERVADA,
+        )
+        self.iniciar_sesion_de_prueba(self.recepcionista)
+
+        with patch('AppAdAtM.views.timezone.now', return_value=ahora):
+            response = self.client.get(reverse('gestionar_atencion'), {
+                'disponibilidad': '1',
+                'medico_id': str(self.medico.MatriculaProfesional),
+                'dia': fecha.isoformat(),
+            })
+            response_edicion = self.client.get(reverse('gestionar_atencion'), {
+                'disponibilidad': '1',
+                'medico_id': str(self.medico.MatriculaProfesional),
+                'dia': fecha.isoformat(),
+                'atencion_id': str(atencion_actual.ID_Atencion),
+            })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            [bloque['id'] for bloque in response.json()['bloques']],
+            [horarios[1].ID_Horario],
+        )
+        self.assertEqual(
+            [bloque['id'] for bloque in response_edicion.json()['bloques']],
+            [horarios[1].ID_Horario, horarios[2].ID_Horario],
+        )
+        self.assertIn('cita actual', response_edicion.json()['bloques'][1]['texto'])
+
+    @patch('AppAdAtM.views._enviar_confirmacion_atencion')
+    def test_reception_cannot_book_past_time_today_but_can_book_same_time_tomorrow(self, _send_email):
+        hoy = date(2026, 11, 25)
+        manana = hoy + timedelta(days=1)
+        ahora = timezone.make_aware(datetime(2026, 11, 25, 16, 0))
+        horario_pasado = Horario.objects.create(
+            Hora_Inicio=time(15, 0),
+            Hora_Fin=time(15, 20),
+        )
+        horario_futuro = Horario.objects.create(
+            Hora_Inicio=time(15, 0),
+            Hora_Fin=time(15, 20),
+        )
+        HorarioMedico.objects.create(
+            ID_Medico=self.medico,
+            ID_Horario=horario_pasado,
+            Dia=hoy,
+            Estado='Disponible',
+        )
+        HorarioMedico.objects.create(
+            ID_Medico=self.medico,
+            ID_Horario=horario_futuro,
+            Dia=manana,
+            Estado='Disponible',
+        )
+        self.iniciar_sesion_de_prueba(self.recepcionista)
+
+        with patch('AppAdAtM.views.timezone.now', return_value=ahora):
+            self.client.post(reverse('gestionar_atencion'), {
+                'paciente': str(self.paciente.ID),
+                'medico': str(self.medico.MatriculaProfesional),
+                'dia': hoy.isoformat(),
+                'horario': str(horario_pasado.ID_Horario),
+                'descripcion': 'Prueba de horario pasado',
+            })
+            self.assertFalse(Atencion.objects.exists())
+
+            self.client.post(reverse('gestionar_atencion'), {
+                'paciente': str(self.paciente.ID),
+                'medico': str(self.medico.MatriculaProfesional),
+                'dia': manana.isoformat(),
+                'horario': str(horario_futuro.ID_Horario),
+                'descripcion': 'Prueba de horario futuro',
+            })
+
+        atencion = Atencion.objects.get()
+        self.assertEqual(atencion.Dia, manana)
+        self.assertEqual(atencion.ID_Horario_id, horario_futuro.ID_Horario)
+
+    @patch('AppAdAtM.views._enviar_confirmacion_atencion')
+    def test_reception_cannot_reschedule_to_past_start_time(self, _send_email):
+        hoy = date(2026, 11, 25)
+        manana = hoy + timedelta(days=1)
+        ahora = timezone.make_aware(datetime(2026, 11, 25, 16, 0))
+        atencion = self.crear_atencion(
+            dia=date(2026, 11, 27),
+        )
+        horario_manana = Horario.objects.create(
+            Hora_Inicio=time(15, 0),
+            Hora_Fin=time(15, 20),
+        )
+        HorarioMedico.objects.create(
+            ID_Medico=self.medico,
+            ID_Horario=horario_manana,
+            Dia=manana,
+            Estado='Disponible',
+        )
+        self.iniciar_sesion_de_prueba(self.recepcionista)
+
+        with patch('AppAdAtM.views.timezone.now', return_value=ahora):
+            self.client.post(reverse('gestionar_atencion'), {
+                'atencion_id': str(atencion.ID_Atencion),
+                'paciente': str(self.paciente.ID),
+                'medico': str(self.medico.MatriculaProfesional),
+                'dia': hoy.isoformat(),
+                'horario': str(self.horario.ID_Horario),
+                'descripcion': 'No debe reagendarse al pasado',
+            })
+            atencion.refresh_from_db()
+            self.assertEqual(atencion.Dia, date(2026, 11, 27))
+
+            self.client.post(reverse('gestionar_atencion'), {
+                'atencion_id': str(atencion.ID_Atencion),
+                'paciente': str(self.paciente.ID),
+                'medico': str(self.medico.MatriculaProfesional),
+                'dia': manana.isoformat(),
+                'horario': str(horario_manana.ID_Horario),
+                'descripcion': 'Reagendada a mañana',
+            })
+
+        atencion.refresh_from_db()
+        self.assertEqual(atencion.Dia, manana)
+        self.assertEqual(atencion.ID_Horario_id, horario_manana.ID_Horario)
+
+    def test_registered_appointments_have_date_state_filters_and_consistent_cards(self):
+        atencion = self.crear_atencion()
+        self.iniciar_sesion_de_prueba(self.recepcionista)
+
+        response = self.client.get(reverse('gestionar_atencion'))
+
+        self.assertContains(response, 'filtrar-fecha-atencion')
+        self.assertContains(response, 'filtrar-estado-atencion')
+        self.assertContains(response, f'Atención #{atencion.ID_Atencion}')
+        self.assertContains(response, 'Estado: Reservada')
+        self.assertContains(response, 'RUN: 22.222.222-2')
+
     def test_cobro_starts_waiting_doctor_starts_and_recipe_finishes(self):
         atencion = self.crear_atencion()
         self.iniciar_sesion_de_prueba(self.recepcionista)
