@@ -1,0 +1,63 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Reenviar activación</title>
+  <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
+  <style>
+    body {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      background: #f2f5f2;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    main {
+      width: 100%;
+      max-width: 430px;
+      padding: 32px;
+      border-radius: 20px;
+      background: #fff;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, .16);
+    }
+    h1 { margin: 0 0 12px; color: #2e7d32; font-size: 1.5rem; }
+    p { margin: 0 0 20px; color: #555; line-height: 1.5; }
+    label { display: block; margin: 14px 0 6px; font-weight: 600; }
+    input { width: 100%; padding: 11px; border: 1px solid #8a9b8a; border-radius: 8px; }
+    button {
+      width: 100%;
+      margin-top: 20px;
+      padding: 12px;
+      border: 0;
+      border-radius: 8px;
+      color: #fff;
+      background: #2e7d32;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .back { display: block; margin-top: 18px; color: #2e7d32; text-align: center; }
+    .message { margin-bottom: 12px; color: #333; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Reenviar activación</h1>
+    <p>Ingresa el RUN y el correo registrado. Si coinciden con una cuenta pendiente, enviaremos un nuevo enlace, válido por 24 horas. Por seguridad, solo se permite un reenvío por minuto.</p>
+    {% if messages %}
+      {% for message in messages %}<div class="message">{{ message }}</div>{% endfor %}
+    {% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <label for="run">RUN</label>
+      <input type="text" id="run" name="run" pattern="[0-9]{1,2}\.[0-9]{3}\.[0-9]{3}-[0-9kK]" maxlength="12" placeholder="12.345.678-5" autocomplete="username" required>
+      <label for="correo">Correo electrónico registrado</label>
+      <input type="email" id="correo" name="correo" maxlength="50" autocomplete="email" required>
+      <button type="submit">Enviar nuevo enlace</button>
+    </form>
+    <a class="back" href="{% url 'inicio_sesion' %}">Volver al inicio de sesión</a>
+  </main>
+</body>
+</html>

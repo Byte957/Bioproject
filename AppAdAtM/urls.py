@@ -5,6 +5,7 @@ urlpatterns = [
     path('', views.iniciosesion, name='inicio_sesion'),
     path('Registrarse', views.registrousuario, name='registrarse_usuario'),
     path('ActivarCuenta/<str:token>', views.activar_cuenta, name='activar_cuenta'),
+    path('ReenviarActivacion', views.reenviar_activacion, name='reenviar_activacion'),
     path('RecuperarContrasena', views.solicitar_restauracion_contrasena, name='solicitar_restauracion_contrasena'),
     path('RestablecerContrasena/<str:token>', views.restablecer_contrasena, name='restablecer_contrasena'),
     path('RegistrarAtencion', views.registroatencion, name='registrar_atencion'),

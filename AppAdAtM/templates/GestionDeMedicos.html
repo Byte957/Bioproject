@@ -33,6 +33,7 @@
     }
 
     .user-item {
+      display: block;
       padding: 14px 16px;
       background-color: #e8f5e9;
       border: 1.5px solid #2e7d32;
@@ -41,6 +42,13 @@
       color: #1b5e20;
       font-weight: 600;
       line-height: 1.5;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .user-item.selected,
+    .user-item:hover {
+      background-color: #dceddc;
     }
 
     .right-panel {
@@ -121,6 +129,14 @@
       transition: all 0.2s ease;
     }
 
+    .form-buttons .btn-cancel {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      text-decoration: none;
+    }
+
     .alert-msg {
       padding: 12px;
       border-radius: 10px;
@@ -174,10 +190,10 @@
     <!-- Panel Izquierdo: Médicos registrados -->
     <section class="card left-panel">
       <h2 class="section-title">Médicos</h2>
-      <p><a class="btn btn-submit" href="{% url 'gestionar_medicos' %}?nuevo=1">Registrar médico</a></p>
       <div class="user-list">
         {% for m in medicos %}
-          <a class="user-item" href="{% url 'gestionar_medicos' %}?medico_id={{ m.MatriculaProfesional }}">
+          <a class="user-item {% if medico and medico.MatriculaProfesional == m.MatriculaProfesional %}selected{% endif %}"
+             href="{% url 'gestionar_medicos' %}?medico_id={{ m.MatriculaProfesional }}">
             <div><strong>Matrícula:</strong> #{{ m.MatriculaProfesional }}</div>
             <div>Dr(a). {{ m.Nombre_Medico }} {{ m.ApellidoP_Medico }}</div>
             <div>{{ m.Especializacion|default:'Sin especialidad' }} · {{ m.Estado }}</div>
@@ -190,7 +206,7 @@
 
     <!-- Panel Derecho: Crear o editar médico -->
     <section class="card right-panel">
-      <h1 class="panel-header-title">{% if medico %}Gestionar Médico #{{ medico.MatriculaProfesional }}{% else %}Registrar Médico{% endif %}</h1>
+      <h1 class="panel-header-title">{% if medico %}Gestionar Médico #{{ medico.MatriculaProfesional }}{% else %}Nuevo Médico{% endif %}</h1>
 
       {% if messages %}
         {% for message in messages %}
@@ -211,7 +227,9 @@
 
         <div class="form-group">
           <label for="run-medico">RUN</label>
-          <input class="validar-run" type="text" id="run-medico" name="run-medico" value="{{ medico.RUN_Medico }}" required>
+          <input class="validar-run" type="text" id="run-medico" name="run-medico"
+                 value="{{ medico.RUN_Medico }}" pattern="[0-9]{1,2}\.[0-9]{3}\.[0-9]{3}-[0-9kK]"
+                 maxlength="12" title="Formato: 12.345.678-5" placeholder="12.345.678-5" required>
         </div>
 
         <div class="form-group">
@@ -250,8 +268,10 @@
         </div>
 
         <div class="form-group">
-          <label for="password-medico">Nueva Contraseña <small style="font-weight:400; color:#666;">(Dejar vacío para mantener la actual)</small></label>
-          <input type="password" id="password-medico" name="password-medico" placeholder="••••••••">
+          <label for="password-medico">{% if medico %}Nueva Contraseña <small style="font-weight:400; color:#666;">(Dejar vacío para mantener la actual)</small>{% else %}Contraseña inicial{% endif %}</label>
+          <input type="password" id="password-medico" name="password-medico" minlength="8"
+                 autocomplete="new-password" placeholder="Mínimo 8 caracteres"
+                 {% if not medico %}required{% endif %}>
         </div>
 
         <div class="form-group">

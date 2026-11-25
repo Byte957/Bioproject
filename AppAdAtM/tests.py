@@ -3,6 +3,7 @@ from datetime import date, datetime, time, timedelta
 from unittest.mock import patch
 
 from django.core import mail
+from django.core import signing
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from django.test import override_settings
@@ -18,6 +19,7 @@ from .models import (
     Medicamento,
     Medico,
     Paciente,
+    ActivacionPendiente,
     Rol,
     Usuario,
 )
@@ -32,24 +34,44 @@ class RegistroActivacionTests(TestCase):
     def setUp(self):
         Rol.objects.get_or_create(ID_Rol=4, defaults={'Nombre_Rol': 'Paciente'})
 
-    def registrar_usuario(self):
+    def registrar_usuario(
+        self,
+        run='12.345.678-5',
+        correo='ana@example.com',
+        telefono='912345678',
+    ):
         return self.client.post(reverse('registrarse_usuario'), {
-            'run': '12.345.678-5',
+            'run': run,
             'nombre': 'Ana',
             'segundo-nombre': '',
             'tercer-nombre': '',
             'apellido-paterno': 'Prueba',
             'apellido-materno': '',
             'fecha-nacimiento': '1990-01-01',
-            'telefono': '912345678',
-            'correo': 'ana@example.com',
+            'telefono': telefono,
+            'correo': correo,
             'password': 'clave1234',
         })
+
+    def crear_ficha_sin_cuenta(self, estado='Activo', correo='ana@example.com'):
+        return Paciente.objects.create(
+            RUN_Paciente='12.345.678-5',
+            Nombre_Paciente='Ana',
+            SegNombre_Paciente='',
+            TerNombre_Paciente='',
+            ApellidoP='Prueba',
+            ApellidoM='',
+            Fecha_Nacimiento=date(1990, 1, 1),
+            CorreoContactoPaciente=correo,
+            NumeroContactoPaciente=None,
+            Estado=estado,
+        )
 
     def test_authentication_forms_render(self):
         for ruta in (
             'inicio_sesion',
             'registrarse_usuario',
+            'reenviar_activacion',
             'solicitar_restauracion_contrasena',
         ):
             with self.subTest(ruta=ruta):
@@ -88,6 +110,80 @@ class RegistroActivacionTests(TestCase):
         })
         self.assertEqual(self.client.session['usuario_id'], usuario.ID_Usuario)
 
+    def test_registration_links_matching_unlinked_patient_after_email_activation(self):
+        paciente = self.crear_ficha_sin_cuenta()
+
+        response = self.registrar_usuario()
+        usuario = Usuario.objects.get(Correo_Usuario='ana@example.com')
+        paciente.refresh_from_db()
+
+        self.assertRedirects(response, reverse('inicio_sesion'), fetch_redirect_response=False)
+        self.assertEqual(Paciente.objects.count(), 1)
+        self.assertIsNone(paciente.Usuario_id)
+        self.assertEqual(usuario.Estado, 'Inactivo')
+        self.assertEqual(mail.outbox[0].to, ['ana@example.com'])
+
+        self.client.get(reverse('activar_cuenta', args=[self.token_del_correo()]))
+        usuario.refresh_from_db()
+        paciente.refresh_from_db()
+
+        self.assertEqual(usuario.Estado, 'Activo')
+        self.assertEqual(paciente.Usuario_id, usuario.ID_Usuario)
+        self.assertEqual(paciente.Estado, 'Activo')
+
+    def test_linking_does_not_reactivate_an_inactive_patient_record(self):
+        paciente = self.crear_ficha_sin_cuenta(estado='Inactivo')
+        self.registrar_usuario()
+        usuario = Usuario.objects.get(Correo_Usuario='ana@example.com')
+
+        self.client.get(reverse('activar_cuenta', args=[self.token_del_correo()]))
+        usuario.refresh_from_db()
+        paciente.refresh_from_db()
+        self.assertEqual(usuario.Estado, 'Activo')
+        self.assertEqual(paciente.Estado, 'Inactivo')
+        self.assertEqual(paciente.Usuario_id, usuario.ID_Usuario)
+
+        self.client.post(reverse('inicio_sesion'), {
+            'modo': 'run',
+            'identificador': '12.345.678-5',
+            'password': 'clave1234',
+        })
+        self.assertNotIn('usuario_id', self.client.session)
+
+    def test_linking_rejects_email_that_does_not_match_patient_record(self):
+        self.crear_ficha_sin_cuenta(correo='contacto@example.com')
+
+        response = self.registrar_usuario(correo='ana@example.com')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertFalse(Usuario.objects.filter(Correo_Usuario='ana@example.com').exists())
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_registration_rejects_patient_already_linked_to_an_account(self):
+        paciente = self.crear_ficha_sin_cuenta()
+        usuario = Usuario.objects.create(
+            Nombre='Ana',
+            Apellido='Prueba',
+            Correo_Usuario='ana@example.com',
+            Contraseña='existing-password-hash',
+            Estado='Activo',
+            Rol=Rol.objects.get(ID_Rol=4),
+        )
+        paciente.Usuario = usuario
+        paciente.save(update_fields=['Usuario'])
+
+        response = self.registrar_usuario()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Usuario.objects.count(), 1)
+        self.assertEqual(len(mail.outbox), 0)
+
+    def test_registration_accepts_missing_phone_and_stores_null(self):
+        self.registrar_usuario(telefono='')
+
+        paciente = Paciente.objects.get(RUN_Paciente='12.345.678-5')
+        self.assertIsNone(paciente.NumeroContactoPaciente)
+
     def test_invalid_activation_link_does_not_activate_account(self):
         self.registrar_usuario()
         token = self.token_del_correo()
@@ -98,6 +194,103 @@ class RegistroActivacionTests(TestCase):
             Usuario.objects.get(Correo_Usuario='ana@example.com').Estado,
             'Inactivo',
         )
+
+    def test_expired_activation_link_can_be_resent(self):
+        self.registrar_usuario()
+        usuario = Usuario.objects.get(Correo_Usuario='ana@example.com')
+        pendiente = ActivacionPendiente.objects.get(Usuario=usuario)
+        pendiente.UltimoEnvio = timezone.now() - timedelta(minutes=2)
+        pendiente.save(update_fields=['UltimoEnvio'])
+
+        with patch(
+            'django.core.signing.time.time',
+            return_value=(timezone.now() - timedelta(days=2)).timestamp(),
+        ):
+            token_expirado = signing.dumps(
+                {
+                    'usuario_id': usuario.pk,
+                    'password_fingerprint': _huella_contrasena(usuario),
+                    'paciente_id': pendiente.Paciente_id,
+                    'vincular_paciente': pendiente.VincularPaciente,
+                    'activar_ficha': pendiente.ActivarFicha,
+                },
+                salt='AppAdAtM.activacion_cuenta',
+            )
+
+        self.client.get(reverse('activar_cuenta', args=[token_expirado]))
+        usuario.refresh_from_db()
+        self.assertEqual(usuario.Estado, 'Inactivo')
+
+        response = self.client.post(reverse('reenviar_activacion'), {
+            'run': '12.345.678-5',
+            'correo': 'ana@example.com',
+        })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(mail.outbox), 2)
+        token_nuevo = re.search(r'/ActivarCuenta/([^/\s]+)', mail.outbox[1].body).group(1)
+        self.client.get(reverse('activar_cuenta', args=[token_nuevo]))
+        usuario.refresh_from_db()
+        self.assertEqual(usuario.Estado, 'Activo')
+
+    def test_resend_uses_pending_patient_and_rejects_another_run(self):
+        paciente = self.crear_ficha_sin_cuenta(estado='Inactivo')
+        self.registrar_usuario()
+        usuario = Usuario.objects.get(Correo_Usuario='ana@example.com')
+        pendiente = ActivacionPendiente.objects.get(Usuario=usuario)
+        pendiente.UltimoEnvio = timezone.now() - timedelta(minutes=2)
+        pendiente.save(update_fields=['UltimoEnvio'])
+        Paciente.objects.create(
+            RUN_Paciente='98.765.432-5',
+            Nombre_Paciente='Otra',
+            SegNombre_Paciente='',
+            TerNombre_Paciente='',
+            ApellidoP='Persona',
+            ApellidoM='',
+            Fecha_Nacimiento=date(1990, 1, 1),
+            CorreoContactoPaciente='ana@example.com',
+            Estado='Inactivo',
+        )
+
+        self.client.post(reverse('reenviar_activacion'), {
+            'run': '98.765.432-5',
+            'correo': 'ana@example.com',
+        })
+        self.assertEqual(len(mail.outbox), 1)
+
+        self.client.post(reverse('reenviar_activacion'), {
+            'run': '12.345.678-5',
+            'correo': 'ana@example.com',
+        })
+        self.assertEqual(len(mail.outbox), 2)
+        token_nuevo = re.search(r'/ActivarCuenta/([^/\s]+)', mail.outbox[1].body).group(1)
+        self.client.get(reverse('activar_cuenta', args=[token_nuevo]))
+
+        usuario.refresh_from_db()
+        paciente.refresh_from_db()
+        self.assertEqual(paciente.Usuario_id, usuario.ID_Usuario)
+        self.assertEqual(paciente.Estado, 'Inactivo')
+        self.assertIsNone(Paciente.objects.get(RUN_Paciente='98.765.432-5').Usuario_id)
+
+    def test_resend_recovers_legacy_pending_patient_without_activation_metadata(self):
+        paciente = self.crear_ficha_sin_cuenta(estado='Inactivo')
+        self.registrar_usuario()
+        usuario = Usuario.objects.get(Correo_Usuario='ana@example.com')
+        ActivacionPendiente.objects.filter(Usuario=usuario).delete()
+
+        self.client.post(reverse('reenviar_activacion'), {
+            'run': '12.345.678-5',
+            'correo': 'ana@example.com',
+        })
+
+        self.assertEqual(len(mail.outbox), 2)
+        token_nuevo = re.search(r'/ActivarCuenta/([^/\s]+)', mail.outbox[1].body).group(1)
+        self.client.get(reverse('activar_cuenta', args=[token_nuevo]))
+        usuario.refresh_from_db()
+        paciente.refresh_from_db()
+        self.assertEqual(usuario.Estado, 'Activo')
+        self.assertEqual(paciente.Usuario_id, usuario.ID_Usuario)
+        self.assertEqual(paciente.Estado, 'Inactivo')
 
     @patch('AppAdAtM.views.send_mail', side_effect=OSError('SMTP unavailable'))
     def test_email_failure_does_not_leave_an_unactivated_account(self, _send_mail):
@@ -633,7 +826,7 @@ class FlujoAtencionesTests(TestCase):
         admin = self.crear_usuario('admin@example.com', self.rol_admin)
         self.iniciar_sesion_de_prueba(admin)
 
-        response = self.client.post(reverse('gestionar_medicos'), {
+        datos = {
             'numero-matricula': '54321',
             'run-medico': '44.444.444-4',
             'nombre-medico': 'Laura',
@@ -646,7 +839,14 @@ class FlujoAtencionesTests(TestCase):
             'password-medico': 'clave1234',
             'numero-contacto': '912345678',
             'estado': 'Activo',
-        })
+        }
+
+        datos['password-medico'] = '12345678'
+        self.client.post(reverse('gestionar_medicos'), datos)
+        self.assertFalse(Medico.objects.filter(MatriculaProfesional=54321).exists())
+
+        datos['password-medico'] = 'clave1234'
+        response = self.client.post(reverse('gestionar_medicos'), datos)
 
         medico = Medico.objects.get(MatriculaProfesional=54321)
         self.assertEqual(medico.Usuario.Rol_id, 3)
@@ -656,6 +856,78 @@ class FlujoAtencionesTests(TestCase):
             self.client.get(reverse('gestionar_medicos'), {'medico_id': '54321'}).status_code,
             200,
         )
+
+    def test_patient_management_creates_inactive_profile_without_account_and_allows_optional_phone(self):
+        self.iniciar_sesion_de_prueba(self.recepcionista)
+        self.assertEqual(self.client.get(reverse('gestionar_pacientes')).status_code, 200)
+        datos = {
+            'run-paciente': '12.345.678-5',
+            'nombre-paciente': 'Claudia',
+            'segundo-nombre': '',
+            'tercer-nombre': '',
+            'apellido-paterno': 'Nueva',
+            'apellido-materno': '',
+            'fecha-nacimiento': '1995-05-10',
+            'correo-contacto': 'claudia@example.com',
+            'telefono-contacto': '',
+            'estado': 'Activo',
+        }
+
+        self.client.post(reverse('gestionar_pacientes'), datos)
+        paciente = Paciente.objects.get(RUN_Paciente='12.345.678-5')
+
+        self.assertEqual(paciente.Estado, 'Inactivo')
+        self.assertIsNone(paciente.Usuario_id)
+        self.assertIsNone(paciente.NumeroContactoPaciente)
+        self.assertFalse(Usuario.objects.filter(Correo_Usuario='claudia@example.com').exists())
+
+        datos.update({
+            'paciente_id': str(paciente.ID),
+            'estado': 'Activo',
+        })
+        self.client.post(reverse('gestionar_pacientes'), datos)
+        paciente.refresh_from_db()
+
+        self.assertEqual(paciente.Estado, 'Activo')
+        self.assertIsNone(paciente.Usuario_id)
+        self.assertIsNone(paciente.NumeroContactoPaciente)
+
+    def test_doctor_management_starts_blank_and_selecting_doctor_loads_edit_form(self):
+        admin = self.crear_usuario('admin@example.com', self.rol_admin)
+        self.iniciar_sesion_de_prueba(admin)
+
+        response = self.client.get(reverse('gestionar_medicos'))
+        self.assertIsNone(response.context['medico'])
+
+        response = self.client.get(
+            reverse('gestionar_medicos'),
+            {'medico_id': str(self.medico.MatriculaProfesional)},
+        )
+        self.assertEqual(response.context['medico'], self.medico)
+
+    def test_doctor_password_change_uses_configured_password_validators(self):
+        admin = self.crear_usuario('admin@example.com', self.rol_admin)
+        self.iniciar_sesion_de_prueba(admin)
+        password_anterior = self.usuario_medico.Contraseña
+
+        self.client.post(reverse('gestionar_medicos'), {
+            'medico_id': str(self.medico.MatriculaProfesional),
+            'numero-matricula': str(self.medico.MatriculaProfesional),
+            'run-medico': self.medico.RUN_Medico,
+            'nombre-medico': self.medico.Nombre_Medico,
+            'segundo-nombre-medico': self.medico.SegNombre_Medico,
+            'tercer-nombre-medico': self.medico.TerNombre_Medico,
+            'apellido-paterno': self.medico.ApellidoP_Medico,
+            'apellido-materno': self.medico.ApellidoM_Medico,
+            'especializacion': self.medico.Especializacion or 'Medicina General',
+            'correo-contacto': self.medico.CorreoContactoMedico,
+            'password-medico': '12345678',
+            'numero-contacto': '912345678',
+            'estado': self.medico.Estado,
+        })
+
+        self.usuario_medico.refresh_from_db()
+        self.assertEqual(self.usuario_medico.Contraseña, password_anterior)
 
     def test_patient_history_contains_only_its_appointments(self):
         self.crear_atencion()

@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function validarRUN(runCompleto) {
         const limpio = runCompleto.replace(/[^0-9kK]/g, '').toUpperCase();
-        if (limpio.length < 2) return false;
+        if (!/^\d{7,8}[0-9K]$/.test(limpio)) return false;
 
         const cuerpo = limpio.slice(0, -1);
         const dvIngresado = limpio.slice(-1);
@@ -36,7 +36,20 @@ document.addEventListener('DOMContentLoaded', () => {
         const mensaje = input.parentElement.querySelector('.mensaje-run');
 
         input.addEventListener('input', (e) => {
+            if (input.dataset.runValidationEnabled === 'false') {
+                input.setCustomValidity('');
+                return;
+            }
+
             let valor = e.target.value.replace(/[^0-9kK]/g, '').toUpperCase();
+            if (!valor) {
+                e.target.value = '';
+                input.setCustomValidity('');
+                if (mensaje) {
+                    mensaje.textContent = '';
+                }
+                return;
+            }
 
             // Formateo automático con puntos y guion
             if (valor.length > 1) {

@@ -45,6 +45,17 @@ class Paciente(models.Model):
         db_table = 'Paciente'
 
 
+class ActivacionPendiente(models.Model):
+    Usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, db_column='Usuario')
+    Paciente = models.ForeignKey(Paciente, on_delete=models.CASCADE, db_column='Paciente')
+    VincularPaciente = models.BooleanField(default=False)
+    ActivarFicha = models.BooleanField(default=True)
+    UltimoEnvio = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'ActivacionPendiente'
+
+
 class Medico(models.Model):
     MatriculaProfesional = models.IntegerField(primary_key=True)
     RUN_Medico = models.CharField(max_length=25)

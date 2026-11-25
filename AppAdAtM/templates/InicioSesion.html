@@ -219,8 +219,9 @@
 
       <div class="form-group">
         <label for="identificador" id="etiqueta-identificador">RUN</label>
-        <input type="text" id="identificador" name="identificador" placeholder="12.345.678-5"
-          autocomplete="username" required>
+        <input type="text" id="identificador" name="identificador"
+          placeholder="12.345.678-5" pattern="[0-9]{1,2}\.[0-9]{3}\.[0-9]{3}-[0-9kK]"
+          maxlength="12" title="Formato: 12.345.678-5" autocomplete="username" required>
       </div>
 
       <div class="form-group">
@@ -235,6 +236,8 @@
       </div>
 
       <a href="{% url 'solicitar_restauracion_contrasena' %}" class="forgot-link">¿Olvidaste tu contraseña?</a>
+      <br>
+      <a href="{% url 'reenviar_activacion' %}" class="forgot-link">¿No recibiste el correo de activación?</a>
     </form>
   </div>
 
@@ -243,15 +246,74 @@
     const identificador = document.getElementById('identificador');
     const etiquetaIdentificador = document.getElementById('etiqueta-identificador');
 
+    function calcularDigitoVerificadorRUN(cuerpo) {
+      let suma = 0;
+      let multiplicador = 2;
+      for (let i = cuerpo.length - 1; i >= 0; i--) {
+        suma += Number(cuerpo[i]) * multiplicador;
+        multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
+      }
+
+      const resultado = 11 - (suma % 11);
+      return resultado === 11 ? '0' : resultado === 10 ? 'K' : String(resultado);
+    }
+
+    function actualizarRUN() {
+      if (modo.value !== 'run') {
+        identificador.setCustomValidity('');
+        return;
+      }
+
+      const limpio = identificador.value.replace(/[^0-9kK]/g, '').toUpperCase();
+      if (!limpio) {
+        identificador.value = '';
+        identificador.setCustomValidity('');
+        return;
+      }
+
+      const cuerpo = limpio.slice(0, -1);
+      const digitoVerificador = limpio.slice(-1);
+      identificador.value = cuerpo
+        ? `${cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.')}-${digitoVerificador}`
+        : limpio;
+
+      if (!/^\d{7,8}[0-9K]$/.test(limpio)) {
+        identificador.setCustomValidity('El RUN está incompleto o no tiene un formato válido.');
+        return;
+      }
+
+      if (/^(\d)\1+$/.test(cuerpo) || digitoVerificador !== calcularDigitoVerificadorRUN(cuerpo)) {
+        identificador.setCustomValidity('El RUN ingresado no es válido.');
+        return;
+      }
+
+      identificador.setCustomValidity('');
+    }
+
     function actualizarModoIdentificacion() {
       const usaCorreo = modo.value === 'correo';
       identificador.type = usaCorreo ? 'email' : 'text';
       identificador.placeholder = usaCorreo ? 'nombre@ejemplo.com' : '12.345.678-5';
       identificador.autocomplete = 'username';
+      identificador.dataset.runValidationEnabled = usaCorreo ? 'false' : 'true';
+      identificador.setCustomValidity('');
+      if (usaCorreo) {
+        identificador.removeAttribute('pattern');
+        identificador.removeAttribute('maxlength');
+        identificador.removeAttribute('title');
+      } else {
+        identificador.setAttribute('pattern', '[0-9]{1,2}\\.[0-9]{3}\\.[0-9]{3}-[0-9kK]');
+        identificador.maxLength = 12;
+        identificador.title = 'Formato: 12.345.678-5';
+      }
       etiquetaIdentificador.textContent = usaCorreo ? 'Correo electrónico' : 'RUN';
     }
 
-    modo.addEventListener('change', actualizarModoIdentificacion);
+    modo.addEventListener('change', () => {
+      identificador.value = '';
+      actualizarModoIdentificacion();
+    });
+    identificador.addEventListener('input', actualizarRUN);
     actualizarModoIdentificacion();
   </script>
 </body>

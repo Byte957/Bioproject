@@ -224,8 +224,7 @@
         <div class="user-item" data-id="{{ u.ID_Usuario }}" data-nombre="{{ u.Nombre }}"
           data-apellido="{{ u.Apellido }}" data-correo="{{ u.Correo_Usuario }}" data-rol="{{ u.Rol.ID_Rol }}"
           data-estado="{{ u.Estado }}">
-          #{{ u.ID_Usuario }} - {{ u.Nombre }} {{ u.Apellido }} | {{ u.Correo_Usuario }} ({{ u.Rol.Nombre_Rol }} - {{
-          u.Estado }})
+          #{{ u.ID_Usuario }} - {{ u.Nombre }} {{ u.Apellido }} | {{ u.Correo_Usuario }} ({{ u.Rol.Nombre_Rol }} - {{u.Estado }})
         </div>
         {% empty %}
         <p style="color:#666; font-size:0.9rem; padding:10px;">No hay usuarios registrados todavía.</p>

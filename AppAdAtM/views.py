@@ -3,7 +3,7 @@ from django.db import transaction, IntegrityError
 from django.db.models import Count, F, Q, Sum, Value
 from django.db.models.functions import Replace, Upper
 from django.contrib.auth.hashers import make_password
-from .models import Rol, Usuario, Paciente, Medico, Horario, HorarioMedico, Atencion, EstadoAtencion, Medicamento, Receta, MedicamentoReceta, Boleta, Auditoria
+from .models import Rol, Usuario, Paciente, ActivacionPendiente, Medico, Horario, HorarioMedico, Atencion, EstadoAtencion, Medicamento, Receta, MedicamentoReceta, Boleta, Auditoria
 from django.contrib.auth.hashers import check_password
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
@@ -41,6 +41,43 @@ class ErrorEnvioActivacion(Exception):
     pass
 
 
+def _token_activacion(usuario, paciente_id, vincular_paciente, activar_ficha):
+    return signing.dumps(
+        {
+            'usuario_id': usuario.pk,
+            'password_fingerprint': _huella_contrasena(usuario),
+            'paciente_id': paciente_id,
+            'vincular_paciente': vincular_paciente,
+            'activar_ficha': activar_ficha,
+        },
+        salt='AppAdAtM.activacion_cuenta',
+    )
+
+
+def _enviar_correo_activacion(request, usuario, paciente_id, vincular_paciente, activar_ficha):
+    token = _token_activacion(
+        usuario,
+        paciente_id,
+        vincular_paciente,
+        activar_ficha,
+    )
+    url_activacion = request.build_absolute_uri(
+        reverse('activar_cuenta', args=[token])
+    )
+    enviados = send_mail(
+        'Activa tu cuenta de Biotechnica',
+        f'Hola {usuario.Nombre},\n\n'
+        'Para activar tu cuenta, visita el siguiente enlace (válido por 24 horas):\n'
+        f'{url_activacion}\n\n'
+        'Si no solicitaste esta cuenta, puedes ignorar este correo.',
+        settings.DEFAULT_FROM_EMAIL,
+        [usuario.Correo_Usuario],
+        fail_silently=False,
+    )
+    if enviados != 1:
+        raise ErrorEnvioActivacion
+
+
 def _validar_run(run):
     run = (run or '').strip().upper()
     if not re.fullmatch(r'[0-9.\-\s]*[0-9K]', run):
@@ -72,14 +109,23 @@ def _run_clave_expression(field_name):
     return expression
 
 
-def _run_ya_registrado(run, *, excluir_paciente_id=None, excluir_matricula=None):
+def _pacientes_con_run(run):
     clave = re.sub(r'[.\-\s]', '', run).upper()
-    pacientes = Paciente.objects.annotate(_run_clave=_run_clave_expression('RUN_Paciente')).filter(
-        _run_clave=clave,
-    )
-    medicos = Medico.objects.annotate(_run_clave=_run_clave_expression('RUN_Medico')).filter(
-        _run_clave=clave,
-    )
+    return Paciente.objects.annotate(
+        _run_clave=_run_clave_expression('RUN_Paciente'),
+    ).filter(_run_clave=clave)
+
+
+def _medicos_con_run(run):
+    clave = re.sub(r'[.\-\s]', '', run).upper()
+    return Medico.objects.annotate(
+        _run_clave=_run_clave_expression('RUN_Medico'),
+    ).filter(_run_clave=clave)
+
+
+def _run_ya_registrado(run, *, excluir_paciente_id=None, excluir_matricula=None):
+    pacientes = _pacientes_con_run(run)
+    medicos = _medicos_con_run(run)
     if excluir_paciente_id is not None:
         pacientes = pacientes.exclude(pk=excluir_paciente_id)
     if excluir_matricula is not None:
@@ -738,37 +784,43 @@ def cerrarsesion(request):
 def gestionpacientes(request):
     if request.method == 'POST':
         paciente_id = request.POST.get('paciente_id', '').strip()
-        run = request.POST.get('run-paciente', '').strip()
+        run = request.POST.get('run-paciente', '')
         nombre = request.POST.get('nombre-paciente', '').strip()
         seg_nombre = request.POST.get('segundo-nombre', '').strip()
         ter_nombre = request.POST.get('tercer-nombre', '').strip()
         apellido_p = request.POST.get('apellido-paterno', '').strip()
         apellido_m = request.POST.get('apellido-materno', '').strip()
         fecha_nac = request.POST.get('fecha-nacimiento')
-        correo = request.POST.get('correo-contacto', '').strip()
+        correo = request.POST.get('correo-contacto', '')
         telefono = request.POST.get('telefono-contacto', '').strip()
-        estado = request.POST.get('estado', 'Activo')
-
-        telefono_limpio = telefono.replace('+56', '').strip()
-        telefono_completo = f"+56{telefono_limpio}"[:15]
+        estado = request.POST.get('estado', '').strip()
 
         try:
+            run = _validar_run(run)
+            correo = _validar_correo(correo)
+            telefono_limpio = telefono.replace('+56', '').strip()
+            telefono_completo = (
+                _validar_telefono_chileno(telefono_limpio)
+                if telefono_limpio else None
+            )
+
             if paciente_id:
                 # --- MODO EDITAR PACIENTE EXISTENTE ---
                 paciente = Paciente.objects.get(ID=paciente_id)
 
-                if Paciente.objects.filter(RUN_Paciente=run).exclude(ID=paciente_id).exists() or Medico.objects.filter(RUN_Medico=run).exists():
-                    messages.error(request, f'No se pudo actualizar: El RUN {run} ya pertenece a otra persona.')
-                    return redirect('gestionar_pacientes')
+                if estado not in ('Activo', 'Inactivo'):
+                    raise ValidationError('Selecciona un estado válido para el paciente.')
+                if _run_ya_registrado(run, excluir_paciente_id=paciente.ID):
+                    raise ValidationError(f'El RUN {run} ya pertenece a otra persona.')
 
-                paciente.RUN_Paciente = run[:25]
+                paciente.RUN_Paciente = run
                 paciente.Nombre_Paciente = nombre[:20]
                 paciente.SegNombre_Paciente = seg_nombre[:20]
                 paciente.TerNombre_Paciente = ter_nombre[:20]
                 paciente.ApellidoP = apellido_p[:20]
                 paciente.ApellidoM = apellido_m[:20]
                 paciente.Fecha_Nacimiento = fecha_nac
-                paciente.CorreoContactoPaciente = correo[:50]
+                paciente.CorreoContactoPaciente = correo
                 paciente.NumeroContactoPaciente = telefono_completo
                 paciente.Estado = estado
                 paciente.save()
@@ -776,7 +828,7 @@ def gestionpacientes(request):
                 if paciente.Usuario:
                     paciente.Usuario.Nombre = nombre[:20]
                     paciente.Usuario.Apellido = apellido_p[:20]
-                    paciente.Usuario.Correo_Usuario = correo[:50]
+                    paciente.Usuario.Correo_Usuario = correo
                     paciente.Usuario.Estado = estado
                     paciente.Usuario.save()
 
@@ -784,43 +836,33 @@ def gestionpacientes(request):
 
             else:
                 # --- MODO CREAR NUEVO PACIENTE ---
-                if Paciente.objects.filter(RUN_Paciente=run).exists() or Medico.objects.filter(RUN_Medico=run).exists():
-                    messages.error(request, f'No se pudo crear: El RUN {run} ya está registrado.')
-                    return redirect('gestionar_pacientes')
+                if _run_ya_registrado(run):
+                    raise ValidationError(f'El RUN {run} ya está registrado.')
 
-                with transaction.atomic():
-                    usuario_vinc = Usuario.objects.filter(Correo_Usuario=correo).first()
-                    if not usuario_vinc:
-                        rol_paciente = Rol.objects.get(ID_Rol=4)
-                        usuario_vinc = Usuario.objects.create(
-                            Nombre=nombre[:20],
-                            Apellido=apellido_p[:20],
-                            Correo_Usuario=correo[:50],
-                            Contraseña=make_password(run),
-                            Estado=estado,
-                            Rol=rol_paciente
-                        )
+                nuevo_pac = Paciente.objects.create(
+                    RUN_Paciente=run,
+                    Nombre_Paciente=nombre[:20],
+                    SegNombre_Paciente=seg_nombre[:20],
+                    TerNombre_Paciente=ter_nombre[:20],
+                    ApellidoP=apellido_p[:20],
+                    ApellidoM=apellido_m[:20],
+                    Fecha_Nacimiento=fecha_nac,
+                    CorreoContactoPaciente=correo,
+                    NumeroContactoPaciente=telefono_completo,
+                    Estado='Inactivo',
+                    Usuario=None,
+                )
 
-                    nuevo_pac = Paciente.objects.create(
-                        RUN_Paciente=run[:25],
-                        Nombre_Paciente=nombre[:20],
-                        SegNombre_Paciente=seg_nombre[:20],
-                        TerNombre_Paciente=ter_nombre[:20],
-                        ApellidoP=apellido_p[:20],
-                        ApellidoM=apellido_m[:20],
-                        Fecha_Nacimiento=fecha_nac,
-                        CorreoContactoPaciente=correo[:50],
-                        NumeroContactoPaciente=telefono_completo,
-                        Estado=estado,
-                        Usuario=usuario_vinc
-                    )
+                messages.success(
+                    request,
+                    f'Paciente {nuevo_pac.Nombre_Paciente} {nuevo_pac.ApellidoP} '
+                    'registrado como Inactivo y sin cuenta de acceso.',
+                )
 
-                messages.success(request, f'Paciente {nuevo_pac.Nombre_Paciente} {nuevo_pac.ApellidoP} registrado (clave inicial: su RUN).')
-
+        except ValidationError as error:
+            messages.error(request, ' '.join(error.messages))
         except Paciente.DoesNotExist:
             messages.error(request, 'El paciente seleccionado no existe.')
-        except Rol.DoesNotExist:
-            messages.error(request, 'Error del sistema: No existe el Rol 4 (Paciente).')
         except Exception as e:
             messages.error(request, f'Error al guardar paciente: {str(e)}')
 
@@ -856,7 +898,7 @@ def gestionmedicos(request):
         apellido_m = request.POST.get('apellido-materno', '').strip()
         especializacion = request.POST.get('especializacion', '').strip()
         correo = request.POST.get('correo-contacto', '').strip()
-        password = request.POST.get('password-medico', '').strip()
+        password = request.POST.get('password-medico', '')
         telefono_raw = request.POST.get('numero-contacto', '').strip()
         estado = request.POST.get('estado', 'Activo').strip()
         telefono = f"+56{telefono_raw.replace('+56', '')}"
@@ -913,6 +955,14 @@ def gestionmedicos(request):
                 messages.error(request, 'Debes asignar una contraseña inicial al crear un médico.')
                 return redirect('gestionar_medicos')
 
+            if password:
+                usuario_validar = Usuario(
+                    Nombre=nombre[:20],
+                    Apellido=apellido_p[:20],
+                    Correo_Usuario=correo[:50],
+                )
+                _validar_password(password, usuario_validar)
+
             with transaction.atomic():
                 rol_medico = Rol.objects.get(ID_Rol=3)
                 if usuario_actual:
@@ -959,6 +1009,8 @@ def gestionmedicos(request):
                 f'Médico {nombre} {apellido_p} '
                 f'{"registrado" if not medico_id else "actualizado"} correctamente.',
             )
+        except ValidationError as error:
+            messages.error(request, ' '.join(error.messages))
         except Exception as e:
             messages.error(request, f'Error al guardar médico: {str(e)}')
 
@@ -977,7 +1029,7 @@ def gestionmedicos(request):
         if not medico_actual:
             messages.error(request, 'El médico seleccionado no existe.')
     else:
-        medico_actual = medicos.first()
+        medico_actual = None
     return render(request, 'GestionDeMedicos.html', {  # <-- Verifica que coincida con el nombre de tu archivo HTML
         'medico': medico_actual,
         'medicos': medicos,
@@ -1633,77 +1685,122 @@ def registrousuario(request):
             apellido_p = _validar_nombre(apellido_p, 'El apellido paterno')
             apellido_m = _validar_nombre(apellido_m, 'El apellido materno', requerido=False)
             correo = _validar_correo(correo)
-            telefono_completo = _validar_telefono_chileno(telefono)
+            telefono_limpio = telefono.strip()
+            telefono_completo = (
+                _validar_telefono_chileno(telefono_limpio)
+                if telefono_limpio else None
+            )
             try:
                 fecha_nacimiento = date.fromisoformat(fecha_nac)
             except ValueError as error:
                 raise ValidationError('Ingresa una fecha de nacimiento válida.') from error
             if fecha_nacimiento >= timezone.localdate():
                 raise ValidationError('La fecha de nacimiento debe ser anterior a hoy.')
-            if _run_ya_registrado(run):
-                raise ValidationError('El RUN ya está registrado en el sistema.')
-            if Usuario.objects.filter(Correo_Usuario__iexact=correo).exists():
-                raise ValidationError('El correo ya está en uso.')
-            usuario_temporal = Usuario(
-                Nombre=nombre,
-                Apellido=apellido_p,
-                Correo_Usuario=correo,
-            )
-            _validar_password(password, usuario_temporal)
 
             with transaction.atomic():
+                pacientes_coincidentes = list(
+                    _pacientes_con_run(run).select_for_update()[:2]
+                )
+                if len(pacientes_coincidentes) > 1:
+                    raise ValidationError(
+                        'No se pudo identificar una ficha única para ese RUN. Contacta al personal.'
+                    )
+                if _medicos_con_run(run).exists():
+                    raise ValidationError('El RUN ya está asociado a un perfil médico.')
+
+                paciente_existente = (
+                    pacientes_coincidentes[0] if pacientes_coincidentes else None
+                )
+                if paciente_existente:
+                    correo_ficha = (
+                        paciente_existente.CorreoContactoPaciente or ''
+                    ).strip().lower()
+                    if paciente_existente.Usuario_id:
+                        raise ValidationError(
+                            'La ficha ya está vinculada a una cuenta. Inicia sesión o recupera tu contraseña.'
+                        )
+                    if not correo_ficha:
+                        raise ValidationError(
+                            'La ficha no tiene un correo de contacto. Contacta al personal para actualizarla.'
+                        )
+                    if correo != correo_ficha:
+                        raise ValidationError(
+                            'El correo ingresado no coincide con el registrado en la ficha. Contacta al personal.'
+                        )
+
+                    nombre_usuario = paciente_existente.Nombre_Paciente
+                    apellido_usuario = paciente_existente.ApellidoP
+                    paciente_id_activacion = paciente_existente.ID
+                    vincular_paciente = True
+                    activar_ficha = False
+                else:
+                    nombre_usuario = nombre
+                    apellido_usuario = apellido_p
+                    paciente_id_activacion = None
+                    vincular_paciente = False
+                    activar_ficha = True
+
+                if Usuario.objects.filter(Correo_Usuario__iexact=correo).exists():
+                    raise ValidationError(
+                        'El correo ya está asociado a una cuenta. Inicia sesión o recupera tu contraseña.'
+                    )
+
+                usuario_temporal = Usuario(
+                    Nombre=nombre_usuario,
+                    Apellido=apellido_usuario,
+                    Correo_Usuario=correo,
+                )
+                _validar_password(password, usuario_temporal)
                 rol_paciente = Rol.objects.get(ID_Rol=4)
 
                 nuevo_usuario = Usuario.objects.create(
-                    Nombre=nombre,
-                    Apellido=apellido_p,
+                    Nombre=nombre_usuario,
+                    Apellido=apellido_usuario,
                     Correo_Usuario=correo,
                     Contraseña=make_password(password),
                     Estado='Inactivo',
                     Rol=rol_paciente
                 )
 
-                Paciente.objects.create(
-                    RUN_Paciente=run,
-                    Nombre_Paciente=nombre,
-                    SegNombre_Paciente=seg_nombre,
-                    TerNombre_Paciente=ter_nombre,
-                    ApellidoP=apellido_p,
-                    ApellidoM=apellido_m,
-                    Fecha_Nacimiento=fecha_nacimiento,
-                    CorreoContactoPaciente=correo,
-                    NumeroContactoPaciente=telefono_completo,
-                    Estado='Inactivo',
-                    Usuario=nuevo_usuario
-                )
+                if not paciente_existente:
+                    nuevo_paciente = Paciente.objects.create(
+                        RUN_Paciente=run,
+                        Nombre_Paciente=nombre,
+                        SegNombre_Paciente=seg_nombre,
+                        TerNombre_Paciente=ter_nombre,
+                        ApellidoP=apellido_p,
+                        ApellidoM=apellido_m,
+                        Fecha_Nacimiento=fecha_nacimiento,
+                        CorreoContactoPaciente=correo,
+                        NumeroContactoPaciente=telefono_completo,
+                        Estado='Inactivo',
+                        Usuario=nuevo_usuario
+                    )
+                    paciente_id_activacion = nuevo_paciente.ID
 
-                token = signing.dumps(
-                    {
-                        'usuario_id': nuevo_usuario.pk,
-                        'password_fingerprint': _huella_contrasena(nuevo_usuario),
-                    },
-                    salt='AppAdAtM.activacion_cuenta',
-                )
-                url_activacion = request.build_absolute_uri(
-                    reverse('activar_cuenta', args=[token])
+                pendiente = ActivacionPendiente.objects.create(
+                    Usuario=nuevo_usuario,
+                    Paciente_id=paciente_id_activacion,
+                    VincularPaciente=vincular_paciente,
+                    ActivarFicha=activar_ficha,
                 )
                 try:
-                    enviados = send_mail(
-                        'Activa tu cuenta de Biotechnica',
-                        f'Hola {nuevo_usuario.Nombre},\n\n'
-                        'Para activar tu cuenta, visita el siguiente enlace:\n'
-                        f'{url_activacion}\n\n'
-                        'Si no solicitaste esta cuenta, puedes ignorar este correo.',
-                        settings.DEFAULT_FROM_EMAIL,
-                        [nuevo_usuario.Correo_Usuario],
-                        fail_silently=False,
+                    _enviar_correo_activacion(
+                        request,
+                        nuevo_usuario,
+                        paciente_id_activacion,
+                        vincular_paciente,
+                        activar_ficha,
                     )
                 except Exception as error:
                     raise ErrorEnvioActivacion from error
-                if enviados != 1:
-                    raise ErrorEnvioActivacion
+                pendiente.UltimoEnvio = timezone.now()
+                pendiente.save(update_fields=['UltimoEnvio'])
 
-            messages.success(request, 'Registro exitoso. Revisa tu correo para activar tu cuenta antes de iniciar sesión.')
+            messages.success(
+                request,
+                'Registro exitoso. Revisa el correo registrado para activar tu cuenta y completar la vinculación.',
+            )
             return redirect('inicio_sesion')
 
         except ValidationError as error:
@@ -1721,6 +1818,120 @@ def registrousuario(request):
     })
 
 
+def reenviar_activacion(request):
+    mensaje_generico = (
+        'Si existe una cuenta pendiente que coincide con esos datos, enviaremos '
+        'un nuevo enlace al correo registrado. Revisa también la carpeta de spam.'
+    )
+    if request.method == 'POST':
+        try:
+            run = _validar_run(request.POST.get('run', ''))
+            correo = _validar_correo(request.POST.get('correo', ''))
+            clave_run = re.sub(r'[.\-\s]', '', run).upper()
+            with transaction.atomic():
+                usuario = Usuario.objects.select_for_update().filter(
+                    Correo_Usuario__iexact=correo,
+                    Estado='Inactivo',
+                    Rol_id=4,
+                ).first()
+                if usuario:
+                    pendiente = ActivacionPendiente.objects.select_for_update().filter(
+                        Usuario=usuario,
+                    ).select_related('Paciente').first()
+                    if pendiente:
+                        paciente = pendiente.Paciente
+                        run_paciente = re.sub(
+                            r'[.\-\s]',
+                            '',
+                            paciente.RUN_Paciente,
+                        ).upper()
+                        correo_ficha = (
+                            (paciente.CorreoContactoPaciente or '').strip().lower()
+                        )
+                        vincular_paciente = pendiente.VincularPaciente
+                        activar_ficha = pendiente.ActivarFicha
+                        relacion_valida = (
+                            run_paciente == clave_run
+                            and correo_ficha == correo
+                            and (
+                                paciente.Usuario_id is None
+                                if vincular_paciente
+                                else paciente.Usuario_id == usuario.ID_Usuario
+                            )
+                        )
+                    else:
+                        pacientes = list(
+                            _pacientes_con_run(run).select_for_update()[:2]
+                        )
+                        paciente = (
+                            pacientes[0]
+                            if len(pacientes) == 1
+                            and (
+                                (pacientes[0].CorreoContactoPaciente or '')
+                                .strip()
+                                .lower()
+                                == correo
+                            )
+                            else None
+                        )
+                        relacion_valida = bool(
+                            paciente
+                            and paciente.Nombre_Paciente.casefold() == usuario.Nombre.casefold()
+                            and paciente.ApellidoP.casefold() == usuario.Apellido.casefold()
+                        )
+                        vincular_paciente = False
+                        activar_ficha = False
+                        if relacion_valida and paciente.Usuario_id is None:
+                            vincular_paciente = True
+                        elif relacion_valida and paciente.Usuario_id == usuario.ID_Usuario:
+                            activar_ficha = True
+                        else:
+                            relacion_valida = False
+                        if relacion_valida and vincular_paciente:
+                            fichas_ambiguas = Paciente.objects.filter(
+                                Usuario__isnull=True,
+                                CorreoContactoPaciente__iexact=correo,
+                                Nombre_Paciente__iexact=usuario.Nombre,
+                                ApellidoP__iexact=usuario.Apellido,
+                            ).count()
+                            relacion_valida = fichas_ambiguas == 1
+                        if relacion_valida:
+                            pendiente = ActivacionPendiente.objects.create(
+                                Usuario=usuario,
+                                Paciente=paciente,
+                                VincularPaciente=vincular_paciente,
+                                ActivarFicha=activar_ficha,
+                            )
+
+                    ultimo_envio = pendiente.UltimoEnvio if relacion_valida else None
+                    puede_reenviar = (
+                        ultimo_envio is None
+                        or timezone.now() - ultimo_envio >= timedelta(minutes=1)
+                    )
+                    if relacion_valida and puede_reenviar:
+                        try:
+                            _enviar_correo_activacion(
+                                request,
+                                usuario,
+                                pendiente.Paciente_id,
+                                pendiente.VincularPaciente,
+                                pendiente.ActivarFicha,
+                            )
+                        except Exception as error:
+                            raise ErrorEnvioActivacion from error
+                        pendiente.UltimoEnvio = timezone.now()
+                        pendiente.save(update_fields=['UltimoEnvio'])
+        except ValidationError:
+            pass
+        except ErrorEnvioActivacion:
+            logger.exception('No se pudo reenviar el correo de activación.')
+        except Exception:
+            logger.exception('Error inesperado al reenviar el correo de activación.')
+
+        messages.success(request, mensaje_generico)
+    return render(request, 'ReenviarActivacion.html')
+
+
 def activar_cuenta(request, token):
     try:
         datos = signing.loads(token, salt='AppAdAtM.activacion_cuenta', max_age=60 * 60 * 24)
@@ -1735,30 +1946,97 @@ def activar_cuenta(request, token):
         usuario_id = datos
         huella = None
         token_legacy = True
+        paciente_id = None
+        vincular_paciente = False
+        activar_ficha = True
     elif isinstance(datos, dict):
         usuario_id = datos.get('usuario_id')
         huella = datos.get('password_fingerprint')
         token_legacy = False
+        paciente_id = datos.get('paciente_id')
+        vincular_paciente = datos.get('vincular_paciente', False)
+        activar_ficha = datos.get('activar_ficha', True)
     else:
         messages.error(request, 'El enlace de activación no es válido.')
         return redirect('inicio_sesion')
 
-    usuario = Usuario.objects.filter(pk=usuario_id).first()
-    if not usuario or (
-        not token_legacy
-        and (
-            not isinstance(huella, str)
-            or not hmac.compare_digest(huella, _huella_contrasena(usuario))
-        )
-    ):
+    activacion_valida = True
+    cuenta_ya_activa = False
+    ficha_inactiva = False
+    try:
+        with transaction.atomic():
+            usuario = Usuario.objects.select_for_update().filter(pk=usuario_id).first()
+            if not usuario or (
+                not token_legacy
+                and (
+                    not isinstance(huella, str)
+                    or not hmac.compare_digest(huella, _huella_contrasena(usuario))
+                )
+            ):
+                activacion_valida = False
+            elif usuario.Estado != 'Inactivo':
+                cuenta_ya_activa = True
+                ActivacionPendiente.objects.filter(Usuario=usuario).delete()
+            else:
+                paciente = None
+                if paciente_id is not None:
+                    if not isinstance(paciente_id, int) or isinstance(paciente_id, bool):
+                        activacion_valida = False
+                    else:
+                        paciente = Paciente.objects.select_for_update().filter(
+                            pk=paciente_id,
+                        ).first()
+                        correo_ficha = (
+                            (paciente.CorreoContactoPaciente or '').strip().lower()
+                            if paciente else ''
+                        )
+                        if (
+                            not paciente
+                            or correo_ficha != usuario.Correo_Usuario.lower()
+                            or (
+                                vincular_paciente
+                                and (usuario.Rol_id != 4 or paciente.Usuario_id is not None)
+                            )
+                            or (
+                                not vincular_paciente
+                                and paciente.Usuario_id != usuario.ID_Usuario
+                            )
+                        ):
+                            activacion_valida = False
+                        else:
+                            if vincular_paciente:
+                                paciente.Usuario = usuario
+                            if activar_ficha:
+                                paciente.Estado = 'Activo'
+                            if vincular_paciente or activar_ficha:
+                                campos_actualizados = []
+                                if vincular_paciente:
+                                    campos_actualizados.append('Usuario')
+                                if activar_ficha:
+                                    campos_actualizados.append('Estado')
+                                paciente.save(update_fields=campos_actualizados)
+                            ficha_inactiva = paciente.Estado != 'Activo'
+                elif activar_ficha:
+                    Paciente.objects.filter(Usuario=usuario).update(Estado='Activo')
+
+                if activacion_valida:
+                    usuario.Estado = 'Activo'
+                    usuario.save(update_fields=['Estado'])
+                    ActivacionPendiente.objects.filter(Usuario=usuario).delete()
+    except (TypeError, ValueError):
+        activacion_valida = False
+
+    if not activacion_valida:
         messages.error(request, 'El enlace de activación no es válido.')
-    elif usuario.Estado == 'Inactivo':
-        usuario.Estado = 'Activo'
-        usuario.save(update_fields=['Estado'])
-        Paciente.objects.filter(Usuario=usuario).update(Estado='Activo')
-        messages.success(request, 'Tu cuenta ha sido activada. Ya puedes iniciar sesión.')
-    else:
+    elif cuenta_ya_activa:
         messages.info(request, 'Esta cuenta ya se encuentra activa.')
+    elif ficha_inactiva:
+        messages.success(
+            request,
+            'Tu cuenta fue activada y vinculada. La ficha sigue Inactiva; el personal debe activarla antes de que puedas iniciar sesión.',
+        )
+    else:
+        messages.success(request, 'Tu cuenta ha sido activada. Ya puedes iniciar sesión.')
 
     return redirect('inicio_sesion')
 

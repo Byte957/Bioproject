@@ -258,7 +258,9 @@
 
         <div class="form-group">
           <label for="run-paciente">RUN</label>
-          <input class="validar-run" type="text" id="run-paciente" name="run-paciente" placeholder="11.111.111-1" required>
+          <input class="validar-run" type="text" id="run-paciente" name="run-paciente"
+                 placeholder="12.345.678-5" pattern="[0-9]{1,2}\.[0-9]{3}\.[0-9]{3}-[0-9kK]"
+                 maxlength="12" title="Formato: 12.345.678-5" required>
         </div>
 
         <div class="form-group">
@@ -300,15 +302,16 @@
           <label for="telefono-contacto">Numero de Contacto</label>
           <div class="phone-input-group">
             <input type="text" class="phone-prefix" value="+56" readonly>
-            <input class="solo-numeros" type="tel" id="telefono-contacto" name="telefono-contacto" placeholder="912345678" required>
+            <input class="solo-numeros" type="tel" id="telefono-contacto" name="telefono-contacto"
+                   inputmode="numeric" pattern="9[0-9]{8}" maxlength="9" placeholder="912345678">
           </div>
         </div>
 
         <div class="form-group">
           <label for="estado">Estado</label>
-          <select id="estado" name="estado" required>
-            <option value="Activo" selected>Activo</option>
-            <option value="Inactivo">Inactivo</option>
+          <select id="estado" name="estado" required disabled>
+            <option value="Activo" {% if paciente.Estado == 'Activo' %}selected{% endif %}>Activo</option>
+            <option value="Inactivo" {% if not paciente or paciente.Estado == 'Inactivo' %}selected{% endif %}>Inactivo</option>
           </select>
         </div>
 
@@ -356,6 +359,7 @@
         // Quitar el +56 al mostrarlo en el input porque ya está el prefijo al lado
         inputTelefono.value = item.dataset.telefono.replace('+56', '');
         selectEstado.value = item.dataset.estado || 'Activo';
+        selectEstado.disabled = false;
 
         titulo.textContent = `Gestionar Paciente: ${item.dataset.run}`;
         btnGuardar.textContent = 'Guardar Cambios';
@@ -375,7 +379,8 @@
       inputFechaNac.value = '';
       inputCorreo.value = '';
       inputTelefono.value = '';
-      selectEstado.value = 'Activo';
+      selectEstado.value = 'Inactivo';
+      selectEstado.disabled = true;
 
       titulo.textContent = 'Nuevo Paciente';
       btnGuardar.textContent = 'Agregar Paciente';
