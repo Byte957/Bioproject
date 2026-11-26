@@ -17,7 +17,7 @@
 <body>
 
   <div class="header">
-    <h1>Biotechnica Clínica — Reporte de {% if tipo == 'atenciones' %}Atenciones y Estados{% else %}Ingresos{% endif %}</h1>
+    <h1>Biotechnica Clínica — Reporte de {% if tipo == 'atenciones' %}Citas y Estados{% else %}Ingresos{% endif %}</h1>
     <p><strong>Período filtrado:</strong> {{ fecha_inicio }} al {{ fecha_fin }}</p>
     <p><strong>Fecha de emisión:</strong> {{ fecha_generacion }}</p>
   </div>
@@ -27,7 +27,7 @@
     <table class="resumen-table">
       <thead>
         <tr>
-          <th>Estado de Atención</th>
+          <th>Estado de Cita</th>
           <th>Cantidad</th>
         </tr>
       </thead>
@@ -39,13 +39,13 @@
           </tr>
         {% endfor %}
         <tr>
-          <td><strong>TOTAL ATENCIONES</strong></td>
+          <td><strong>TOTAL CITAS</strong></td>
           <td><strong>{{ total_atenciones }}</strong></td>
         </tr>
       </tbody>
     </table>
 
-    <h2>Detalle de Horas Registradas</h2>
+    <h2>Detalle de Citas Registradas</h2>
     <table>
       <thead>
         <tr>

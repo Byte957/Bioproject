@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestión de Recetas / Atención</title>
+  <title>Gestión de Recetas / Cita</title>
   <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   <style>
     .navbar,
@@ -319,7 +319,7 @@
 
       </div>
 
-      <h2 class="section-title">Atenciones Registradas ({{ atenciones|length }})</h2>
+      <h2 class="section-title">Citas Registradas ({{ atenciones|length }})</h2>
       <div class="user-list">
         {% for a in atenciones %}
           <div class="user-item"
@@ -336,12 +336,12 @@
               {{ a.Dia|date:'d/m/Y' }} {{ a.ID_Horario.Hora_Inicio|time:'H:i' }} · {{ a.get_Estado_display }}
             </span>
             <button type="button" class="btn btn-submit btn-iniciar-atencion"
-                    {% if a.Estado == 'EN ESPERA' and hay_atencion_en_curso %}disabled title="Ya tienes una atención en curso. Continúala o devuélvela a espera antes de iniciar otra."{% endif %}>
-              {% if a.Estado == 'EN ESPERA' %}Iniciar Atención{% else %}Continuar Atención{% endif %}
+                    {% if a.Estado == 'EN ESPERA' and hay_atencion_en_curso %}disabled title="Ya tienes una cita en curso. Continúala o devuélvela a espera antes de iniciar otra."{% endif %}>
+              {% if a.Estado == 'EN ESPERA' %}Iniciar Cita{% else %}Continuar Cita{% endif %}
             </button>
           </div>
         {% empty %}
-          <p style="color:#666; font-size:0.9rem; padding:10px;">          No hay atenciones en espera o en atención.</p>
+          <p style="color:#666; font-size:0.9rem; padding:10px;">          No hay citas en espera o en atención.</p>
         {% endfor %}
       </div>
     </section>
@@ -350,7 +350,7 @@
     <section class="card right-panel">
       <div class="hospital-header">
         <span class="sublogo-txt">Biotechnica Clínica</span>
-        <span class="info-txt" id="estado-receta-header">Selecciona una atención</span>
+        <span class="info-txt" id="estado-receta-header">Selecciona una cita</span>
       </div>
 
       {% if messages %}
@@ -378,18 +378,18 @@
           <!-- Información Médico -->
           <div class="info-card-block">
             <div class="block-title">Información Médico</div>
-            <p id="info-medico">Selecciona una atención de la lista izquierda...</p>
+            <p id="info-medico">Selecciona una cita de la lista izquierda...</p>
           </div>
 
           <!-- Información Paciente -->
           <div class="info-card-block">
             <div class="block-title">Información Paciente</div>
-            <p id="info-paciente">Selecciona una atención de la lista izquierda...</p>
+            <p id="info-paciente">Selecciona una cita de la lista izquierda...</p>
           </div>
 
           <!-- Información Atención / Diagnóstico -->
           <div class="info-card-block" id="diagnostico-section">
-            <div class="block-title">Diagnóstico / Notas de Atención</div>
+            <div class="block-title">Diagnóstico / Notas de la Cita</div>
             <textarea id="diagnostico" name="diagnostico" placeholder="Diagnóstico o evolución médica de la consulta..." required></textarea>
           </div>
 
@@ -407,7 +407,7 @@
 
         <!-- Botones de Acción: Emitir Atención y Cancelar -->
         <div class="form-buttons">
-          <button type="submit" class="btn btn-submit" id="btn-emitir" formnovalidate>Emitir Atención</button>
+          <button type="submit" class="btn btn-submit" id="btn-emitir" formnovalidate>Emitir Cita</button>
           <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
         </div>
       </form>
@@ -517,8 +517,8 @@
           agregarTarjetaMedicamento(m.id, m.indicaciones);
         });
       } else {
-        headerEstado.textContent = `Atención #${atId} - ${item.dataset.fechaTexto}`;
-        btnEmitir.textContent = 'Emitir Atención';
+        headerEstado.textContent = `Cita #${atId} - ${item.dataset.fechaTexto}`;
+        btnEmitir.textContent = 'Emitir Cita';
         agregarTarjetaMedicamento();
       }
     }
@@ -527,7 +527,7 @@
       item.querySelector('.btn-iniciar-atencion').addEventListener('click', () => {
         if (item.dataset.estado === 'EN ESPERA') {
           const nombrePaciente = item.dataset.nombrePaciente;
-          if (!window.confirm(`¿Confirmas iniciar la atención de ${nombrePaciente}?`)) {
+          if (!window.confirm(`¿Confirmas iniciar la cita de ${nombrePaciente}?`)) {
             return;
           }
           inputAtencionId.value = item.dataset.id;
@@ -543,12 +543,12 @@
     function limpiarFormulario() {
       items.forEach(i => i.classList.remove('selected'));
       inputAtencionId.value = '';
-      pMedico.textContent = 'Selecciona una atención de la lista izquierda...';
-      pPaciente.textContent = 'Selecciona una atención de la lista izquierda...';
+      pMedico.textContent = 'Selecciona una cita de la lista izquierda...';
+      pPaciente.textContent = 'Selecciona una cita de la lista izquierda...';
       txtDiagnostico.value = '';
       inputInstitucion.value = 'Clínica Biotechnica';
-      headerEstado.textContent = 'Selecciona una atención';
-      btnEmitir.textContent = 'Emitir Atención';
+      headerEstado.textContent = 'Selecciona una cita';
+      btnEmitir.textContent = 'Emitir Cita';
       accionReceta.value = 'emitir_receta';
       diagnosticoSection.classList.remove('is-hidden');
       medicamentosSection.classList.remove('is-hidden');

@@ -9,14 +9,14 @@
         <li><a href="{% url 'reportes_clinica' %}" class="nav-text">Generar Reportes</a></li>
       {% elif rol == 2 %}
         <li><a href="{% url 'gestionar_pacientes' %}" class="nav-text">Gestionar Pacientes</a></li>
-        <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Atenciones</a></li>
-        <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Cobros de Atenciones</a></li>
+        <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Citas</a></li>
+        <li><a href="{% url 'gestionar_cobros' %}" class="nav-text">Registrar Recepción y Pago</a></li>
       {% elif rol == 3 %}
         <li><a href="{% url 'gestionar_disponibilidad' %}" class="nav-text">Agenda y Disponibilidad</a></li>
         <li><a href="{% url 'historial_atenciones' %}" class="nav-text">Historial de Atenciones</a></li>
-        <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Finalizar Atenciones / Recetas</a></li>
+        <li><a href="{% url 'gestionar_recetasatencion' %}" class="nav-text">Iniciar Cita</a></li>
       {% elif rol == 4 %}
-        <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Gestionar Atenciones</a></li>
+        <li><a href="{% url 'registrar_atencion' %}" class="nav-text">Agendar Cita</a></li>
         <li><a href="{% url 'gestionar_atencion' %}" class="nav-text">Gestionar Citas Existentes</a></li>
         <li><a href="{% url 'historial_atenciones' %}" class="nav-text">Historial de Atenciones</a></li>
       {% endif %}

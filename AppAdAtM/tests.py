@@ -880,7 +880,7 @@ class FlujoAtencionesTests(TestCase):
 
         self.assertContains(response, 'filtrar-fecha-atencion')
         self.assertContains(response, 'filtrar-estado-atencion')
-        self.assertContains(response, f'Atención #{atencion.ID_Atencion}')
+        self.assertContains(response, f'Cita #{atencion.ID_Atencion}')
         self.assertContains(response, 'Estado: Reservada')
         self.assertContains(response, 'RUN: 22.222.222-2')
 
@@ -1133,7 +1133,7 @@ class FlujoAtencionesTests(TestCase):
         self.assertNotIn(en_espera.ID_Atencion, ids)
         self.assertContains(response, 'Buscar por médico')
         self.assertContains(response, 'data-busqueda="Marta Doctora')
-        self.assertContains(response, 'Cancelar atención')
+        self.assertContains(response, 'Cancelar cita')
         self.assertContains(response, 'id="btn-eliminar" disabled')
         self.assertContains(response, 'Importante: Solo se pueden cancelar citas con 24 horas de anticipación')
         self.assertContains(response, 'data-inicio-timestamp=')
@@ -1191,7 +1191,7 @@ class FlujoAtencionesTests(TestCase):
         self.assertEqual(esperando.Estado, EstadoAtencion.EN_ESPERA)
 
         menu_response = self.client.get(reverse('gestionar_disponibilidad'))
-        self.assertContains(menu_response, 'Finalizar Atenciones / Recetas')
+        self.assertContains(menu_response, 'Iniciar Cita')
         self.assertNotContains(menu_response, 'Gestionar Atenciones y Citas')
 
     def test_doctor_recetas_view_lists_only_waiting_and_in_progress_appointments(self):
@@ -1218,14 +1218,14 @@ class FlujoAtencionesTests(TestCase):
         self.assertNotContains(response, 'id="filtro-fecha"')
         self.assertContains(response, 'Buscar paciente por nombre o RUN')
         self.assertContains(response, 'type="search" id="filtro-paciente"')
-        self.assertContains(response, 'Iniciar Atención')
-        self.assertContains(response, 'Continuar Atención')
-        self.assertContains(response, 'disabled title="Ya tienes una atención en curso.')
+        self.assertContains(response, 'Iniciar Cita')
+        self.assertContains(response, 'Continuar Cita')
+        self.assertContains(response, 'disabled title="Ya tienes una cita en curso.')
         self.assertContains(response, 'window.confirm')
         self.assertNotContains(response, '<select id="filtro-paciente"')
 
         html = response.content.decode()
-        continuar_index = html.index('Continuar Atención')
+        continuar_index = html.index('Continuar Cita')
         boton_continuar = html[html.rfind('<button', 0, continuar_index):]
         self.assertNotIn('disabled', boton_continuar.split('>', 1)[0])
 
@@ -1241,7 +1241,7 @@ class FlujoAtencionesTests(TestCase):
         atencion.refresh_from_db()
         self.assertEqual(atencion.Estado, EstadoAtencion.EN_ESPERA)
         self.assertEqual(response.context['atencion_seleccionada_id'], '')
-        self.assertContains(response, 'La atención')
+        self.assertContains(response, 'La cita')
         self.assertContains(response, 'volvió a estado En espera')
 
     def test_doctor_cannot_start_another_appointment_while_one_is_in_progress(self):
@@ -1264,7 +1264,7 @@ class FlujoAtencionesTests(TestCase):
         en_atencion.refresh_from_db()
         self.assertEqual(esperando.Estado, EstadoAtencion.EN_ESPERA)
         self.assertEqual(en_atencion.Estado, EstadoAtencion.EN_ATENCION)
-        self.assertContains(response, 'Ya tienes una atención en curso')
+        self.assertContains(response, 'Ya tienes una cita en curso')
 
     def test_doctor_cannot_start_another_doctors_waiting_appointment(self):
         esperando = self.crear_atencion(estado=EstadoAtencion.EN_ESPERA)
@@ -1750,7 +1750,7 @@ class FlujoAtencionesTests(TestCase):
         self.assertEqual(response_paciente['Content-Type'], 'application/pdf')
         self.assertIn(b'%PDF-', response_paciente.content)
         self.assertIn(
-            f'Receta_Atencion_{atencion.ID_Atencion}.pdf',
+            f'Receta_Cita_{atencion.ID_Atencion}.pdf',
             response_paciente['Content-Disposition'],
         )
         self.assertEqual(

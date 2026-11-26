@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Gestión de Atención</title>
+  <title>Gestión de Citas</title>
   <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   <style>
     .navbar,
@@ -303,7 +303,7 @@
         {% endif %}
       </div>
 
-      <h2 class="section-title">Atenciones ({{ atenciones|length }})</h2>
+      <h2 class="section-title">Citas ({{ atenciones|length }})</h2>
       <div class="user-list" id="lista-atenciones">
         {% for a in atenciones %}
           <div class="user-item item-atencion"
@@ -317,16 +317,16 @@
                data-descripcion="{{ a.Descripcion }}"
                data-estado="{{ a.Estado }}"
                data-busqueda="{% if rol_id == 4 %}{{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} {{ a.ID_Medico.ApellidoM_Medico }}{% elif rol_id == 3 %}{{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.SegNombre_Paciente }} {{ a.Paciente.ApellidoP }} {{ a.Paciente.ApellidoM }} {{ a.Paciente.RUN_Paciente }}{% else %}{{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} {{ a.Paciente.RUN_Paciente }}{% endif %}">
-            <span class="record-heading">Atención #{{ a.ID_Atencion }} · {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }}</span>
+            <span class="record-heading">Cita #{{ a.ID_Atencion }} · {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }}</span>
             <span class="record-details">RUN: {{ a.Paciente.RUN_Paciente }} · Médico: {{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} · Fecha: {{ a.Dia|date:'d/m/Y' }} · Hora: {{ a.ID_Horario.Hora_Inicio|time:'H:i' }}</span>
             <span class="record-details">Motivo: {{ a.Descripcion|default:'Sin descripción' }}</span>
             <span class="status-badge">Estado: {{ a.get_Estado_display }}</span>
           </div>
         {% empty %}
-          <p style="color:#666; font-size:0.9rem; padding:10px;">No hay atenciones registradas.</p>
+          <p style="color:#666; font-size:0.9rem; padding:10px;">No hay citas registradas.</p>
         {% endfor %}
         <p id="sin-resultados" style="display:none; color:#666; font-size:0.9rem; padding:10px;">
-          No hay atenciones que coincidan con la búsqueda.
+          No hay citas que coincidan con la búsqueda.
         </p>
       </div>
 
@@ -334,7 +334,7 @@
 
     <!-- Panel Derecho: Formulario de Gestión de Atención -->
     <section class="card right-panel">
-      <h1 class="panel-header-title" id="titulo-formulario">{% if rol_id == 4 %}Cancelar atención{% else %}Nueva Atención{% endif %}</h1>
+      <h1 class="panel-header-title" id="titulo-formulario">{% if rol_id == 4 %}Cancelar cita{% else %}Nueva Cita{% endif %}</h1>
 
       {% if messages %}
         {% for message in messages %}
@@ -376,7 +376,7 @@
         </div>
 
         <div class="form-group" {% if rol_id == 3 or rol_id == 4 %}style="display:none;"{% endif %}>
-          <label for="dia">Fecha de Atención</label>
+          <label for="dia">Fecha de Cita</label>
           <input type="date" id="dia" name="dia" min="{{ fecha_minima }}" required>
         </div>
 
@@ -394,14 +394,14 @@
 
         <div class="form-buttons {% if rol_id == 4 %}form-buttons-patient{% endif %}">
           {% if rol_id == 3 %}
-            <p id="mensaje-iniciar">Selecciona una atención en espera para comenzar.</p>
-            <button type="button" class="btn btn-submit" id="btn-iniciar" style="display:none;">Iniciar atención</button>
+            <p id="mensaje-iniciar">Selecciona una cita en espera para comenzar.</p>
+            <button type="button" class="btn btn-submit" id="btn-iniciar" style="display:none;">Iniciar cita</button>
             <button type="button" class="btn" id="btn-eliminar" style="display:none; background-color:#c62828; color:#fff; border:none;">Cancelar cita</button>
           {% elif rol_id == 4 %}
             <p>Selecciona una cita para cancelarla. Importante: Solo se pueden cancelar citas con 24 horas de anticipación</p>
-            <button type="button" class="btn" id="btn-eliminar" disabled style="background-color:#c62828; color:#fff; border:none;">Cancelar atención</button>
+            <button type="button" class="btn" id="btn-eliminar" disabled style="background-color:#c62828; color:#fff; border:none;">Cancelar cita</button>
           {% else %}
-            <button type="submit" class="btn btn-submit" id="btn-guardar">Agendar Atención</button>
+            <button type="submit" class="btn btn-submit" id="btn-guardar">Agendar Cita</button>
             <button type="button" class="btn" id="btn-eliminar" style="display:none; background-color:#c62828; color:#fff; border:none;">Cancelar cita</button>
             <button type="button" class="btn" id="btn-no-asistio" style="display:none; background-color:#6a1b9a; color:#fff; border:none;">Marcar no asistió</button>
             <button type="button" class="btn" id="btn-abandonar" style="display:none; background-color:#6a1b9a; color:#fff; border:none;">Abandonar espera</button>
@@ -439,7 +439,7 @@
     let solicitudBloques = 0;
     const horaServidorInicialMs = {{ hora_servidor_ms }};
     const horaNavegadorInicialMs = Date.now();
-    const tituloInicial = {% if rol_id == 4 %}'Cancelar atención'{% else %}'Nueva Atención'{% endif %};
+    const tituloInicial = {% if rol_id == 4 %}'Cancelar cita'{% else %}'Nueva Cita'{% endif %};
 
     function horaServidorActualMs() {
       return horaServidorInicialMs + Date.now() - horaNavegadorInicialMs;
@@ -534,7 +534,7 @@
       if (btnAbandonar) btnAbandonar.style.display = 'none';
       if (btnIniciar) btnIniciar.style.display = 'none';
       titulo.textContent = tituloInicial;
-      if (btnGuardar) btnGuardar.textContent = 'Agendar Atención';
+      if (btnGuardar) btnGuardar.textContent = 'Agendar Cita';
     }
 
     // Clic en ATENCIÓN -> carga todo en modo Edición
@@ -571,7 +571,7 @@
         if (btnIniciar) {
           btnIniciar.style.display = item.dataset.estado === 'EN ESPERA' ? 'inline-block' : 'none';
         }
-        titulo.textContent = {% if rol_id == 4 %}`Cancelar atención #${item.dataset.id}`{% else %}`Gestionar Atención #${item.dataset.id}`{% endif %};
+        titulo.textContent = {% if rol_id == 4 %}`Cancelar cita #${item.dataset.id}`{% else %}`Gestionar Cita #${item.dataset.id}`{% endif %};
         if (btnGuardar) btnGuardar.textContent = 'Guardar Cambios';
       });
     });

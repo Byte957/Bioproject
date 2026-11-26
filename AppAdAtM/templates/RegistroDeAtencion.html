@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Registro de Atención</title>
+  <title>Registro de Cita</title>
   <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   <style>
     .navbar,
@@ -243,7 +243,7 @@
 
     <!-- Panel Derecho: Formulario de Registro de Atención -->
     <section class="card right-panel">
-      <h1 class="panel-header-title">Registrar Atención</h1>
+      <h1 class="panel-header-title">Agendar Cita</h1>
 
       {% if messages %}
         {% for message in messages %}
@@ -305,7 +305,7 @@
         </div>
 
         <div class="form-buttons">
-          <button type="submit" class="btn btn-submit">Registrar</button>
+          <button type="submit" class="btn btn-submit">Registrar Cita</button>
           <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
         </div>
       </form>

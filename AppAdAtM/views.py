@@ -432,7 +432,7 @@ def registroatencion(request):
         except ValueError:
             messages.error(request, 'Fecha inválida.')
         except Exception as e:
-            messages.error(request, f'Error al registrar la atención: {str(e)}')
+            messages.error(request, f'Error al registrar la cita: {str(e)}')
 
         return redirect('registrar_atencion')
 
@@ -650,7 +650,7 @@ def gestionrecetas(request):
         atencion_id = request.POST.get('atencion_id', '').strip()
 
         if not atencion_id:
-            messages.error(request, 'Debes seleccionar una atención de la lista izquierda.')
+            messages.error(request, 'Debes seleccionar una cita de la lista izquierda.')
             return redirect('gestionar_recetasatencion')
 
         if accion == 'iniciar':
@@ -672,20 +672,20 @@ def gestionrecetas(request):
             except Atencion.DoesNotExist:
                 messages.error(
                     request,
-                    'La atención no está en espera o no está asignada a tu perfil.',
+                    'La cita no está en espera o no está asignada a tu perfil.',
                 )
                 return redirect('gestionar_recetasatencion')
 
             if hay_atencion_en_curso:
                 messages.error(
                     request,
-                    'Ya tienes una atención en curso. Continúala o devuélvela a espera antes de iniciar otra.',
+                    'Ya tienes una cita en curso. Continúala o devuélvela a espera antes de iniciar otra.',
                 )
                 return redirect('gestionar_recetasatencion')
 
             messages.success(
                 request,
-                f'La atención #{atencion_obj.ID_Atencion} comenzó correctamente.',
+                f'La cita #{atencion_obj.ID_Atencion} comenzó correctamente.',
             )
             return redirect(
                 f'{request.path}?atencion_id={atencion_obj.ID_Atencion}',
@@ -703,12 +703,12 @@ def gestionrecetas(request):
                     atencion_obj.save(update_fields=['Estado'])
                 messages.success(
                     request,
-                    f'La atención #{atencion_obj.ID_Atencion} volvió a estado En espera.',
+                    f'La cita #{atencion_obj.ID_Atencion} volvió a estado En espera.',
                 )
             except Atencion.DoesNotExist:
                 messages.error(
                     request,
-                    'La atención no está en curso o no está asignada a tu perfil.',
+                    'La cita no está en curso o no está asignada a tu perfil.',
                 )
             return redirect('gestionar_recetasatencion')
 
@@ -754,7 +754,7 @@ def gestionrecetas(request):
                     messages.error(request, 'Solo el médico asignado puede emitir la receta.')
                     return redirect('gestionar_recetasatencion')
                 if atencion_obj.Estado != EstadoAtencion.EN_ATENCION:
-                    messages.error(request, 'Solo se puede finalizar una atención que esté en curso.')
+                    messages.error(request, 'Solo se puede finalizar una cita que esté en curso.')
                     return redirect('gestionar_recetasatencion')
 
                 # 1. Actualizar diagnóstico/descripción y finalizar la atención
@@ -792,7 +792,7 @@ def gestionrecetas(request):
             )
 
         except Atencion.DoesNotExist:
-            messages.error(request, 'La atención seleccionada no existe.')
+            messages.error(request, 'La cita seleccionada no existe.')
         except Medicamento.DoesNotExist:
             messages.error(request, 'Uno de los medicamentos seleccionados no es válido.')
         except Exception as e:
@@ -945,7 +945,7 @@ def descargar_receta_historial(request, atencion_id):
 
     response = HttpResponse(content_type='application/pdf')
     response['Content-Disposition'] = (
-        f'attachment; filename="Receta_Atencion_{atencion.ID_Atencion}.pdf"'
+        f'attachment; filename="Receta_Cita_{atencion.ID_Atencion}.pdf"'
     )
     documento = SimpleDocTemplate(response, pagesize=letter)
     estilos = getSampleStyleSheet()
@@ -966,7 +966,7 @@ def descargar_receta_historial(request, atencion_id):
     elementos = [
         Paragraph('<b>Biotechnica Clínica - Receta</b>', estilos['Title']),
         Spacer(1, 12),
-        Paragraph(f'<b>Atención:</b> #{atencion.ID_Atencion}', estilos['Normal']),
+        Paragraph(f'<b>Cita:</b> #{atencion.ID_Atencion}', estilos['Normal']),
         Paragraph(f'<b>Paciente:</b> {escape(nombre_paciente)}', estilos['Normal']),
         Paragraph(f'<b>RUN:</b> {escape(atencion.Paciente.RUN_Paciente)}', estilos['Normal']),
         Paragraph(f'<b>Médico:</b> {escape(nombre_medico)}', estilos['Normal']),
@@ -1396,7 +1396,7 @@ def gestiondisponibilidad(request):
         if aplicados > 0:
             messages.success(request, f'Se actualizaron {aplicados} bloque(s) el {dia_nombre} ({fecha_objetivo.strftime("%d/%m/%Y")}).')
         if conflictos > 0:
-            messages.warning(request, f'{conflictos} bloque(s) no se modificaron porque ya tienen una atención médica reservada.')
+            messages.warning(request, f'{conflictos} bloque(s) no se modificaron porque ya tienen una cita médica reservada.')
 
         return redirect(f"{request.path}?fecha={fecha_ref.isoformat()}&medico={medico_actual.MatriculaProfesional}")
 
@@ -1433,7 +1433,7 @@ def gestiondisponibilidad(request):
                 'dia': dia_nombre,
                 'inicio': ini_str,
                 'tipo': 'ocupado',
-                'texto': f"Atención: {nombre_pac}",
+                'texto': f"Cita: {nombre_pac}",
                 'detalle': f"{nombre_pac} ({at.Estado}) - {at.Descripcion}"
             })
 
@@ -1488,7 +1488,7 @@ def gestionatencion(request):
                 Estado=EstadoAtencion.RESERVADA,
             ).first()
             if not atencion_actual:
-                return JsonResponse({'error': 'La atención que se está editando no es válida.'}, status=400)
+                return JsonResponse({'error': 'La cita que se está editando no es válida.'}, status=400)
 
         atenciones_activas = Atencion.objects.filter(
             ID_Medico=medico_obj,
@@ -1566,9 +1566,9 @@ def gestionatencion(request):
                         Estado=EstadoAtencion.EN_ESPERA,
                     )
                     _cancelar_atencion_y_liberar_bloque(atencion)
-                    messages.success(request, f'Abandonaste la espera de la atención #{atencion_id}.')
+                    messages.success(request, f'Abandonaste la espera de la cita #{atencion_id}.')
                 except Atencion.DoesNotExist:
-                    messages.error(request, 'La atención no está en espera o no te pertenece.')
+                    messages.error(request, 'La cita no está en espera o no te pertenece.')
                 return redirect('gestionar_atencion')
 
             if accion not in ('cancelar', 'eliminar') or not atencion_id or not paciente:
@@ -1597,9 +1597,9 @@ def gestionatencion(request):
                     Estado=EstadoAtencion.EN_ESPERA,
                 )
                 _cancelar_atencion_y_liberar_bloque(atencion)
-                messages.success(request, f'La espera de la atención #{atencion_id} fue abandonada.')
+                messages.success(request, f'La espera de la cita #{atencion_id} fue abandonada.')
             except Atencion.DoesNotExist:
-                messages.error(request, 'La atención no está en espera.')
+                messages.error(request, 'La cita no está en espera.')
             return redirect('gestionar_atencion')
 
         if rol_id == 3:
@@ -1621,7 +1621,7 @@ def gestionatencion(request):
                 return redirect('gestionar_atencion')
 
             if accion != 'iniciar' or not atencion_id:
-                messages.error(request, 'El médico solo puede iniciar una atención asignada.')
+                messages.error(request, 'El médico solo puede iniciar una cita asignada.')
                 return redirect('gestionar_atencion')
 
             try:
@@ -1632,9 +1632,9 @@ def gestionatencion(request):
                 )
                 atencion.Estado = EstadoAtencion.EN_ATENCION
                 atencion.save(update_fields=['Estado'])
-                messages.success(request, f'La atención #{atencion_id} comenzó.')
+                messages.success(request, f'La cita #{atencion_id} comenzó.')
             except Atencion.DoesNotExist:
-                messages.error(request, 'La atención no existe, no está en espera o no está asignada a tu agenda.')
+                messages.error(request, 'La cita no existe, no está en espera o no está asignada a tu agenda.')
 
             return redirect('gestionar_atencion')
 
@@ -1646,9 +1646,9 @@ def gestionatencion(request):
                     messages.error(request, 'Solo puedes cancelar una cita reservada con al menos 24 horas de anticipación.')
                 else:
                     _cancelar_atencion_y_liberar_bloque(atencion)
-                    messages.success(request, f'La atención #{atencion_id} fue cancelada.')
+                    messages.success(request, f'La cita #{atencion_id} fue cancelada.')
             except Atencion.DoesNotExist:
-                messages.error(request, 'La atención que intentas cancelar no existe.')
+                messages.error(request, 'La cita que intentas cancelar no existe.')
             return redirect('gestionar_atencion')
 
         if accion == 'no_asistio' and atencion_id:
@@ -1660,9 +1660,9 @@ def gestionatencion(request):
                 else:
                     atencion.Estado = EstadoAtencion.NO_ASISTIO
                     atencion.save(update_fields=['Estado'])
-                    messages.success(request, f'La atención #{atencion_id} quedó como no asistida.')
+                    messages.success(request, f'La cita #{atencion_id} quedó como no asistida.')
             except Atencion.DoesNotExist:
-                messages.error(request, 'La atención seleccionada no existe.')
+                messages.error(request, 'La cita seleccionada no existe.')
             return redirect('gestionar_atencion')
 
         if rol_id != 2:
@@ -1732,7 +1732,7 @@ def gestionatencion(request):
                     if atencion:
                         qs_choque = qs_choque.exclude(ID_Atencion=atencion.ID_Atencion)
                     if qs_choque.exists():
-                        messages.error(request, 'Conflicto de horario: ese médico ya tiene una atención reservada en ese bloque.')
+                        messages.error(request, 'Conflicto de horario: ese médico ya tiene una cita reservada en ese bloque.')
                         return redirect('gestionar_atencion')
 
                 if atencion_id:
@@ -1758,7 +1758,7 @@ def gestionatencion(request):
                             ID_Horario=horario_obj,
                         ).update(Estado='Ocupado')
 
-                    mensaje_exito = f'Atención #{atencion.ID_Atencion} actualizada y agenda sincronizada.'
+                    mensaje_exito = f'Cita #{atencion.ID_Atencion} actualizada y agenda sincronizada.'
                     atencion_para_confirmar = atencion
                 else:
                     nueva = Atencion.objects.create(
@@ -1777,7 +1777,7 @@ def gestionatencion(request):
                         ID_Horario=horario_obj,
                     ).update(Estado='Ocupado')
 
-                    mensaje_exito = f'Atención #{nueva.ID_Atencion} creada por Recepción para {paciente_obj.Nombre_Paciente} {paciente_obj.ApellidoP}.'
+                    mensaje_exito = f'Cita #{nueva.ID_Atencion} creada por Recepción para {paciente_obj.Nombre_Paciente} {paciente_obj.ApellidoP}.'
                     atencion_para_confirmar = nueva
 
             messages.success(request, mensaje_exito)
@@ -1789,7 +1789,7 @@ def gestionatencion(request):
         except IntegrityError:
             messages.error(request, 'Este bloque acaba de ser reservado. Selecciona otro horario.')
         except Exception as e:
-            messages.error(request, f'Error al procesar la atención: {str(e)}')
+            messages.error(request, f'Error al procesar la cita: {str(e)}')
 
         return redirect('gestionar_atencion')
 
@@ -1856,7 +1856,7 @@ def cobro(request):
         total_str = request.POST.get('total', '0').replace('$', '').replace('.', '').replace(',', '.').strip()
 
         if not atencion_id:
-            messages.error(request, 'Debes seleccionar una atención médica para emitir el cobro.')
+            messages.error(request, 'Debes seleccionar una cita médica para emitir el cobro.')
             return redirect('gestionar_cobros')
 
         try:
@@ -1865,7 +1865,7 @@ def cobro(request):
                 EstadoAtencion.RESERVADA,
                 EstadoAtencion.EN_ESPERA,
             ):
-                messages.error(request, 'Solo se pueden cobrar atenciones reservadas o en espera.')
+                messages.error(request, 'Solo se pueden cobrar citas reservadas o en espera.')
                 return redirect('gestionar_cobros')
             monto_neto = float(neto_str or 0)
             monto_iva = float(iva_str or round(monto_neto * 0.19, 2))
@@ -1897,7 +1897,7 @@ def cobro(request):
             )
 
         except Atencion.DoesNotExist:
-            messages.error(request, 'La atención seleccionada no existe.')
+            messages.error(request, 'La cita seleccionada no existe.')
         except ValueError:
             messages.error(request, 'Los valores numéricos de Neto, IVA o Total no son válidos.')
         except Exception as e:
@@ -2683,8 +2683,8 @@ def exportar_reporte(request):
         header_font = Font(color="FFFFFF", bold=True)
 
         if tipo == 'atenciones':
-            ws.title = "Reporte Atenciones"
-            ws.append(["REPORTE DE HORAS Y ESTADOS DE ATENCIÓN - BIOTECHNICA"])
+            ws.title = "Reporte Citas"
+            ws.append(["REPORTE DE CITAS Y ESTADOS - BIOTECHNICA"])
             ws.append([f"Rango: {fecha_inicio_reporte or 'Todos'} hasta {fecha_fin_reporte or 'Todos'}"])
             ws.append([])
 
@@ -2696,7 +2696,7 @@ def exportar_reporte(request):
 
             for item in datos['resumen_estados']:
                 ws.append([item['Estado'], item['cantidad']])
-            ws.append(["TOTAL ATENCIONES", datos['total_atenciones']])
+            ws.append(["TOTAL CITAS", datos['total_atenciones']])
             ws.append([])
 
             # Detalle de Atenciones
@@ -2719,7 +2719,7 @@ def exportar_reporte(request):
                     a.Descripcion,
                 ])
 
-            nombre_archivo = f"Reporte_Atenciones_{rango_txt}.xlsx"
+            nombre_archivo = f"Reporte_Citas_{rango_txt}.xlsx"
 
         else:
             ws.title = "Reporte Ingresos"
@@ -2740,7 +2740,7 @@ def exportar_reporte(request):
 
             # Detalle de Boletas
             fila_cabecera = ws.max_row + 1
-            cabeceras = ["N° Boleta", "Fecha Atención", "ID Atención", "Paciente", "Médico", "Método Pago", "Neto ($)", "IVA ($)", "Total ($)"]
+            cabeceras = ["N° Boleta", "Fecha Cita", "ID Cita", "Paciente", "Médico", "Método Pago", "Neto ($)", "IVA ($)", "Total ($)"]
             ws.append(cabeceras)
             for col in range(1, len(cabeceras) + 1):
                 ws.cell(row=fila_cabecera, column=col).fill = header_fill
@@ -2777,14 +2777,14 @@ def exportar_reporte(request):
     # EXPORTACIÓN A PDF (.pdf) CON REPORTLAB
     # =========================================================================
     response = HttpResponse(content_type='application/pdf')
-    nombre_pdf = f"Reporte_{tipo.capitalize()}_{rango_txt}.pdf"
+    nombre_pdf = f"Reporte_{'Citas' if tipo == 'atenciones' else 'Ingresos'}_{rango_txt}.pdf"
     response['Content-Disposition'] = f'attachment; filename="{nombre_pdf}"'
 
     doc = SimpleDocTemplate(response, pagesize=landscape(letter))
     styles = getSampleStyleSheet()
     elementos = []
 
-    titulo_texto = "Biotechnica Clínica - Reporte de Atenciones" if tipo == 'atenciones' else "Biotechnica Clínica - Reporte de Ingresos"
+    titulo_texto = "Biotechnica Clínica - Reporte de Citas" if tipo == 'atenciones' else "Biotechnica Clínica - Reporte de Ingresos"
     elementos.append(Paragraph(f"<b>{titulo_texto}</b>", styles['Title']))
     elementos.append(Paragraph(f"Período: {fecha_inicio_reporte or 'Inicio'} al {fecha_fin_reporte or 'Hoy'} | Emitido: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
     elementos.append(Spacer(1, 14))

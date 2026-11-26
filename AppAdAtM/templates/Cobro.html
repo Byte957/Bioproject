@@ -215,9 +215,9 @@
         </div>
 
         <div class="form-group">
-          <label for="atencion_id">Seleccionar Atención</label>
+          <label for="atencion_id">Seleccionar Cita</label>
           <select id="atencion_id" name="atencion_id" required>
-            <option value="" disabled selected>Seleccione una atención...</option>
+            <option value="" disabled selected>Seleccione una cita...</option>
             {% for a in atenciones %}
               <option value="{{ a.ID_Atencion }}" data-search="{{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.SegNombre_Paciente }} {{ a.Paciente.TerNombre_Paciente }} {{ a.Paciente.ApellidoP }} {{ a.Paciente.ApellidoM }} {{ a.Paciente.RUN_Paciente }}">
                 #{{ a.ID_Atencion }} | {{ a.Dia|date:'d/m/Y' }} {{ a.ID_Horario.Hora_Inicio|time:'H:i' }} - {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} ({{ a.Paciente.RUN_Paciente }}) [{{ a.Estado }}]
@@ -270,7 +270,7 @@
           <button type="submit" class="btn btn-submit" id="btn-cobrar">Cobrar</button>
           <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
         </div>
-        <p>Al registrar el cobro, la atención pasa a estado «En espera».</p>
+        <p>Al registrar el cobro, la cita pasa a estado «En espera».</p>
       </form>
     </section>
 
@@ -278,7 +278,7 @@
     <section class="card right-panel">
       <div class="hospital-header">
         <span class="sublogo-txt">Biotechnica Clínica</span>
-        <span class="info-txt" id="header-boleta-info">Detalle de Atención</span>
+        <span class="info-txt" id="header-boleta-info">Detalle de Cita</span>
       </div>
 
       <div class="prescription-scroll-container">
@@ -286,19 +286,19 @@
         <!-- Información Médico -->
         <div class="info-card-block">
           <div class="block-title">Información Médico</div>
-          <p id="detalle-medico">Selecciona una atención para ver el médico tratante...</p>
+          <p id="detalle-medico">Selecciona una cita para ver el médico tratante...</p>
         </div>
 
         <!-- Información Paciente -->
         <div class="info-card-block">
           <div class="block-title">Información Paciente</div>
-          <p id="detalle-paciente">Selecciona una atención para ver los datos del paciente...</p>
+          <p id="detalle-paciente">Selecciona una cita para ver los datos del paciente...</p>
         </div>
 
         <!-- Información Atención / Descripción -->
         <div class="info-card-block">
-          <div class="block-title">Información Atención</div>
-          <p class="description-text" id="detalle-atencion">Selecciona una atención para consultar su hora agendada y el motivo de la cita.</p>
+          <div class="block-title">Información de la Cita</div>
+          <p class="description-text" id="detalle-atencion">Selecciona una cita para consultar su hora agendada y el motivo.</p>
         </div>
 
       </div>
@@ -345,11 +345,11 @@
       inputPaciente.value = '';
       inputRun.value = '';
       tituloCobro.textContent = 'Cobro';
-      headerBoleta.textContent = 'Detalle de Atención';
+      headerBoleta.textContent = 'Detalle de Cita';
       btnCobrar.textContent = 'Cobrar';
-      pMedico.textContent = 'Selecciona una atención para ver el médico tratante...';
-      pPaciente.textContent = 'Selecciona una atención para ver los datos del paciente...';
-      pAtencion.textContent = 'Selecciona una atención para consultar su hora agendada y el motivo de la cita.';
+      pMedico.textContent = 'Selecciona una cita para ver el médico tratante...';
+      pPaciente.textContent = 'Selecciona una cita para ver los datos del paciente...';
+      pAtencion.textContent = 'Selecciona una cita para consultar su hora agendada y el motivo.';
     }
 
     function filtrarAtenciones() {
@@ -369,8 +369,8 @@
 
       mensajeSinAtenciones.hidden = coincidencias > 0;
       mensajeSinAtenciones.textContent = opcionesAtencion.length
-        ? 'No hay atenciones que coincidan con la búsqueda.'
-        : 'No hay atenciones reservadas para hoy.';
+        ? 'No hay citas que coincidan con la búsqueda.'
+        : 'No hay citas reservadas para hoy.';
     }
 
     buscarAtencion.addEventListener('input', filtrarAtenciones);
@@ -426,7 +426,7 @@
         btnCobrar.textContent = 'Actualizar Boleta';
       } else {
         tituloCobro.textContent = 'Cobro';
-        headerBoleta.textContent = `Atención #${data.id} (${data.fecha_hora})`;
+        headerBoleta.textContent = `Cita #${data.id} (${data.fecha_hora})`;
         selectMetodo.selectedIndex = 0;
         inputNeto.value = '';
         inputIva.value = '';
