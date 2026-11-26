@@ -21,6 +21,8 @@ class Usuario(models.Model):
     Correo_Usuario = models.CharField(max_length=50, unique=True)
     Contraseña = models.CharField(max_length=128)
     Estado = models.CharField(max_length=10, default='Activo')
+    Intentos_Fallidos = models.PositiveSmallIntegerField(default=0)
+    Bloqueada_Hasta = models.DateTimeField(null=True, blank=True)
     Rol = models.ForeignKey(Rol, on_delete=models.RESTRICT, db_column='Rol')
 
     class Meta:
@@ -148,7 +150,13 @@ class Receta(models.Model):
 
 
 class MedicamentoReceta(models.Model):
-    ID_Medicamento = models.ForeignKey(Medicamento, on_delete=models.CASCADE, db_column='ID_Medicamento')
+    ID_Medicamento = models.ForeignKey(
+        Medicamento,
+        on_delete=models.CASCADE,
+        db_column='ID_Medicamento',
+        null=True,
+        blank=True,
+    )
     ID_Receta = models.ForeignKey(Receta, on_delete=models.CASCADE, db_column='ID_Receta')
     Indicaciones = models.CharField(max_length=200)
 
@@ -176,6 +184,14 @@ class Auditoria(models.Model):
     Registro_ID = models.TextField()
     Detalle = models.TextField(null=True, blank=True)
     Fecha_Hora = models.DateTimeField(auto_now_add=True)
+    Usuario = models.ForeignKey(
+        Usuario,
+        on_delete=models.PROTECT,
+        db_column='Usuario',
+        null=True,
+        blank=True,
+        related_name='auditorias',
+    )
 
     class Meta:
         db_table = 'Auditoria'

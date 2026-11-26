@@ -63,17 +63,19 @@
     .prescription-scroll-container::-webkit-scrollbar-thumb { background: #43a047; border-radius: 10px; }
 
     .user-item {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
       padding: 12px 14px;
       background-color: #ffffff;
       border: 1.5px solid #2e7d32;
       border-radius: 10px;
       font-size: 0.82rem;
       color: #333333;
-      cursor: pointer;
       transition: all 0.2s ease;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      white-space: normal;
+      line-height: 1.45;
     }
 
     .user-item:hover,
@@ -82,6 +84,15 @@
       transform: translateX(4px);
       box-shadow: 0 4px 10px rgba(46, 125, 50, 0.15);
       font-weight: 600;
+    }
+
+    .btn-iniciar-atencion {
+      align-self: flex-start;
+    }
+
+    .btn-iniciar-atencion:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
     }
 
     .right-panel {
@@ -203,6 +214,7 @@
     }
 
     input[type="text"],
+    input[type="search"],
     input[type="date"],
     select,
     textarea {
@@ -255,6 +267,10 @@
       border: 1px solid #ef9a9a;
     }
 
+    .is-hidden {
+      display: none !important;
+    }
+
     .alert-success {
       background-color: #e8f5e9;
       color: #2e7d32;
@@ -297,19 +313,10 @@
     <section class="card left-panel">
       <div class="filters-row">
         <div class="filter-item">
-          <label for="filtro-paciente">Filtrar por Paciente</label>
-          <select id="filtro-paciente">
-            <option value="">Todos los pacientes...</option>
-            {% for p in pacientes %}
-              <option value="{{ p.RUN_Paciente }}">{{ p.RUN_Paciente }} - {{ p.Nombre_Paciente }} {{ p.ApellidoP }}</option>
-            {% endfor %}
-          </select>
+          <label for="filtro-paciente">Buscar paciente por nombre o RUN</label>
+          <input type="search" id="filtro-paciente" placeholder="Nombre, apellido o RUN" autocomplete="off">
         </div>
 
-        <div class="filter-item">
-          <label for="filtro-fecha">Fecha</label>
-          <input type="date" id="filtro-fecha">
-        </div>
       </div>
 
       <h2 class="section-title">Atenciones Registradas ({{ atenciones|length }})</h2>
@@ -319,15 +326,22 @@
                data-id="{{ a.ID_Atencion }}"
                data-medico="Dr(a). {{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} - {{ a.ID_Medico.Especializacion|default:'Medicina General' }} - RUN: {{ a.ID_Medico.RUN_Medico }} / Mat. #{{ a.ID_Medico.MatriculaProfesional }}"
                data-paciente="{{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} {{ a.Paciente.ApellidoM }} - RUN: {{ a.Paciente.RUN_Paciente }}"
+               data-nombre-paciente="{{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.SegNombre_Paciente }} {{ a.Paciente.ApellidoP }} {{ a.Paciente.ApellidoM }}"
                data-run="{{ a.Paciente.RUN_Paciente }}"
-               data-fecha="{{ a.Dia|date:'Y-m-d' }}"
                data-fecha-texto="{{ a.Dia|date:'d/m/Y' }} {{ a.ID_Horario.Hora_Inicio|time:'H:i' }}"
                data-descripcion="{{ a.Descripcion }}"
                data-estado="{{ a.Estado }}">
-            Dr(a). {{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} - {{ a.Dia|date:'d/m/Y' }} {{ a.ID_Horario.Hora_Inicio|time:'H:i' }} - {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} [{{ a.Estado }}]
+            <span>
+              {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} · RUN: {{ a.Paciente.RUN_Paciente }}<br>
+              {{ a.Dia|date:'d/m/Y' }} {{ a.ID_Horario.Hora_Inicio|time:'H:i' }} · {{ a.get_Estado_display }}
+            </span>
+            <button type="button" class="btn btn-submit btn-iniciar-atencion"
+                    {% if a.Estado == 'EN ESPERA' and hay_atencion_en_curso %}disabled title="Ya tienes una atención en curso. Continúala o devuélvela a espera antes de iniciar otra."{% endif %}>
+              {% if a.Estado == 'EN ESPERA' %}Iniciar Atención{% else %}Continuar Atención{% endif %}
+            </button>
           </div>
         {% empty %}
-          <p style="color:#666; font-size:0.9rem; padding:10px;">No hay atenciones disponibles para emitir receta.</p>
+          <p style="color:#666; font-size:0.9rem; padding:10px;">          No hay atenciones en espera o en atención.</p>
         {% endfor %}
       </div>
     </section>
@@ -350,6 +364,7 @@
       <form method="POST" action="" id="form-receta">
         {% csrf_token %}
         <input type="hidden" id="atencion_id" name="atencion_id" value="">
+        <input type="hidden" id="accion-receta" name="accion" value="emitir_receta">
 
         <!-- Contenedor con barra de scroll para el documento médico -->
         <div class="prescription-scroll-container">
@@ -373,24 +388,26 @@
           </div>
 
           <!-- Información Atención / Diagnóstico -->
-          <div class="info-card-block">
+          <div class="info-card-block" id="diagnostico-section">
             <div class="block-title">Diagnóstico / Notas de Atención</div>
             <textarea id="diagnostico" name="diagnostico" placeholder="Diagnóstico o evolución médica de la consulta..." required></textarea>
           </div>
 
           <!-- Contenedor dinámico de tarjetas de Medicamentos -->
-          <div id="medicamentos-container" style="display:flex; flex-direction:column; gap:12px;"></div>
+          <div id="medicamentos-section">
+            <div id="medicamentos-container" style="display:flex; flex-direction:column; gap:12px;"></div>
 
-          <!-- Botón Añadir Medicamento -->
-          <button type="button" class="btn-add-med" id="btn-add-med">
-            <span>+</span> Añadir Medicamento
-          </button>
+            <!-- Botón Añadir Medicamento -->
+            <button type="button" class="btn-add-med" id="btn-add-med">
+              <span>+</span> Añadir Medicamento
+            </button>
+          </div>
 
         </div>
 
         <!-- Botones de Acción: Emitir Atención y Cancelar -->
         <div class="form-buttons">
-          <button type="submit" class="btn btn-submit" id="btn-emitir">Emitir Atención</button>
+          <button type="submit" class="btn btn-submit" id="btn-emitir" formnovalidate>Emitir Atención</button>
           <button type="button" class="btn btn-cancel" id="btn-cancelar">Cancelar</button>
         </div>
       </form>
@@ -430,6 +447,7 @@
     const RECETAS_EXISTENTES = {{ recetas_json|safe }};
     const items = document.querySelectorAll('.user-item');
     const inputAtencionId = document.getElementById('atencion_id');
+    const formReceta = document.getElementById('form-receta');
     const inputInstitucion = document.getElementById('institucion');
     const pMedico = document.getElementById('info-medico');
     const pPaciente = document.getElementById('info-paciente');
@@ -438,6 +456,9 @@
     const medContainer = document.getElementById('medicamentos-container');
     const medTemplate = document.getElementById('template-medicamento');
     const btnEmitir = document.getElementById('btn-emitir');
+    const accionReceta = document.getElementById('accion-receta');
+    const diagnosticoSection = document.getElementById('diagnostico-section');
+    const medicamentosSection = document.getElementById('medicamentos-section');
 
     function agregarTarjetaMedicamento(medId = '', indicaciones = '') {
       const clone = medTemplate.content.cloneNode(true);
@@ -450,13 +471,8 @@
       if (indicaciones) inputInd.value = indicaciones;
 
       btnQuitar.addEventListener('click', () => {
-        if (medContainer.children.length > 1) {
-          card.remove();
-          renumerarMedicamentos();
-        } else {
-          selectMed.selectedIndex = 0;
-          inputInd.value = '';
-        }
+        card.remove();
+        renumerarMedicamentos();
       });
 
       medContainer.appendChild(clone);
@@ -477,40 +493,54 @@
       agregarTarjetaMedicamento();
     });
 
-    // Al seleccionar una atención de la lista izquierda
+    function cargarAtencion(item) {
+      items.forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+
+      const atId = item.dataset.id;
+      inputAtencionId.value = atId;
+      pMedico.textContent = item.dataset.medico;
+      pPaciente.textContent = item.dataset.paciente;
+      txtDiagnostico.value = item.dataset.descripcion;
+      accionReceta.value = 'emitir_receta';
+      diagnosticoSection.classList.remove('is-hidden');
+      medicamentosSection.classList.remove('is-hidden');
+      medContainer.innerHTML = '';
+      inputInstitucion.value = 'Clínica Biotechnica';
+
+      const recetaPrevia = RECETAS_EXISTENTES[atId];
+      if (recetaPrevia) {
+        headerEstado.textContent = `Receta #${recetaPrevia.id_receta} (${item.dataset.fechaTexto})`;
+        inputInstitucion.value = recetaPrevia.institucion;
+        btnEmitir.textContent = 'Actualizar Receta';
+        recetaPrevia.medicamentos.forEach(m => {
+          agregarTarjetaMedicamento(m.id, m.indicaciones);
+        });
+      } else {
+        headerEstado.textContent = `Atención #${atId} - ${item.dataset.fechaTexto}`;
+        btnEmitir.textContent = 'Emitir Atención';
+        agregarTarjetaMedicamento();
+      }
+    }
+
     items.forEach(item => {
-      item.addEventListener('click', () => {
-        items.forEach(i => i.classList.remove('selected'));
-        item.classList.add('selected');
-
-        const atId = item.dataset.id;
-        inputAtencionId.value = atId;
-        pMedico.textContent = item.dataset.medico;
-        pPaciente.textContent = item.dataset.paciente;
-        txtDiagnostico.value = item.dataset.descripcion;
-
-        // Revisar si esta atención ya tenía una receta guardada
-        medContainer.innerHTML = '';
-        const recetaPrevia = RECETAS_EXISTENTES[atId];
-
-        if (recetaPrevia) {
-          headerEstado.textContent = `Receta #${recetaPrevia.id_receta} (${item.dataset.fechaTexto})`;
-          inputInstitucion.value = recetaPrevia.institucion;
-          btnEmitir.textContent = 'Actualizar Receta';
-          recetaPrevia.medicamentos.forEach(m => {
-            agregarTarjetaMedicamento(m.id, m.indicaciones);
-          });
-        } else {
-          headerEstado.textContent = `Atención #${atId} - ${item.dataset.fechaTexto}`;
-          inputInstitucion.value = 'Clínica Biotechnica';
-          btnEmitir.textContent = 'Emitir Atención';
-          agregarTarjetaMedicamento();
+      item.querySelector('.btn-iniciar-atencion').addEventListener('click', () => {
+        if (item.dataset.estado === 'EN ESPERA') {
+          const nombrePaciente = item.dataset.nombrePaciente;
+          if (!window.confirm(`¿Confirmas iniciar la atención de ${nombrePaciente}?`)) {
+            return;
+          }
+          inputAtencionId.value = item.dataset.id;
+          accionReceta.value = 'iniciar';
+          formReceta.submit();
+          return;
         }
+
+        cargarAtencion(item);
       });
     });
 
-    // Botón Cancelar
-    document.getElementById('btn-cancelar').addEventListener('click', () => {
+    function limpiarFormulario() {
       items.forEach(i => i.classList.remove('selected'));
       inputAtencionId.value = '';
       pMedico.textContent = 'Selecciona una atención de la lista izquierda...';
@@ -519,27 +549,45 @@
       inputInstitucion.value = 'Clínica Biotechnica';
       headerEstado.textContent = 'Selecciona una atención';
       btnEmitir.textContent = 'Emitir Atención';
+      accionReceta.value = 'emitir_receta';
+      diagnosticoSection.classList.remove('is-hidden');
+      medicamentosSection.classList.remove('is-hidden');
       medContainer.innerHTML = '';
       agregarTarjetaMedicamento();
+    }
+
+    document.getElementById('btn-cancelar').addEventListener('click', () => {
+      const atencionSeleccionada = document.querySelector('.user-item.selected');
+      if (atencionSeleccionada) {
+        accionReceta.value = 'devolver_espera';
+        formReceta.submit();
+        return;
+      }
+
+      limpiarFormulario();
     });
 
-    // Filtros en vivo (Paciente y Fecha)
-    const filtroPaciente = document.getElementById('filtro-paciente');
-    const filtroFecha = document.getElementById('filtro-fecha');
+    const atencionSeleccionadaId = new URLSearchParams(window.location.search).get('atencion_id');
+    if (atencionSeleccionadaId) {
+      const atencionSeleccionada = Array.from(items).find(
+        item => item.dataset.id === atencionSeleccionadaId
+          && item.dataset.estado === 'EN ATENCIÓN',
+      );
+      if (atencionSeleccionada) cargarAtencion(atencionSeleccionada);
+    }
 
+    const filtroPaciente = document.getElementById('filtro-paciente');
     function filtrarAtenciones() {
-      const runSel = filtroPaciente.value;
-      const fechaSel = filtroFecha.value;
+      const busquedaPaciente = filtroPaciente.value.trim().toLowerCase();
 
       items.forEach(item => {
-        const coincideRun = !runSel || item.dataset.run === runSel;
-        const coincideFecha = !fechaSel || item.dataset.fecha === fechaSel;
-        item.style.display = (coincideRun && coincideFecha) ? 'block' : 'none';
+        const coincidePaciente = !busquedaPaciente
+          || `${item.dataset.nombrePaciente} ${item.dataset.run}`.toLowerCase().includes(busquedaPaciente);
+        item.style.display = coincidePaciente ? 'flex' : 'none';
       });
     }
 
-    filtroPaciente.addEventListener('change', filtrarAtenciones);
-    filtroFecha.addEventListener('change', filtrarAtenciones);
+    filtroPaciente.addEventListener('input', filtrarAtenciones);
   </script>
 
 </body>

@@ -2,6 +2,7 @@ import re
 from datetime import date, datetime, time, timedelta
 from unittest.mock import patch
 
+from django.contrib.auth.hashers import make_password
 from django.core import mail
 from django.core import signing
 from django.db import IntegrityError, transaction
@@ -17,11 +18,14 @@ from .models import (
     Horario,
     HorarioMedico,
     Medicamento,
+    MedicamentoReceta,
     Medico,
     Paciente,
     ActivacionPendiente,
+    Receta,
     Rol,
     Usuario,
+    Auditoria,
 )
 from .views import _huella_contrasena
 
@@ -88,6 +92,12 @@ class RegistroActivacionTests(TestCase):
 
         self.assertRedirects(response, reverse('inicio_sesion'), fetch_redirect_response=False)
         self.assertEqual(usuario.Estado, 'Inactivo')
+        auditoria_registro = Auditoria.objects.get(
+            Tabla_Afectada='Usuario',
+            Accion='INSERT',
+            Registro_ID=str(usuario.ID_Usuario),
+        )
+        self.assertEqual(auditoria_registro.Usuario_id, usuario.ID_Usuario)
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ['ana@example.com'])
         token = self.token_del_correo()
@@ -102,6 +112,12 @@ class RegistroActivacionTests(TestCase):
         self.client.get(reverse('activar_cuenta', args=[token]))
         usuario.refresh_from_db()
         self.assertEqual(usuario.Estado, 'Activo')
+        auditoria_activacion = Auditoria.objects.get(
+            Tabla_Afectada='Usuario',
+            Accion='UPDATE',
+            Registro_ID=str(usuario.ID_Usuario),
+        )
+        self.assertEqual(auditoria_activacion.Usuario_id, usuario.ID_Usuario)
 
         self.client.post(reverse('inicio_sesion'), {
             'modo': 'correo',
@@ -298,6 +314,81 @@ class RegistroActivacionTests(TestCase):
 
         self.assertFalse(Usuario.objects.filter(Correo_Usuario='ana@example.com').exists())
         self.assertFalse(Paciente.objects.filter(RUN_Paciente='12.345.678-5').exists())
+
+
+class LoginLockoutTests(TestCase):
+    def setUp(self):
+        rol_admin, _ = Rol.objects.get_or_create(
+            ID_Rol=1,
+            defaults={'Nombre_Rol': 'Administrador'},
+        )
+        self.usuario = Usuario.objects.create(
+            Nombre='Admin',
+            Apellido='Prueba',
+            Correo_Usuario='admin@example.com',
+            Contraseña=make_password('clave1234'),
+            Rol=rol_admin,
+        )
+
+    def iniciar_sesion(self, password):
+        return self.client.post(reverse('inicio_sesion'), {
+            'modo': 'correo',
+            'identificador': 'admin@example.com',
+            'password': password,
+        }, follow=True)
+
+    def test_fifth_failed_password_locks_account_and_rejects_correct_password(self):
+        for _ in range(4):
+            self.iniciar_sesion('incorrecta')
+
+        self.usuario.refresh_from_db()
+        self.assertEqual(self.usuario.Intentos_Fallidos, 4)
+        inicio_quinto_intento = timezone.now()
+        response = self.iniciar_sesion('incorrecta')
+
+        self.usuario.refresh_from_db()
+        self.assertContains(
+            response,
+            'Cuenta bloqueada por múltiples intentos fallidos. Intente nuevamente en 15 minutos',
+        )
+        self.assertEqual(self.usuario.Intentos_Fallidos, 5)
+        self.assertGreaterEqual(
+            self.usuario.Bloqueada_Hasta,
+            inicio_quinto_intento + timedelta(minutes=15),
+        )
+        self.assertNotIn('usuario_id', self.client.session)
+
+        response = self.iniciar_sesion('clave1234')
+        self.assertContains(
+            response,
+            'Cuenta bloqueada por múltiples intentos fallidos. Intente nuevamente en 15 minutos',
+        )
+        self.assertNotIn('usuario_id', self.client.session)
+
+    def test_correct_password_after_lock_expires_allows_login_and_resets_counter(self):
+        self.usuario.Intentos_Fallidos = 5
+        self.usuario.Bloqueada_Hasta = timezone.now() - timedelta(seconds=1)
+        self.usuario.save(update_fields=['Intentos_Fallidos', 'Bloqueada_Hasta'])
+
+        response = self.iniciar_sesion('clave1234')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.session['usuario_id'], self.usuario.ID_Usuario)
+        self.usuario.refresh_from_db()
+        self.assertEqual(self.usuario.Intentos_Fallidos, 0)
+        self.assertIsNone(self.usuario.Bloqueada_Hasta)
+
+    def test_successful_login_resets_failed_attempts(self):
+        for _ in range(4):
+            self.iniciar_sesion('incorrecta')
+
+        response = self.iniciar_sesion('clave1234')
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.session['usuario_id'], self.usuario.ID_Usuario)
+        self.usuario.refresh_from_db()
+        self.assertEqual(self.usuario.Intentos_Fallidos, 0)
+        self.assertIsNone(self.usuario.Bloqueada_Hasta)
 
 
 @override_settings(
@@ -618,6 +709,23 @@ class FlujoAtencionesTests(TestCase):
             ],
         )
 
+    def test_registration_can_search_available_doctors_by_name(self):
+        self.iniciar_sesion_de_prueba(self.usuario_paciente)
+        dia = timezone.localdate() + timedelta(days=2)
+        HorarioMedico.objects.create(
+            ID_Medico=self.medico,
+            ID_Horario=self.horario,
+            Dia=dia,
+            Estado='Disponible',
+        )
+
+        response = self.client.get(reverse('registrar_atencion'))
+
+        self.assertContains(response, 'id="filtro-medico"')
+        self.assertContains(response, 'Nombre o apellido del médico')
+        self.assertContains(response, 'data-medico-busqueda="Marta')
+        self.assertContains(response, 'filtrarDisponibles')
+
     def test_schedule_api_returns_only_future_available_slots_for_selected_doctor_and_date(self):
         fecha = date(2026, 11, 25)
         ahora = timezone.make_aware(datetime(2026, 11, 25, 16, 0))
@@ -792,14 +900,22 @@ class FlujoAtencionesTests(TestCase):
         self.assertTrue(Boleta.objects.filter(Atencion=atencion).exists())
 
         self.iniciar_sesion_de_prueba(self.usuario_medico)
-        self.assertEqual(self.client.get(reverse('gestionar_atencion')).status_code, 200)
+        self.assertEqual(self.client.get(reverse('gestionar_atencion')).status_code, 302)
         self.assertEqual(self.client.get(reverse('gestionar_disponibilidad')).status_code, 200)
-        self.client.post(reverse('gestionar_atencion'), {
+        inicio_response = self.client.post(reverse('gestionar_recetasatencion'), {
             'accion': 'iniciar',
             'atencion_id': str(atencion.ID_Atencion),
-        })
+        }, follow=True)
         atencion.refresh_from_db()
         self.assertEqual(atencion.Estado, EstadoAtencion.EN_ATENCION)
+        self.assertEqual(
+            inicio_response.redirect_chain[0][0],
+            f'{reverse("gestionar_recetasatencion")}?atencion_id={atencion.ID_Atencion}',
+        )
+        self.assertEqual(
+            inicio_response.context['atencion_seleccionada_id'],
+            str(atencion.ID_Atencion),
+        )
 
         medicamento = Medicamento.objects.create(
             Nombre_Medicamento='Medicamento de prueba',
@@ -814,6 +930,52 @@ class FlujoAtencionesTests(TestCase):
         })
         atencion.refresh_from_db()
         self.assertEqual(atencion.Estado, EstadoAtencion.FINALIZADA)
+
+    def test_doctor_can_finish_without_medicine_but_not_with_an_empty_medicine_row(self):
+        atencion = self.crear_atencion(estado=EstadoAtencion.EN_ATENCION)
+        medicamento = Medicamento.objects.create(
+            Nombre_Medicamento='Medicamento opcional',
+            Nombre_Comun='Opcional',
+        )
+        self.iniciar_sesion_de_prueba(self.usuario_medico)
+        url = reverse('gestionar_recetasatencion')
+
+        self.client.post(url, {
+            'atencion_id': str(atencion.ID_Atencion),
+            'medicamento_id[]': [''],
+            'indicaciones[]': [''],
+        })
+        atencion.refresh_from_db()
+        self.assertEqual(atencion.Estado, EstadoAtencion.EN_ATENCION)
+        self.assertFalse(Receta.objects.filter(Atencion=atencion).exists())
+
+        self.client.post(url, {
+            'atencion_id': str(atencion.ID_Atencion),
+            'medicamento_id[]': [str(medicamento.ID_Medicamento)],
+            'indicaciones[]': ['   '],
+        })
+        atencion.refresh_from_db()
+        self.assertEqual(atencion.Estado, EstadoAtencion.EN_ATENCION)
+        self.assertFalse(Receta.objects.filter(Atencion=atencion).exists())
+
+        self.client.post(url, {
+            'atencion_id': str(atencion.ID_Atencion),
+            'diagnostico': 'Atención sin medicamentos',
+        })
+        atencion.refresh_from_db()
+        self.assertEqual(atencion.Estado, EstadoAtencion.FINALIZADA)
+        receta = Receta.objects.get(Atencion=atencion)
+        self.assertFalse(MedicamentoReceta.objects.filter(ID_Receta=receta).exists())
+
+        detalle_sin_medicamento = MedicamentoReceta.objects.create(
+            ID_Medicamento=None,
+            ID_Receta=receta,
+            Indicaciones='Sin medicamento asociado',
+        )
+        self.assertIsNone(detalle_sin_medicamento.ID_Medicamento_id)
+        response = self.client.get(reverse('historial_atenciones'))
+        self.assertContains(response, 'Atención sin medicamentos')
+        self.assertContains(response, 'Descargar Receta')
 
     def test_cobro_lists_only_todays_reserved_appointments_and_shows_scheduled_details(self):
         hoy = timezone.localdate()
@@ -869,6 +1031,47 @@ class FlujoAtencionesTests(TestCase):
             'Disponible',
         )
 
+    def test_patient_cancellation_requires_at_least_24_hours(self):
+        manana = date(2026, 11, 26)
+        dia_siguiente = date(2026, 11, 27)
+        menos_de_24_horas = self.crear_atencion(dia=manana)
+        exactamente_24_horas = self.crear_atencion(dia=dia_siguiente)
+        self.iniciar_sesion_de_prueba(self.usuario_paciente)
+
+        with patch('AppAdAtM.views.timezone', wraps=timezone) as mocked_timezone:
+            mocked_timezone.now.return_value = timezone.make_aware(
+                datetime(2026, 11, 25, 11, 0),
+            )
+            self.client.post(reverse('gestionar_atencion'), {
+                'accion': 'cancelar',
+                'atencion_id': str(menos_de_24_horas.ID_Atencion),
+            })
+
+        menos_de_24_horas.refresh_from_db()
+        self.assertEqual(menos_de_24_horas.Estado, EstadoAtencion.RESERVADA)
+        inicio_exactamente_24_horas = timezone.make_aware(datetime.combine(
+            exactamente_24_horas.Dia,
+            exactamente_24_horas.ID_Horario.Hora_Inicio,
+        ))
+        ahora_exactamente_24_horas = timezone.make_aware(datetime(2026, 11, 26, 10, 0))
+        self.assertEqual(
+            inicio_exactamente_24_horas - ahora_exactamente_24_horas,
+            timedelta(hours=24),
+        )
+
+        with patch('AppAdAtM.views.timezone', wraps=timezone) as mocked_timezone:
+            mocked_timezone.now.return_value = timezone.make_aware(
+                datetime(2026, 11, 26, 10, 0),
+            )
+            response = self.client.post(reverse('gestionar_atencion'), {
+                'accion': 'cancelar',
+                'atencion_id': str(exactamente_24_horas.ID_Atencion),
+            }, follow=True)
+
+        self.assertContains(response, f'La cita #{exactamente_24_horas.ID_Atencion} fue cancelada.')
+        exactamente_24_horas.refresh_from_db()
+        self.assertEqual(exactamente_24_horas.Estado, EstadoAtencion.CANCELADA)
+
     def test_patient_atenciones_include_all_doctors_but_exclude_other_patients(self):
         propia = self.crear_atencion()
         otro_medico = Medico.objects.create(
@@ -917,40 +1120,154 @@ class FlujoAtencionesTests(TestCase):
             Dia=propia.Dia + timedelta(days=2),
             Estado=EstadoAtencion.RESERVADA,
         )
+        en_espera = self.crear_atencion(
+            estado=EstadoAtencion.EN_ESPERA,
+            dia=propia.Dia + timedelta(days=3),
+        )
         self.iniciar_sesion_de_prueba(self.usuario_paciente)
 
         response = self.client.get(reverse('gestionar_atencion'))
 
         ids = set(response.context['atenciones'].values_list('ID_Atencion', flat=True))
         self.assertEqual(ids, {propia.ID_Atencion, con_otro_medico.ID_Atencion})
+        self.assertNotIn(en_espera.ID_Atencion, ids)
         self.assertContains(response, 'Buscar por médico')
         self.assertContains(response, 'data-busqueda="Marta Doctora')
+        self.assertContains(response, 'Cancelar atención')
+        self.assertContains(response, 'id="btn-eliminar" disabled')
+        self.assertContains(response, 'Importante: Solo se pueden cancelar citas con 24 horas de anticipación')
+        self.assertContains(response, 'data-inicio-timestamp=')
+        self.assertNotContains(response, 'Filtrar por estado')
+        self.assertNotContains(response, 'id="btn-abandonar"')
         self.assertNotContains(response, 'tab-medicos')
         self.assertNotContains(response, 'tab-pacientes')
 
-    def test_doctor_atenciones_include_all_patients_but_exclude_other_doctors(self):
-        propia = self.crear_atencion()
-        otro_paciente = Paciente.objects.create(
-            RUN_Paciente='77.777.777-7',
-            Nombre_Paciente='Paciente',
-            SegNombre_Paciente='',
-            TerNombre_Paciente='',
-            ApellidoP='Distinto',
-            ApellidoM='',
-            Fecha_Nacimiento=date(1990, 1, 1),
+    def test_patient_atenciones_exclude_past_date_and_time(self):
+        hoy = timezone.localdate()
+        pasada = self.crear_atencion(dia=hoy - timedelta(days=1))
+        pasada_hoy = self.crear_atencion(dia=hoy)
+        horario_futuro = Horario.objects.create(
+            Hora_Inicio=time(13, 0),
+            Hora_Fin=time(13, 20),
         )
-        con_otro_paciente = Atencion.objects.create(
-            Paciente=otro_paciente,
+        futura_hoy = Atencion.objects.create(
+            Paciente=self.paciente,
             Usuario=self.usuario_paciente,
             ID_Medico=self.medico,
-            Descripcion='Consulta de otro paciente',
-            ID_Horario=Horario.objects.create(
-                Hora_Inicio=time(12, 0),
-                Hora_Fin=time(12, 20),
-            ),
-            Dia=propia.Dia + timedelta(days=1),
+            Descripcion='Consulta futura de hoy',
+            ID_Horario=horario_futuro,
+            Dia=hoy,
             Estado=EstadoAtencion.RESERVADA,
         )
+        self.iniciar_sesion_de_prueba(self.usuario_paciente)
+
+        with patch('AppAdAtM.views.timezone', wraps=timezone) as mocked_timezone:
+            mocked_timezone.now.return_value = timezone.make_aware(
+                datetime.combine(hoy, time(12, 0)),
+            )
+            response = self.client.get(reverse('gestionar_atencion'))
+
+        ids = set(response.context['atenciones'].values_list('ID_Atencion', flat=True))
+        self.assertEqual(ids, {futura_hoy.ID_Atencion})
+        self.assertNotIn(pasada.ID_Atencion, ids)
+        self.assertNotIn(pasada_hoy.ID_Atencion, ids)
+
+    def test_doctors_are_blocked_from_reservation_management_and_menu_link(self):
+        esperando = self.crear_atencion(estado=EstadoAtencion.EN_ESPERA)
+        self.iniciar_sesion_de_prueba(self.usuario_medico)
+
+        response = self.client.get(reverse('gestionar_atencion'))
+        self.assertRedirects(
+            response,
+            reverse('gestionar_disponibilidad'),
+            fetch_redirect_response=False,
+        )
+
+        self.client.post(reverse('gestionar_atencion'), {
+            'accion': 'iniciar',
+            'atencion_id': str(esperando.ID_Atencion),
+        })
+        esperando.refresh_from_db()
+        self.assertEqual(esperando.Estado, EstadoAtencion.EN_ESPERA)
+
+        menu_response = self.client.get(reverse('gestionar_disponibilidad'))
+        self.assertContains(menu_response, 'Finalizar Atenciones / Recetas')
+        self.assertNotContains(menu_response, 'Gestionar Atenciones y Citas')
+
+    def test_doctor_recetas_view_lists_only_waiting_and_in_progress_appointments(self):
+        esperando = self.crear_atencion(
+            estado=EstadoAtencion.EN_ESPERA,
+            dia=date.today() + timedelta(days=1),
+        )
+        en_atencion = self.crear_atencion(
+            estado=EstadoAtencion.EN_ATENCION,
+            dia=date.today() + timedelta(days=2),
+        )
+        reservada = self.crear_atencion(
+            estado=EstadoAtencion.RESERVADA,
+            dia=date.today() + timedelta(days=3),
+        )
+        self.iniciar_sesion_de_prueba(self.usuario_medico)
+
+        response = self.client.get(reverse('gestionar_recetasatencion'))
+
+        ids = set(response.context['atenciones'].values_list('ID_Atencion', flat=True))
+        self.assertEqual(ids, {esperando.ID_Atencion, en_atencion.ID_Atencion})
+        self.assertNotIn(reservada.ID_Atencion, ids)
+        self.assertTrue(response.context['hay_atencion_en_curso'])
+        self.assertNotContains(response, 'id="filtro-fecha"')
+        self.assertContains(response, 'Buscar paciente por nombre o RUN')
+        self.assertContains(response, 'type="search" id="filtro-paciente"')
+        self.assertContains(response, 'Iniciar Atención')
+        self.assertContains(response, 'Continuar Atención')
+        self.assertContains(response, 'disabled title="Ya tienes una atención en curso.')
+        self.assertContains(response, 'window.confirm')
+        self.assertNotContains(response, '<select id="filtro-paciente"')
+
+        html = response.content.decode()
+        continuar_index = html.index('Continuar Atención')
+        boton_continuar = html[html.rfind('<button', 0, continuar_index):]
+        self.assertNotIn('disabled', boton_continuar.split('>', 1)[0])
+
+    def test_doctor_can_return_own_in_progress_appointment_to_waiting(self):
+        atencion = self.crear_atencion(estado=EstadoAtencion.EN_ATENCION)
+        self.iniciar_sesion_de_prueba(self.usuario_medico)
+
+        response = self.client.post(reverse('gestionar_recetasatencion'), {
+            'accion': 'devolver_espera',
+            'atencion_id': str(atencion.ID_Atencion),
+        }, follow=True)
+
+        atencion.refresh_from_db()
+        self.assertEqual(atencion.Estado, EstadoAtencion.EN_ESPERA)
+        self.assertEqual(response.context['atencion_seleccionada_id'], '')
+        self.assertContains(response, 'La atención')
+        self.assertContains(response, 'volvió a estado En espera')
+
+    def test_doctor_cannot_start_another_appointment_while_one_is_in_progress(self):
+        esperando = self.crear_atencion(
+            estado=EstadoAtencion.EN_ESPERA,
+            dia=date.today() + timedelta(days=1),
+        )
+        en_atencion = self.crear_atencion(
+            estado=EstadoAtencion.EN_ATENCION,
+            dia=date.today() + timedelta(days=2),
+        )
+        self.iniciar_sesion_de_prueba(self.usuario_medico)
+
+        response = self.client.post(reverse('gestionar_recetasatencion'), {
+            'accion': 'iniciar',
+            'atencion_id': str(esperando.ID_Atencion),
+        }, follow=True)
+
+        esperando.refresh_from_db()
+        en_atencion.refresh_from_db()
+        self.assertEqual(esperando.Estado, EstadoAtencion.EN_ESPERA)
+        self.assertEqual(en_atencion.Estado, EstadoAtencion.EN_ATENCION)
+        self.assertContains(response, 'Ya tienes una atención en curso')
+
+    def test_doctor_cannot_start_another_doctors_waiting_appointment(self):
+        esperando = self.crear_atencion(estado=EstadoAtencion.EN_ESPERA)
         otro_medico = Medico.objects.create(
             MatriculaProfesional=67890,
             RUN_Medico='66.666.666-6',
@@ -962,27 +1279,26 @@ class FlujoAtencionesTests(TestCase):
             CorreoContactoMedico='segundo@example.com',
             NumeroContactoMedico='912345679',
         )
-        Atencion.objects.create(
-            Paciente=self.paciente,
-            Usuario=self.usuario_paciente,
-            ID_Medico=otro_medico,
-            Descripcion='Atención de otro médico',
-            ID_Horario=Horario.objects.create(
-                Hora_Inicio=time(13, 0),
-                Hora_Fin=time(13, 20),
-            ),
-            Dia=propia.Dia + timedelta(days=2),
-            Estado=EstadoAtencion.RESERVADA,
-        )
+        esperando.ID_Medico = otro_medico
+        esperando.save(update_fields=['ID_Medico'])
         self.iniciar_sesion_de_prueba(self.usuario_medico)
 
-        response = self.client.get(reverse('gestionar_atencion'))
+        self.client.post(reverse('gestionar_recetasatencion'), {
+            'accion': 'iniciar',
+            'atencion_id': str(esperando.ID_Atencion),
+        })
 
-        ids = set(response.context['atenciones'].values_list('ID_Atencion', flat=True))
-        self.assertEqual(ids, {propia.ID_Atencion, con_otro_paciente.ID_Atencion})
-        self.assertContains(response, 'Buscar paciente por nombre o RUN')
-        self.assertContains(response, 'data-busqueda="Pablo')
-        self.assertContains(response, '22.222.222-2')
+        esperando.refresh_from_db()
+        self.assertEqual(esperando.Estado, EstadoAtencion.EN_ESPERA)
+
+        esperando.Estado = EstadoAtencion.EN_ATENCION
+        esperando.save(update_fields=['Estado'])
+        self.client.post(reverse('gestionar_recetasatencion'), {
+            'accion': 'devolver_espera',
+            'atencion_id': str(esperando.ID_Atencion),
+        })
+        esperando.refresh_from_db()
+        self.assertEqual(esperando.Estado, EstadoAtencion.EN_ATENCION)
 
     def test_waiting_patient_can_abandon_and_reception_can_mark_no_show(self):
         waiting = self.crear_atencion(estado=EstadoAtencion.EN_ESPERA)
@@ -1004,6 +1320,15 @@ class FlujoAtencionesTests(TestCase):
         })
         no_show.refresh_from_db()
         self.assertEqual(no_show.Estado, EstadoAtencion.NO_ASISTIO)
+
+    def test_history_loads_responsive_navbar_script_for_patients_and_doctors(self):
+        for usuario in (self.usuario_paciente, self.usuario_medico):
+            self.iniciar_sesion_de_prueba(usuario)
+            response = self.client.get(reverse('historial_atenciones'))
+
+            self.assertContains(response, 'AppAdAtM/js/Filtros.js')
+            self.assertContains(response, 'class="navbar-content"')
+            self.assertContains(response, 'class="nav-ul"')
 
     def test_patient_cannot_open_admin_medicine_section(self):
         self.iniciar_sesion_de_prueba(self.usuario_paciente)
@@ -1139,6 +1464,20 @@ class FlujoAtencionesTests(TestCase):
         self.client.post(reverse('gestionar_pacientes'), datos)
         paciente = Paciente.objects.get(RUN_Paciente='12.345.678-5')
 
+        registro_auditoria = Auditoria.objects.get(
+            Tabla_Afectada='Paciente',
+            Accion='INSERT',
+            Registro_ID=str(paciente.ID),
+        )
+        self.assertEqual(registro_auditoria.Usuario_id, self.recepcionista.ID_Usuario)
+
+        admin = self.crear_usuario('admin@example.com', self.rol_admin)
+        self.iniciar_sesion_de_prueba(admin)
+        response = self.client.get(reverse('ver_auditoria'))
+        self.assertContains(response, 'data-usuario="Usuario Prueba"')
+        self.assertContains(response, 'Sistema / Sin usuario autenticado')
+
+        self.iniciar_sesion_de_prueba(self.recepcionista)
         self.assertEqual(paciente.Estado, 'Inactivo')
         self.assertIsNone(paciente.Usuario_id)
         self.assertIsNone(paciente.NumeroContactoPaciente)
@@ -1150,10 +1489,16 @@ class FlujoAtencionesTests(TestCase):
         })
         self.client.post(reverse('gestionar_pacientes'), datos)
         paciente.refresh_from_db()
+        registro_actualizacion = Auditoria.objects.get(
+            Tabla_Afectada='Paciente',
+            Accion='UPDATE',
+            Registro_ID=str(paciente.ID),
+        )
 
         self.assertEqual(paciente.Estado, 'Activo')
         self.assertIsNone(paciente.Usuario_id)
         self.assertIsNone(paciente.NumeroContactoPaciente)
+        self.assertEqual(registro_actualizacion.Usuario_id, self.recepcionista.ID_Usuario)
 
     def test_doctor_management_starts_blank_and_selecting_doctor_loads_edit_form(self):
         admin = self.crear_usuario('admin@example.com', self.rol_admin)
@@ -1192,8 +1537,25 @@ class FlujoAtencionesTests(TestCase):
         self.usuario_medico.refresh_from_db()
         self.assertEqual(self.usuario_medico.Contraseña, password_anterior)
 
-    def test_patient_history_contains_only_its_appointments(self):
-        self.crear_atencion()
+    def test_patient_history_contains_only_its_finalized_appointments(self):
+        atencion_con_receta = self.crear_atencion(estado=EstadoAtencion.FINALIZADA)
+        Receta.objects.create(
+            Atencion=atencion_con_receta,
+            Fecha_Receta=date.today(),
+            Institucion='Biotechnica',
+        )
+        self.crear_atencion(
+            estado=EstadoAtencion.FINALIZADA,
+            dia=date.today() + timedelta(days=6),
+        )
+        self.crear_atencion(
+            estado=EstadoAtencion.RESERVADA,
+            dia=date.today() + timedelta(days=3),
+        )
+        self.crear_atencion(
+            estado=EstadoAtencion.EN_ESPERA,
+            dia=date.today() + timedelta(days=4),
+        )
         otro_paciente = Paciente.objects.create(
             RUN_Paciente='55.555.555-5',
             Nombre_Paciente='Otra',
@@ -1210,7 +1572,7 @@ class FlujoAtencionesTests(TestCase):
             ID_Medico=self.medico,
             Descripcion='Historia ajena',
             ID_Horario=self.horario,
-            Dia=date.today() + timedelta(days=3),
+            Dia=date.today() + timedelta(days=5),
             Estado=EstadoAtencion.FINALIZADA,
         )
         self.iniciar_sesion_de_prueba(self.usuario_paciente)
@@ -1219,4 +1581,277 @@ class FlujoAtencionesTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Consulta')
+        self.assertNotContains(response, 'RESERVADA')
+        self.assertNotContains(response, 'EN ESPERA')
         self.assertNotContains(response, 'Historia ajena')
+        self.assertContains(response, 'Descargar Receta')
+        self.assertContains(response, 'Sin recetas asignadas')
+
+    def test_history_filters_by_date_and_orders_appointments(self):
+        atencion_antigua = self.crear_atencion(
+            estado=EstadoAtencion.FINALIZADA,
+            dia=date.today() + timedelta(days=2),
+        )
+        atencion_reciente = self.crear_atencion(
+            estado=EstadoAtencion.FINALIZADA,
+            dia=date.today() + timedelta(days=5),
+        )
+        self.iniciar_sesion_de_prueba(self.usuario_paciente)
+
+        response_reciente = self.client.get(reverse('historial_atenciones'))
+        self.assertEqual(
+            list(response_reciente.context['atenciones'].values_list('ID_Atencion', flat=True)),
+            [atencion_reciente.ID_Atencion, atencion_antigua.ID_Atencion],
+        )
+
+        response_fecha = self.client.get(
+            reverse('historial_atenciones'),
+            {'fecha': atencion_antigua.Dia.isoformat()},
+        )
+        self.assertEqual(
+            list(response_fecha.context['atenciones'].values_list('ID_Atencion', flat=True)),
+            [atencion_antigua.ID_Atencion],
+        )
+
+        response_antigua = self.client.get(
+            reverse('historial_atenciones'),
+            {'orden': 'antigua'},
+        )
+        self.assertEqual(
+            list(response_antigua.context['atenciones'].values_list('ID_Atencion', flat=True)),
+            [atencion_antigua.ID_Atencion, atencion_reciente.ID_Atencion],
+        )
+
+    def test_admin_reports_filter_by_date_and_sort_appointments(self):
+        atencion_antigua = self.crear_atencion(
+            estado=EstadoAtencion.FINALIZADA,
+            dia=date.today() - timedelta(days=2),
+        )
+        atencion_reciente = self.crear_atencion(
+            estado=EstadoAtencion.FINALIZADA,
+            dia=date.today() - timedelta(days=1),
+        )
+        admin = self.crear_usuario('admin@example.com', self.rol_admin)
+        self.iniciar_sesion_de_prueba(admin)
+
+        response_fecha = self.client.get(
+            reverse('reportes_clinica'),
+            {
+                'fecha': atencion_antigua.Dia.isoformat(),
+                'orden': 'reciente',
+            },
+        )
+        self.assertEqual(
+            list(response_fecha.context['atenciones'].values_list('ID_Atencion', flat=True)),
+            [atencion_antigua.ID_Atencion],
+        )
+
+        parametros_rango = {
+            'fecha_inicio': atencion_antigua.Dia.isoformat(),
+            'fecha_fin': atencion_reciente.Dia.isoformat(),
+        }
+        response_reciente = self.client.get(
+            reverse('reportes_clinica'),
+            {**parametros_rango, 'orden': 'reciente'},
+        )
+        self.assertEqual(
+            list(response_reciente.context['atenciones'].values_list('ID_Atencion', flat=True)),
+            [atencion_reciente.ID_Atencion, atencion_antigua.ID_Atencion],
+        )
+
+        response_antigua = self.client.get(
+            reverse('reportes_clinica'),
+            {**parametros_rango, 'orden': 'antigua'},
+        )
+        self.assertEqual(
+            list(response_antigua.context['atenciones'].values_list('ID_Atencion', flat=True)),
+            [atencion_antigua.ID_Atencion, atencion_reciente.ID_Atencion],
+        )
+
+        response_pdf = self.client.get(
+            reverse('exportar_reporte'),
+            {
+                'tipo': 'atenciones',
+                'formato': 'pdf',
+                'fecha': atencion_antigua.Dia.isoformat(),
+                'orden': 'antigua',
+            },
+        )
+        self.assertEqual(response_pdf.status_code, 200)
+        self.assertEqual(response_pdf['Content-Type'], 'application/pdf')
+        self.assertIn(b'%PDF-', response_pdf.content)
+
+    def test_history_recipe_download_is_pdf_and_restricted_to_owner_and_finalized_appointments(self):
+        atencion = self.crear_atencion(estado=EstadoAtencion.FINALIZADA)
+        receta = Receta.objects.create(
+            Atencion=atencion,
+            Fecha_Receta=date.today(),
+            Institucion='Biotechnica',
+        )
+        medicamento = Medicamento.objects.create(
+            Nombre_Medicamento='Paracetamol',
+            Nombre_Comun='Acetaminofén',
+        )
+        MedicamentoReceta.objects.create(
+            ID_Medicamento=medicamento,
+            ID_Receta=receta,
+            Indicaciones='1 comprimido cada 8 horas',
+        )
+        otra_atencion = self.crear_atencion(
+            estado=EstadoAtencion.RESERVADA,
+            dia=date.today() + timedelta(days=3),
+        )
+        otro_paciente = Paciente.objects.create(
+            RUN_Paciente='55.555.555-5',
+            Nombre_Paciente='Otra',
+            SegNombre_Paciente='',
+            TerNombre_Paciente='',
+            ApellidoP='Persona',
+            ApellidoM='',
+            Fecha_Nacimiento=date(1991, 1, 1),
+        )
+        atencion_ajena = Atencion.objects.create(
+            Paciente=otro_paciente,
+            Usuario=self.usuario_paciente,
+            ID_Medico=self.medico,
+            Descripcion='Atención ajena',
+            ID_Horario=self.horario,
+            Dia=date.today() + timedelta(days=4),
+            Estado=EstadoAtencion.FINALIZADA,
+        )
+        otro_medico = Medico.objects.create(
+            MatriculaProfesional=67890,
+            RUN_Medico='66.666.666-6',
+            Nombre_Medico='Diego',
+            SegNombre_Medico='',
+            TerNombre_Medico='',
+            ApellidoP_Medico='Segundo',
+            ApellidoM_Medico='',
+            CorreoContactoMedico='segundo@example.com',
+            NumeroContactoMedico='912345679',
+        )
+        atencion_otro_medico = Atencion.objects.create(
+            Paciente=self.paciente,
+            Usuario=self.usuario_paciente,
+            ID_Medico=otro_medico,
+            Descripcion='Atención de otro médico',
+            ID_Horario=self.horario,
+            Dia=date.today() + timedelta(days=5),
+            Estado=EstadoAtencion.FINALIZADA,
+        )
+        url_descarga = reverse(
+            'descargar_receta_historial',
+            args=[atencion.ID_Atencion],
+        )
+
+        self.iniciar_sesion_de_prueba(self.usuario_paciente)
+        response_paciente = self.client.get(url_descarga)
+        self.assertEqual(response_paciente.status_code, 200)
+        self.assertEqual(response_paciente['Content-Type'], 'application/pdf')
+        self.assertIn(b'%PDF-', response_paciente.content)
+        self.assertIn(
+            f'Receta_Atencion_{atencion.ID_Atencion}.pdf',
+            response_paciente['Content-Disposition'],
+        )
+        self.assertEqual(
+            self.client.get(reverse(
+                'descargar_receta_historial',
+                args=[atencion_ajena.ID_Atencion],
+            )).status_code,
+            404,
+        )
+        self.assertEqual(
+            self.client.get(reverse(
+                'descargar_receta_historial',
+                args=[otra_atencion.ID_Atencion],
+            )).status_code,
+            404,
+        )
+
+        self.iniciar_sesion_de_prueba(self.usuario_medico)
+        self.assertEqual(self.client.get(url_descarga).status_code, 200)
+        self.assertEqual(
+            self.client.get(reverse(
+                'descargar_receta_historial',
+                args=[atencion_otro_medico.ID_Atencion],
+            )).status_code,
+            404,
+        )
+
+    def test_history_searches_doctor_for_patients_and_patient_name_or_run_for_doctors(self):
+        propia = self.crear_atencion(
+            estado=EstadoAtencion.FINALIZADA,
+            dia=date.today() + timedelta(days=2),
+        )
+        propia.Descripcion = 'Control de Pablo'
+        propia.save(update_fields=['Descripcion'])
+        otro_medico = Medico.objects.create(
+            MatriculaProfesional=67890,
+            RUN_Medico='66.666.666-6',
+            Nombre_Medico='Diego',
+            SegNombre_Medico='',
+            TerNombre_Medico='',
+            ApellidoP_Medico='Segundo',
+            ApellidoM_Medico='',
+            CorreoContactoMedico='segundo@example.com',
+            NumeroContactoMedico='912345679',
+        )
+        control_otro_medico = Atencion.objects.create(
+            Paciente=self.paciente,
+            Usuario=self.usuario_paciente,
+            ID_Medico=otro_medico,
+            Descripcion='Control con Diego',
+            ID_Horario=self.horario,
+            Dia=date.today() + timedelta(days=3),
+            Estado=EstadoAtencion.FINALIZADA,
+        )
+        otro_paciente = Paciente.objects.create(
+            RUN_Paciente='55.555.555-5',
+            Nombre_Paciente='Elena',
+            SegNombre_Paciente='',
+            TerNombre_Paciente='',
+            ApellidoP='Ejemplo',
+            ApellidoM='',
+            Fecha_Nacimiento=date(1990, 1, 1),
+        )
+        control_otro_paciente = Atencion.objects.create(
+            Paciente=otro_paciente,
+            Usuario=self.usuario_paciente,
+            ID_Medico=self.medico,
+            Descripcion='Control RUN',
+            ID_Horario=self.horario,
+            Dia=date.today() + timedelta(days=4),
+            Estado=EstadoAtencion.FINALIZADA,
+        )
+
+        self.iniciar_sesion_de_prueba(self.usuario_paciente)
+        response_paciente = self.client.get(
+            reverse('historial_atenciones'),
+            {'q': 'Diego Segundo'},
+        )
+        self.assertContains(response_paciente, 'Control con Diego')
+        self.assertNotContains(response_paciente, 'Control de Pablo')
+        self.assertContains(response_paciente, 'Buscar médico por nombre')
+
+        self.iniciar_sesion_de_prueba(self.usuario_medico)
+        response_medico = self.client.get(
+            reverse('historial_atenciones'),
+            {'q': '555555555'},
+        )
+        self.assertContains(response_medico, 'Control RUN')
+        self.assertNotContains(response_medico, 'Control de Pablo')
+        self.assertContains(response_medico, 'Buscar paciente por nombre o RUN')
+
+        response_por_nombre = self.client.get(
+            reverse('historial_atenciones'),
+            {'q': 'Elena Ejemplo'},
+        )
+        self.assertContains(response_por_nombre, 'Control RUN')
+        self.assertNotIn(control_otro_medico.ID_Atencion, response_medico.context['atenciones'].values_list(
+            'ID_Atencion',
+            flat=True,
+        ))
+        self.assertNotIn(propia.ID_Atencion, response_paciente.context['atenciones'].values_list(
+            'ID_Atencion',
+            flat=True,
+        ))

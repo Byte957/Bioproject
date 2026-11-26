@@ -248,10 +248,12 @@
                data-accion="{{ r.Accion }}"
                data-registroid="{{ r.Registro_ID }}"
                data-detalle="{{ r.Detalle|default:'Sin detalle adicional' }}"
+               data-usuario="{% if r.Usuario %}{{ r.Usuario.Nombre }} {{ r.Usuario.Apellido }}{% else %}Sistema / Sin usuario autenticado{% endif %}"
                data-fecha="{{ r.Fecha_Hora|date:'Y-m-d' }}"
                data-fechahora="{{ r.Fecha_Hora|date:'d/m/Y H:i:s' }}">
             <span class="item-main-text">
-              #{{ r.ID_Auditoria }} | <strong>{{ r.Tabla_Afectada }}</strong> (ID: {{ r.Registro_ID }}) - {{ r.Fecha_Hora|date:'d/m/Y H:i' }}
+              #{{ r.ID_Auditoria }} | <strong>{{ r.Tabla_Afectada }}</strong> (ID: {{ r.Registro_ID }}) - {{ r.Fecha_Hora|date:'d/m/Y H:i' }} | Usuario:
+              {% if r.Usuario %}{{ r.Usuario.Nombre }} {{ r.Usuario.Apellido }}{% else %}Sistema / Sin usuario autenticado{% endif %}
             </span>
             <span class="badge-accion badge-{{ r.Accion }}">{{ r.Accion }}</span>
           </div>
@@ -285,6 +287,11 @@
         <p id="det-registro">-</p>
       </div>
 
+      <div class="info-card-block">
+        <div class="block-title">Usuario que realizó el cambio</div>
+        <p id="det-usuario">-</p>
+      </div>
+
       <div class="info-card-block" style="min-height: 110px;">
         <div class="block-title">Detalle de la Modificación</div>
         <p id="det-detalle">Haz clic en cualquier evento para inspeccionar los valores capturados por el trigger.</p>
@@ -305,6 +312,7 @@
     const detTabla = document.getElementById('det-tabla');
     const detAccion = document.getElementById('det-accion');
     const detRegistro = document.getElementById('det-registro');
+    const detUsuario = document.getElementById('det-usuario');
     const detDetalle = document.getElementById('det-detalle');
 
     // Al hacer clic en un evento -> mostrar detalle completo en el panel derecho
@@ -318,6 +326,7 @@
         detTabla.textContent = item.dataset.tabla;
         detAccion.textContent = item.dataset.accion;
         detRegistro.textContent = item.dataset.registroid;
+        detUsuario.textContent = item.dataset.usuario;
         detDetalle.textContent = item.dataset.detalle;
       });
     });

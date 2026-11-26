@@ -110,6 +110,7 @@
     }
 
     input[type="text"],
+    input[type="search"],
     input[type="time"],
     input[type="date"],
     select {
@@ -199,6 +200,10 @@
     <section class="card left-panel">
       <div class="filters-row">
         <div class="filter-item">
+          <label for="filtro-medico">Buscar por médico</label>
+          <input type="search" id="filtro-medico" placeholder="Nombre o apellido del médico" autocomplete="off">
+        </div>
+        <div class="filter-item">
           <label for="filtro-especialidad">Filtrar por Especialidad</label>
           <select id="filtro-especialidad">
             <option value="">Todas las especialidades...</option>
@@ -220,6 +225,7 @@
           <div class="user-item"
                data-medico-id="{{ b.ID_Medico.MatriculaProfesional }}"
                data-medico-nombre="Dr(a). {{ b.ID_Medico.Nombre_Medico }} {{ b.ID_Medico.ApellidoP_Medico }}"
+               data-medico-busqueda="{{ b.ID_Medico.Nombre_Medico }} {{ b.ID_Medico.SegNombre_Medico }} {{ b.ID_Medico.TerNombre_Medico }} {{ b.ID_Medico.ApellidoP_Medico }} {{ b.ID_Medico.ApellidoM_Medico }}"
                data-especialidad="{{ b.ID_Medico.Especializacion|default:'General' }}"
                data-fecha="{{ b.Dia|date:'Y-m-d' }}"
                data-horario-id="{{ b.ID_Horario.ID_Horario }}"
@@ -365,20 +371,28 @@
     });
 
     // Filtros en vivo (Especialidad y Fecha)
+    const filtroMedico = document.getElementById('filtro-medico');
     const filtroEspecialidad = document.getElementById('filtro-especialidad');
     const filtroFecha = document.getElementById('filtro-fecha');
 
+    function normalizarTexto(valor) {
+      return valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
+    }
+
     function filtrarDisponibles() {
+      const nombreMedico = normalizarTexto(filtroMedico.value.trim());
       const espSel = filtroEspecialidad.value.toLowerCase();
       const fechaSel = filtroFecha.value;
 
       items.forEach(item => {
+        const coincideMedico = normalizarTexto(item.dataset.medicoBusqueda).includes(nombreMedico);
         const coincideEsp = !espSel || item.dataset.especialidad.toLowerCase() === espSel;
         const coincideFecha = !fechaSel || item.dataset.fecha === fechaSel;
-        item.style.display = (coincideEsp && coincideFecha) ? 'block' : 'none';
+        item.style.display = (coincideMedico && coincideEsp && coincideFecha) ? 'block' : 'none';
       });
     }
 
+    filtroMedico.addEventListener('input', filtrarDisponibles);
     filtroEspecialidad.addEventListener('change', filtrarDisponibles);
     filtroFecha.addEventListener('change', filtrarDisponibles);
   </script>

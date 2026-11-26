@@ -42,7 +42,8 @@
       margin-left: 4px;
     }
 
-    input[type="date"] {
+    input[type="date"],
+    select {
       width: 100%;
       padding: 9px 12px;
       border-radius: 10px;
@@ -211,8 +212,25 @@
           <input type="date" id="fecha_fin" name="fecha_fin" value="{{ fecha_fin }}">
         </div>
 
+        <div class="filter-group">
+          <label for="fecha">Fecha específica (opcional)</label>
+          <input type="date" id="fecha" name="fecha" value="{{ fecha }}">
+          <small>Al elegir una fecha específica, se ignora el rango.</small>
+        </div>
+
+        <div class="filter-group">
+          <label for="orden">Orden de atenciones</label>
+          <select id="orden" name="orden">
+            <option value="reciente" {% if orden == 'reciente' %}selected{% endif %}>Más reciente a más antigua</option>
+            <option value="antigua" {% if orden == 'antigua' %}selected{% endif %}>Más antigua a más reciente</option>
+          </select>
+        </div>
+
         <button type="submit" class="btn-filtrar">Filtrar Reportes</button>
       </form>
+      {% if fecha_invalida %}
+        <p role="alert">La fecha específica no es válida; se muestran los resultados del rango seleccionado.</p>
+      {% endif %}
     </section>
 
     <!-- =================================================================== -->
@@ -222,8 +240,8 @@
       <div class="report-header">
         <h2 class="report-title">Reporte de Horas y Estados de Atención</h2>
         <div class="export-buttons">
-          <a href="{% url 'exportar_reporte' %}?tipo=atenciones&formato=pdf&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" class="btn-export btn-pdf">Exportar PDF</a>
-          <a href="{% url 'exportar_reporte' %}?tipo=atenciones&formato=excel&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" class="btn-export btn-excel">Exportar Excel</a>
+          <a href="{% url 'exportar_reporte' %}?tipo=atenciones&formato=pdf&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&fecha={{ fecha }}&orden={{ orden }}" class="btn-export btn-pdf">Exportar PDF</a>
+          <a href="{% url 'exportar_reporte' %}?tipo=atenciones&formato=excel&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&fecha={{ fecha }}&orden={{ orden }}" class="btn-export btn-excel">Exportar Excel</a>
         </div>
       </div>
 
@@ -281,8 +299,8 @@
       <div class="report-header">
         <h2 class="report-title">Reporte de Ingresos</h2>
         <div class="export-buttons">
-          <a href="{% url 'exportar_reporte' %}?tipo=ingresos&formato=pdf&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" class="btn-export btn-pdf">Exportar PDF</a>
-          <a href="{% url 'exportar_reporte' %}?tipo=ingresos&formato=excel&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}" class="btn-export btn-excel">Exportar Excel</a>
+          <a href="{% url 'exportar_reporte' %}?tipo=ingresos&formato=pdf&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&fecha={{ fecha }}&orden={{ orden }}" class="btn-export btn-pdf">Exportar PDF</a>
+          <a href="{% url 'exportar_reporte' %}?tipo=ingresos&formato=excel&fecha_inicio={{ fecha_inicio }}&fecha_fin={{ fecha_fin }}&fecha={{ fecha }}&orden={{ orden }}" class="btn-export btn-excel">Exportar Excel</a>
         </div>
       </div>
 

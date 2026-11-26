@@ -195,6 +195,16 @@
       margin-top: 18px;
     }
 
+    .form-buttons-patient {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .form-buttons-patient .btn {
+      flex: 0 0 auto;
+      align-self: stretch;
+    }
+
     .btn {
       flex: 1;
       padding: 10px 0;
@@ -204,6 +214,11 @@
       cursor: pointer;
       transition: all 0.2s ease;
       text-align: center;
+    }
+
+    .btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
     }
 
     .alert-msg {
@@ -275,15 +290,17 @@
           <label for="filtrar-fecha-atencion">Filtrar por fecha</label>
           <input type="date" id="filtrar-fecha-atencion">
         </div>
-        <div class="filter-item">
-          <label for="filtrar-estado-atencion">Filtrar por estado</label>
-          <select id="filtrar-estado-atencion">
-            <option value="">Todos los estados</option>
-            {% for valor, etiqueta in atencion_estados %}
-              <option value="{{ valor }}">{{ etiqueta }}</option>
-            {% endfor %}
-          </select>
-        </div>
+        {% if rol_id != 4 %}
+          <div class="filter-item">
+            <label for="filtrar-estado-atencion">Filtrar por estado</label>
+            <select id="filtrar-estado-atencion">
+              <option value="">Todos los estados</option>
+              {% for valor, etiqueta in atencion_estados %}
+                <option value="{{ valor }}">{{ etiqueta }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        {% endif %}
       </div>
 
       <h2 class="section-title">Atenciones ({{ atenciones|length }})</h2>
@@ -296,6 +313,7 @@
                data-medico="{{ a.ID_Medico.MatriculaProfesional }}"
                data-dia="{{ a.Dia|date:'Y-m-d' }}"
                data-horario="{{ a.ID_Horario.ID_Horario }}"
+               data-inicio-timestamp="{% if rol_id == 4 %}{{ a.inicio_timestamp_ms }}{% endif %}"
                data-descripcion="{{ a.Descripcion }}"
                data-estado="{{ a.Estado }}"
                data-busqueda="{% if rol_id == 4 %}{{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} {{ a.ID_Medico.ApellidoM_Medico }}{% elif rol_id == 3 %}{{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.SegNombre_Paciente }} {{ a.Paciente.ApellidoP }} {{ a.Paciente.ApellidoM }} {{ a.Paciente.RUN_Paciente }}{% else %}{{ a.ID_Medico.Nombre_Medico }} {{ a.ID_Medico.ApellidoP_Medico }} {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} {{ a.Paciente.RUN_Paciente }}{% endif %}">
@@ -316,7 +334,7 @@
 
     <!-- Panel Derecho: Formulario de Gestión de Atención -->
     <section class="card right-panel">
-      <h1 class="panel-header-title" id="titulo-formulario">Nueva Atención</h1>
+      <h1 class="panel-header-title" id="titulo-formulario">{% if rol_id == 4 %}Cancelar atención{% else %}Nueva Atención{% endif %}</h1>
 
       {% if messages %}
         {% for message in messages %}
@@ -374,15 +392,14 @@
           <textarea id="descripcion" name="descripcion" placeholder="Motivo de la consulta o observaciones..." required></textarea>
         </div>
 
-        <div class="form-buttons">
+        <div class="form-buttons {% if rol_id == 4 %}form-buttons-patient{% endif %}">
           {% if rol_id == 3 %}
             <p id="mensaje-iniciar">Selecciona una atención en espera para comenzar.</p>
             <button type="button" class="btn btn-submit" id="btn-iniciar" style="display:none;">Iniciar atención</button>
             <button type="button" class="btn" id="btn-eliminar" style="display:none; background-color:#c62828; color:#fff; border:none;">Cancelar cita</button>
           {% elif rol_id == 4 %}
-            <p>Selecciona una cita para cancelarla o abandonar la espera.</p>
-            <button type="button" class="btn" id="btn-eliminar" style="display:none; background-color:#c62828; color:#fff; border:none;">Cancelar cita</button>
-            <button type="button" class="btn" id="btn-abandonar" style="display:none; background-color:#6a1b9a; color:#fff; border:none;">Abandonar espera</button>
+            <p>Selecciona una cita para cancelarla. Importante: Solo se pueden cancelar citas con 24 horas de anticipación</p>
+            <button type="button" class="btn" id="btn-eliminar" disabled style="background-color:#c62828; color:#fff; border:none;">Cancelar atención</button>
           {% else %}
             <button type="submit" class="btn btn-submit" id="btn-guardar">Agendar Atención</button>
             <button type="button" class="btn" id="btn-eliminar" style="display:none; background-color:#c62828; color:#fff; border:none;">Cancelar cita</button>
@@ -420,6 +437,13 @@
       : [];
     const puedeGestionarAgenda = {{ rol_id }} === 2;
     let solicitudBloques = 0;
+    const horaServidorInicialMs = {{ hora_servidor_ms }};
+    const horaNavegadorInicialMs = Date.now();
+    const tituloInicial = {% if rol_id == 4 %}'Cancelar atención'{% else %}'Nueva Atención'{% endif %};
+
+    function horaServidorActualMs() {
+      return horaServidorInicialMs + Date.now() - horaNavegadorInicialMs;
+    }
 
     function normalizarTexto(valor) {
       return valor.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase();
@@ -499,11 +523,17 @@
       inputDia.value = '';
       cargarBloquesDisponibles();
       inputDescripcion.value = '';
-      if (btnEliminar) btnEliminar.style.display = 'none';
+      if (btnEliminar) {
+        {% if rol_id == 4 %}
+          btnEliminar.disabled = true;
+        {% else %}
+          btnEliminar.style.display = 'none';
+        {% endif %}
+      }
       if (btnNoAsistio) btnNoAsistio.style.display = 'none';
       if (btnAbandonar) btnAbandonar.style.display = 'none';
       if (btnIniciar) btnIniciar.style.display = 'none';
-      titulo.textContent = 'Nueva Atención';
+      titulo.textContent = tituloInicial;
       if (btnGuardar) btnGuardar.textContent = 'Agendar Atención';
     }
 
@@ -527,13 +557,21 @@
         inputDia.value = item.dataset.dia;
         cargarBloquesDisponibles(item.dataset.horario, item.dataset.id);
         inputDescripcion.value = item.dataset.descripcion;
-        if (btnEliminar) btnEliminar.style.display = item.dataset.estado === 'RESERVADA' ? 'inline-block' : 'none';
+        if (btnEliminar) {
+          {% if rol_id == 4 %}
+            const inicioTimestamp = Number(item.dataset.inicioTimestamp);
+            btnEliminar.disabled = !Number.isFinite(inicioTimestamp)
+              || inicioTimestamp - horaServidorActualMs() < 24 * 60 * 60 * 1000;
+          {% else %}
+            btnEliminar.style.display = item.dataset.estado === 'RESERVADA' ? 'inline-block' : 'none';
+          {% endif %}
+        }
         if (btnNoAsistio) btnNoAsistio.style.display = item.dataset.estado === 'RESERVADA' ? 'inline-block' : 'none';
         if (btnAbandonar) btnAbandonar.style.display = item.dataset.estado === 'EN ESPERA' ? 'inline-block' : 'none';
         if (btnIniciar) {
           btnIniciar.style.display = item.dataset.estado === 'EN ESPERA' ? 'inline-block' : 'none';
         }
-        titulo.textContent = `Gestionar Atención #${item.dataset.id}`;
+        titulo.textContent = {% if rol_id == 4 %}`Cancelar atención #${item.dataset.id}`{% else %}`Gestionar Atención #${item.dataset.id}`{% endif %};
         if (btnGuardar) btnGuardar.textContent = 'Guardar Cambios';
       });
     });
@@ -591,7 +629,7 @@
     function filtrarAtenciones() {
       const consulta = normalizarTexto(busquedaAtenciones.value.trim());
       const fecha = filtrarFechaAtencion.value;
-      const estado = filtrarEstadoAtencion.value;
+      const estado = filtrarEstadoAtencion ? filtrarEstadoAtencion.value : '';
       let coincidencias = 0;
 
       itemsAtencion.forEach(item => {
@@ -608,7 +646,7 @@
 
     busquedaAtenciones.addEventListener('input', filtrarAtenciones);
     filtrarFechaAtencion.addEventListener('change', filtrarAtenciones);
-    filtrarEstadoAtencion.addEventListener('change', filtrarAtenciones);
+    if (filtrarEstadoAtencion) filtrarEstadoAtencion.addEventListener('change', filtrarAtenciones);
 
     if (buscarPaciente) buscarPaciente.addEventListener('input', actualizarSugerenciasPaciente);
     if (selectMedico) selectMedico.addEventListener('change', () => cargarBloquesDisponibles('', inputId.value));

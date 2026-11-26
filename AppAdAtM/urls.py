@@ -16,6 +16,11 @@ urlpatterns = [
     path('GestionarDisponibilidad', views.gestiondisponibilidad, name='gestionar_disponibilidad'),
     path('GestionarAtencion', views.gestionatencion, name='gestionar_atencion'),
     path('HistorialAtenciones', views.historial_atenciones, name='historial_atenciones'),
+    path(
+        'HistorialAtenciones/<int:atencion_id>/DescargarReceta',
+        views.descargar_receta_historial,
+        name='descargar_receta_historial',
+    ),
     path('Cobros', views.cobro, name='gestionar_cobros'),
     path('GestionarMedicamentos', views.gestionmedicamentos, name='gestionar_medicamentos'),
     path('CerrarSesion', views.cerrarsesion, name='cerrar_sesion'),

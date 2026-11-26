@@ -5,15 +5,60 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Historial de Atenciones</title>
+  <script src="{% static 'AppAdAtM/js/Filtros.js' %}"></script>
   <link rel="stylesheet" href="{% static 'AppAdAtM/css/Common.css' %}">
   <style>
     main { max-width: 1400px; width: 100%; margin: 32px auto; padding: 0 18px; }
     .history-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 18px #00000012; }
     .history-card h1 { margin-top: 0; color: #155e63; }
+    .history-search { margin: 0 0 18px; }
+    .history-search-controls { display: flex; align-items: flex-end; gap: 10px; }
+    .history-search-field { display: flex; flex: 1; flex-direction: column; min-width: 150px; }
+    .history-search-field label { margin-bottom: 6px; font-size: 0.9rem; font-weight: 600; }
+    .history-search input[type="search"],
+    .history-search input[type="date"],
+    .history-search select {
+      flex: 1;
+      min-width: 0;
+      padding: 9px 12px;
+      border: 1px solid #9ca3af;
+      border-radius: 8px;
+      font: inherit;
+    }
+    .history-search button,
+    .history-search a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 9px 16px;
+      border: 0;
+      border-radius: 8px;
+      background: #155e63;
+      color: #fff;
+      font: inherit;
+      text-decoration: none;
+      cursor: pointer;
+    }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; }
     th, td { padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: left; vertical-align: top; }
     th { color: #155e63; background: #f3f8f8; }
+    .download-recipe-button {
+      display: inline-block;
+      padding: 8px 12px;
+      border-radius: 7px;
+      background: #155e63;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+    .download-recipe-button:hover { background: #10494d; }
+    .no-recipe-label { color: #64748b; font-size: 0.9rem; }
+    @media (max-width: 560px) {
+      .history-search-controls { flex-direction: column; }
+    }
   </style>
 </head>
 <body>
@@ -28,6 +73,40 @@
   <main>
     <section class="history-card">
       <h1>Historial de Atenciones</h1>
+      <form class="history-search" method="get" role="search">
+        <div class="history-search-controls">
+          <div class="history-search-field">
+            <label for="busqueda-historial">
+              {% if rol_id == 3 %}Buscar paciente por nombre o RUN{% else %}Buscar médico por nombre{% endif %}
+            </label>
+            <input
+              type="search"
+              id="busqueda-historial"
+              name="q"
+              value="{{ busqueda }}"
+              placeholder="{% if rol_id == 3 %}Nombre, apellido o RUN del paciente{% else %}Nombre o apellido del médico{% endif %}"
+              autocomplete="off">
+          </div>
+          <div class="history-search-field">
+            <label for="fecha-historial">Filtrar por fecha</label>
+            <input type="date" id="fecha-historial" name="fecha" value="{{ fecha }}">
+          </div>
+          <div class="history-search-field">
+            <label for="orden-historial">Ordenar</label>
+            <select id="orden-historial" name="orden">
+              <option value="reciente" {% if orden == 'reciente' %}selected{% endif %}>Más reciente a más antigua</option>
+              <option value="antigua" {% if orden == 'antigua' %}selected{% endif %}>Más antigua a más reciente</option>
+            </select>
+          </div>
+          <button type="submit">Buscar</button>
+          {% if busqueda or fecha or orden == 'antigua' %}
+            <a href="{% url 'historial_atenciones' %}">Limpiar</a>
+          {% endif %}
+        </div>
+      </form>
+      {% if fecha_invalida %}
+        <p role="alert">La fecha ingresada no es válida.</p>
+      {% endif %}
       <div class="table-wrap">
         <table>
           <thead>
@@ -51,19 +130,24 @@
                 <td>{{ atencion.Estado }}</td>
                 <td>{{ atencion.Descripcion }}</td>
                 <td>
-                  {% for receta in atencion.receta_set.all %}
-                    {% for detalle in receta.medicamentoreceta_set.all %}
-                      {{ detalle.ID_Medicamento.Nombre_Medicamento }}: {{ detalle.Indicaciones }}{% if not forloop.last %}<br>{% endif %}
-                    {% empty %}
-                      Sin medicamentos
-                    {% endfor %}
-                  {% empty %}
-                    Sin receta
-                  {% endfor %}
+                  {% if atencion.receta_set.all %}
+                    <a
+                      class="download-recipe-button"
+                      href="{% url 'descargar_receta_historial' atencion.ID_Atencion %}"
+                      aria-label="Descargar receta de la atención {{ atencion.ID_Atencion }}">
+                      Descargar Receta
+                    </a>
+                  {% else %}
+                    <span class="no-recipe-label">Sin recetas asignadas</span>
+                  {% endif %}
                 </td>
               </tr>
             {% empty %}
-              <tr><td colspan="5">No hay atenciones en el historial.</td></tr>
+              <tr>
+                <td colspan="5">
+                  {% if busqueda %}No se encontraron atenciones para la búsqueda indicada.{% else %}No hay atenciones finalizadas en el historial.{% endif %}
+                </td>
+              </tr>
             {% endfor %}
           </tbody>
         </table>

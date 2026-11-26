@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.db import transaction, IntegrityError
 from django.db.models import Count, F, Q, Sum, Value
 from django.db.models.functions import Replace, Upper
@@ -19,22 +19,32 @@ import hmac
 import logging
 import re
 import smtplib
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse, HttpResponseBadRequest, JsonResponse
 from django.template.loader import get_template
 from django.urls import reverse
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment
 from django.views.decorators.cache import never_cache
 from django.utils import timezone
+from django.utils.dateparse import parse_date
+from xml.sax.saxutils import escape
 import reportlab
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib import colors
 from functools import wraps
+from .audit_context import audit_user
 
 
 logger = logging.getLogger(__name__)
+
+INTENTOS_FALLIDOS_MAXIMOS = 5
+DURACION_BLOQUEO_CUENTA = timedelta(minutes=15)
+MENSAJE_CUENTA_BLOQUEADA = (
+    'Cuenta bloqueada por múltiples intentos fallidos. '
+    'Intente nuevamente en 15 minutos'
+)
 
 
 class ErrorEnvioActivacion(Exception):
@@ -204,7 +214,8 @@ def sesion_requerida(view_func):
             return redirect('inicio_sesion')
         request.session['usuario_rol'] = usuario.Rol_id
         request.session['usuario_nombre'] = f'{usuario.Nombre} {usuario.Apellido}'
-        return view_func(request, *args, **kwargs)
+        with audit_user(usuario.pk):
+            return view_func(request, *args, **kwargs)
     return _wrapped_view
 
 
@@ -635,32 +646,108 @@ def gestionrecetas(request):
     rol_id = request.session.get('usuario_rol')
 
     if request.method == 'POST':
+        accion = request.POST.get('accion', 'emitir_receta').strip()
         atencion_id = request.POST.get('atencion_id', '').strip()
+
+        if not atencion_id:
+            messages.error(request, 'Debes seleccionar una atención de la lista izquierda.')
+            return redirect('gestionar_recetasatencion')
+
+        if accion == 'iniciar':
+            hay_atencion_en_curso = False
+            try:
+                with transaction.atomic():
+                    atencion_obj = Atencion.objects.select_for_update().get(
+                        ID_Atencion=atencion_id,
+                        ID_Medico__Usuario_id=usuario_id,
+                        Estado=EstadoAtencion.EN_ESPERA,
+                    )
+                    hay_atencion_en_curso = Atencion.objects.filter(
+                        ID_Medico__Usuario_id=usuario_id,
+                        Estado=EstadoAtencion.EN_ATENCION,
+                    ).exists()
+                    if not hay_atencion_en_curso:
+                        atencion_obj.Estado = EstadoAtencion.EN_ATENCION
+                        atencion_obj.save(update_fields=['Estado'])
+            except Atencion.DoesNotExist:
+                messages.error(
+                    request,
+                    'La atención no está en espera o no está asignada a tu perfil.',
+                )
+                return redirect('gestionar_recetasatencion')
+
+            if hay_atencion_en_curso:
+                messages.error(
+                    request,
+                    'Ya tienes una atención en curso. Continúala o devuélvela a espera antes de iniciar otra.',
+                )
+                return redirect('gestionar_recetasatencion')
+
+            messages.success(
+                request,
+                f'La atención #{atencion_obj.ID_Atencion} comenzó correctamente.',
+            )
+            return redirect(
+                f'{request.path}?atencion_id={atencion_obj.ID_Atencion}',
+            )
+
+        if accion == 'devolver_espera':
+            try:
+                with transaction.atomic():
+                    atencion_obj = Atencion.objects.select_for_update().get(
+                        ID_Atencion=atencion_id,
+                        ID_Medico__Usuario_id=usuario_id,
+                        Estado=EstadoAtencion.EN_ATENCION,
+                    )
+                    atencion_obj.Estado = EstadoAtencion.EN_ESPERA
+                    atencion_obj.save(update_fields=['Estado'])
+                messages.success(
+                    request,
+                    f'La atención #{atencion_obj.ID_Atencion} volvió a estado En espera.',
+                )
+            except Atencion.DoesNotExist:
+                messages.error(
+                    request,
+                    'La atención no está en curso o no está asignada a tu perfil.',
+                )
+            return redirect('gestionar_recetasatencion')
+
+        if accion != 'emitir_receta':
+            messages.error(request, 'La acción solicitada no es válida.')
+            return redirect('gestionar_recetasatencion')
+
         institucion = request.POST.get('institucion', '').strip() or 'Clínica Biotechnica'
         diagnostico = request.POST.get('diagnostico', '').strip()
         medicamentos_ids = request.POST.getlist('medicamento_id[]')
         indicaciones_list = request.POST.getlist('indicaciones[]')
 
-        if not atencion_id:
-            messages.error(request, 'Debes seleccionar una atención de la lista izquierda antes de emitir la receta.')
-            return redirect('gestionar_recetasatencion')
-
         try:
             atencion_obj = Atencion.objects.get(ID_Atencion=atencion_id)
 
-            # Validar medicamentos seleccionados (evitando duplicados por unique_together)
+            if len(medicamentos_ids) != len(indicaciones_list):
+                messages.error(request, 'Los datos de medicamentos e indicaciones no coinciden.')
+                return redirect('gestionar_recetasatencion')
+
             items_receta = []
             vistos = set()
             for med_id, ind in zip(medicamentos_ids, indicaciones_list):
                 med_id = med_id.strip()
                 ind = ind.strip()
-                if med_id and med_id not in vistos:
+                if not med_id or not ind:
+                    messages.error(
+                        request,
+                        'Cada medicamento añadido debe incluir un medicamento y sus indicaciones. '
+                        'Quita las filas vacías o complétalas.',
+                    )
+                    return redirect('gestionar_recetasatencion')
+                try:
+                    med_id = int(med_id)
+                except ValueError:
+                    messages.error(request, 'Uno de los medicamentos seleccionados no es válido.')
+                    return redirect('gestionar_recetasatencion')
+                if med_id not in vistos:
                     vistos.add(med_id)
-                    items_receta.append((int(med_id), ind[:200] or 'Según indicación médica'))
-
-            if not items_receta:
-                messages.error(request, 'Debes seleccionar al menos un medicamento válido para emitir la receta.')
-                return redirect('gestionar_recetasatencion')
+                    items_receta.append((med_id, ind[:200]))
 
             with transaction.atomic():
                 if atencion_obj.ID_Medico.Usuario_id != usuario_id:
@@ -714,15 +801,22 @@ def gestionrecetas(request):
         return redirect('gestionar_recetasatencion')
 
     # --- PETICIÓN GET ---
-    atenciones_qs = Atencion.objects.filter(ID_Medico__Usuario_id=usuario_id)
-
     atenciones = (
-        atenciones_qs.exclude(Estado=EstadoAtencion.CANCELADA)
+        Atencion.objects.filter(
+            ID_Medico__Usuario_id=usuario_id,
+            Estado__in=(
+                EstadoAtencion.EN_ESPERA,
+                EstadoAtencion.EN_ATENCION,
+            ),
+        )
         .select_related('Paciente', 'ID_Medico', 'ID_Horario')
         .order_by('-Dia', 'ID_Horario__Hora_Inicio')
     )
+    hay_atencion_en_curso = atenciones.filter(
+        Estado=EstadoAtencion.EN_ATENCION,
+    ).exists()
 
-    # Pre-cargar recetas existentes para mostrar sus medicamentos si el médico hace clic en una atención ya emitida
+    # Pre-cargar recetas existentes para las atenciones que siguen en curso.
     recetas_map = {}
     for rec in Receta.objects.filter(Atencion__in=atenciones).prefetch_related('medicamentoreceta_set__ID_Medicamento'):
         recetas_map[str(rec.Atencion_id)] = {
@@ -734,17 +828,17 @@ def gestionrecetas(request):
                     'indicaciones': mr.Indicaciones
                 }
                 for mr in rec.medicamentoreceta_set.all()
+                if mr.ID_Medicamento_id is not None
             ]
         }
 
     medicamentos = Medicamento.objects.all().order_by('Nombre_Medicamento')
-    pacientes = Paciente.objects.filter(Estado='Activo').order_by('ApellidoP')
-
-    return render(request, 'GestionDeRecetasAtencion.html', {  # <-- VERIFICA EL NOMBRE DE TU ARCHIVO HTML
+    return render(request, 'GestionDeRecetasAtencion.html', {
         'atenciones': atenciones,
         'medicamentos': medicamentos,
-        'pacientes': pacientes,
         'recetas_json': json.dumps(recetas_map),
+        'atencion_seleccionada_id': request.GET.get('atencion_id', ''),
+        'hay_atencion_en_curso': hay_atencion_en_curso,
     })
 
 
@@ -754,6 +848,11 @@ def gestionrecetas(request):
 def historial_atenciones(request):
     usuario_id = request.session.get('usuario_id')
     rol_id = request.session.get('usuario_rol')
+    busqueda = request.GET.get('q', '').strip()
+    fecha_texto = request.GET.get('fecha', '').strip()
+    fecha = parse_date(fecha_texto) if fecha_texto else None
+    fecha_invalida = bool(fecha_texto and fecha is None)
+    orden = 'antigua' if request.GET.get('orden') == 'antigua' else 'reciente'
 
     atenciones = Atencion.objects.select_related(
         'Paciente',
@@ -761,16 +860,155 @@ def historial_atenciones(request):
         'ID_Horario',
     ).prefetch_related(
         'receta_set__medicamentoreceta_set__ID_Medicamento',
+    ).filter(Estado=EstadoAtencion.FINALIZADA)
+
+    if fecha:
+        atenciones = atenciones.filter(Dia=fecha)
+    elif fecha_invalida:
+        atenciones = atenciones.none()
+
+    if rol_id == 3:
+        atenciones = atenciones.filter(ID_Medico__Usuario_id=usuario_id)
+        campos_busqueda = (
+            'Paciente__Nombre_Paciente',
+            'Paciente__SegNombre_Paciente',
+            'Paciente__TerNombre_Paciente',
+            'Paciente__ApellidoP',
+            'Paciente__ApellidoM',
+        )
+        if busqueda:
+            atenciones = atenciones.annotate(
+                _run_busqueda=_run_clave_expression('Paciente__RUN_Paciente'),
+            )
+    else:
+        atenciones = atenciones.filter(Paciente__Usuario_id=usuario_id)
+        campos_busqueda = (
+            'ID_Medico__Nombre_Medico',
+            'ID_Medico__SegNombre_Medico',
+            'ID_Medico__TerNombre_Medico',
+            'ID_Medico__ApellidoP_Medico',
+            'ID_Medico__ApellidoM_Medico',
+        )
+
+    for termino in busqueda.split():
+        coincidencias = Q()
+        for campo in campos_busqueda:
+            coincidencias |= Q(**{f'{campo}__icontains': termino})
+        if rol_id == 3:
+            run_normalizado = re.sub(r'[.\-\s]', '', termino).upper()
+            if run_normalizado:
+                coincidencias |= Q(_run_busqueda__icontains=run_normalizado)
+        atenciones = atenciones.filter(coincidencias)
+
+    return render(request, 'HistorialAtenciones.html', {
+        'atenciones': _ordenar_atenciones(atenciones, orden),
+        'rol_id': rol_id,
+        'busqueda': busqueda,
+        'fecha': fecha_texto,
+        'fecha_invalida': fecha_invalida,
+        'orden': orden,
+    })
+
+
+def _ordenar_atenciones(queryset, orden):
+    if orden == 'antigua':
+        return queryset.order_by('Dia', 'ID_Horario__Hora_Inicio', 'ID_Atencion')
+    return queryset.order_by('-Dia', '-ID_Horario__Hora_Inicio', '-ID_Atencion')
+
+
+@never_cache
+@sesion_requerida
+@roles_requeridos(3, 4)
+def descargar_receta_historial(request, atencion_id):
+    usuario_id = request.session.get('usuario_id')
+    rol_id = request.session.get('usuario_rol')
+    atenciones = Atencion.objects.filter(
+        pk=atencion_id,
+        Estado=EstadoAtencion.FINALIZADA,
     )
     if rol_id == 3:
         atenciones = atenciones.filter(ID_Medico__Usuario_id=usuario_id)
     else:
         atenciones = atenciones.filter(Paciente__Usuario_id=usuario_id)
 
-    return render(request, 'HistorialAtenciones.html', {
-        'atenciones': atenciones.order_by('-Dia', '-ID_Horario__Hora_Inicio'),
-        'rol_id': rol_id,
-    })
+    atencion = get_object_or_404(
+        atenciones.select_related('Paciente', 'ID_Medico', 'ID_Horario').prefetch_related(
+            'receta_set__medicamentoreceta_set__ID_Medicamento',
+        )
+    )
+    recetas = list(atencion.receta_set.all())
+    detalles = [
+        detalle
+        for receta in recetas
+        for detalle in receta.medicamentoreceta_set.all()
+    ]
+
+    response = HttpResponse(content_type='application/pdf')
+    response['Content-Disposition'] = (
+        f'attachment; filename="Receta_Atencion_{atencion.ID_Atencion}.pdf"'
+    )
+    documento = SimpleDocTemplate(response, pagesize=letter)
+    estilos = getSampleStyleSheet()
+    nombre_paciente = ' '.join(filter(None, (
+        atencion.Paciente.Nombre_Paciente,
+        atencion.Paciente.SegNombre_Paciente,
+        atencion.Paciente.TerNombre_Paciente,
+        atencion.Paciente.ApellidoP,
+        atencion.Paciente.ApellidoM,
+    )))
+    nombre_medico = ' '.join(filter(None, (
+        atencion.ID_Medico.Nombre_Medico,
+        atencion.ID_Medico.SegNombre_Medico,
+        atencion.ID_Medico.TerNombre_Medico,
+        atencion.ID_Medico.ApellidoP_Medico,
+        atencion.ID_Medico.ApellidoM_Medico,
+    )))
+    elementos = [
+        Paragraph('<b>Biotechnica Clínica - Receta</b>', estilos['Title']),
+        Spacer(1, 12),
+        Paragraph(f'<b>Atención:</b> #{atencion.ID_Atencion}', estilos['Normal']),
+        Paragraph(f'<b>Paciente:</b> {escape(nombre_paciente)}', estilos['Normal']),
+        Paragraph(f'<b>RUN:</b> {escape(atencion.Paciente.RUN_Paciente)}', estilos['Normal']),
+        Paragraph(f'<b>Médico:</b> {escape(nombre_medico)}', estilos['Normal']),
+        Paragraph(
+            f'<b>Fecha y hora:</b> {atencion.Dia.strftime("%d/%m/%Y")} '
+            f'{atencion.ID_Horario.Hora_Inicio.strftime("%H:%M")}',
+            estilos['Normal'],
+        ),
+        Spacer(1, 12),
+        Paragraph('<b>Medicamentos asignados</b>', estilos['Heading2']),
+    ]
+
+    if detalles:
+        filas = [['Medicamento', 'Indicaciones']]
+        for detalle in detalles:
+            nombre_medicamento = (
+                detalle.ID_Medicamento.Nombre_Medicamento
+                if detalle.ID_Medicamento_id
+                else 'Sin medicamento asociado'
+            )
+            filas.append([
+                Paragraph(escape(nombre_medicamento), estilos['BodyText']),
+                Paragraph(escape(detalle.Indicaciones), estilos['BodyText']),
+            ])
+        tabla = Table(filas, colWidths=[180, 280], repeatRows=1)
+        tabla.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2e7d32')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('PADDING', (0, 0), (-1, -1), 7),
+        ]))
+        elementos.append(tabla)
+    elif recetas:
+        elementos.append(Paragraph('No se recetaron medicamentos.', estilos['Normal']))
+    else:
+        elementos.append(Paragraph('Sin recetas asignadas.', estilos['Normal']))
+
+    documento.build(elementos)
+    return response
+
 
 def cerrarsesion(request):
     # 1. Eliminar explícitamente el rol y los datos de la sesión
@@ -1215,9 +1453,9 @@ def gestiondisponibilidad(request):
 
 @never_cache
 @sesion_requerida
-@roles_requeridos(2, 3, 4)
+@roles_requeridos(2, 4)
 def gestionatencion(request):
-    """Recepción administra reservas; cada médico solo inicia sus propias atenciones."""
+    """Recepción administra reservas y pacientes gestionan sus propias citas."""
     _asegurar_bloques_horario()
 
     rol_id = request.session.get('usuario_rol')
@@ -1556,7 +1794,10 @@ def gestionatencion(request):
         return redirect('gestionar_atencion')
 
     # --- PETICIÓN GET ---
-    # Si es Médico (Rol 3), ve solo sus atenciones; si es Admin (1) o Recepcionista (2), ve TODAS
+    ahora = timezone.now()
+    hora_servidor_ms = int(ahora.timestamp() * 1000)
+
+    # Recepción ve todas; pacientes únicamente sus propias reservas.
     if rol_id == 3 and usuario_id:
         atenciones = Atencion.objects.filter(ID_Medico__Usuario_id=usuario_id).select_related('Paciente', 'ID_Medico', 'ID_Horario').order_by('-Dia', 'ID_Horario__Hora_Inicio')
         pacientes = Paciente.objects.filter(
@@ -1564,7 +1805,28 @@ def gestionatencion(request):
         ).distinct().order_by('ApellidoP')
         medicos = Medico.objects.filter(Usuario_id=usuario_id)
     elif rol_id == 4 and usuario_id:
-        atenciones = Atencion.objects.filter(Paciente__Usuario_id=usuario_id).select_related('Paciente', 'ID_Medico', 'ID_Horario').order_by('-Dia', 'ID_Horario__Hora_Inicio')
+        ahora_local = timezone.localtime(ahora)
+        atenciones = (
+            Atencion.objects.filter(
+                Paciente__Usuario_id=usuario_id,
+                Estado=EstadoAtencion.RESERVADA,
+            )
+            .filter(
+                Q(Dia__gt=ahora_local.date())
+                | Q(
+                    Dia=ahora_local.date(),
+                    ID_Horario__Hora_Inicio__gt=ahora_local.time(),
+                )
+            )
+            .select_related('Paciente', 'ID_Medico', 'ID_Horario')
+            .order_by('-Dia', 'ID_Horario__Hora_Inicio')
+        )
+        for atencion in atenciones:
+            inicio = timezone.make_aware(datetime.combine(
+                atencion.Dia,
+                atencion.ID_Horario.Hora_Inicio,
+            ))
+            atencion.inicio_timestamp_ms = int(inicio.timestamp() * 1000)
         pacientes = Paciente.objects.none()
         medicos = Medico.objects.none()
     else:
@@ -1579,6 +1841,7 @@ def gestionatencion(request):
         'rol_id': rol_id,
         'fecha_minima': timezone.localdate().isoformat(),
         'atencion_estados': EstadoAtencion.choices,
+        'hora_servidor_ms': hora_servidor_ms,
     })
 
 @never_cache
@@ -1743,7 +2006,52 @@ def iniciosesion(request):
         except ValidationError:
             usuario = None
 
-        if not usuario or not check_password(password, usuario.Contraseña):
+        if not usuario:
+            messages.error(request, 'Credenciales de acceso incorrectas.')
+            return redirect('inicio_sesion')
+
+        cuenta_bloqueada = False
+        credenciales_validas = False
+        with transaction.atomic():
+            usuario = Usuario.objects.select_for_update().filter(
+                pk=usuario.pk,
+            ).first()
+            if usuario:
+                ahora = timezone.now()
+                if usuario.Bloqueada_Hasta and usuario.Bloqueada_Hasta > ahora:
+                    cuenta_bloqueada = True
+                else:
+                    bloqueo_expirado = usuario.Bloqueada_Hasta is not None
+                    if bloqueo_expirado:
+                        usuario.Intentos_Fallidos = 0
+                        usuario.Bloqueada_Hasta = None
+
+                    if check_password(password, usuario.Contraseña):
+                        credenciales_validas = True
+                        if usuario.Intentos_Fallidos or bloqueo_expirado:
+                            usuario.Intentos_Fallidos = 0
+                            usuario.Bloqueada_Hasta = None
+                            usuario.save(update_fields=[
+                                'Intentos_Fallidos',
+                                'Bloqueada_Hasta',
+                            ])
+                    else:
+                        usuario.Intentos_Fallidos += 1
+                        cuenta_bloqueada = (
+                            usuario.Intentos_Fallidos >= INTENTOS_FALLIDOS_MAXIMOS
+                        )
+                        campos_actualizados = ['Intentos_Fallidos']
+                        if cuenta_bloqueada:
+                            usuario.Bloqueada_Hasta = ahora + DURACION_BLOQUEO_CUENTA
+                            campos_actualizados.append('Bloqueada_Hasta')
+                        elif bloqueo_expirado:
+                            campos_actualizados.append('Bloqueada_Hasta')
+                        usuario.save(update_fields=campos_actualizados)
+
+        if cuenta_bloqueada:
+            messages.error(request, MENSAJE_CUENTA_BLOQUEADA)
+            return redirect('inicio_sesion')
+        if not credenciales_validas:
             messages.error(request, 'Credenciales de acceso incorrectas.')
             return redirect('inicio_sesion')
 
@@ -1858,21 +2166,28 @@ def registrousuario(request):
                     Estado='Inactivo',
                     Rol=rol_paciente
                 )
+                Auditoria.objects.filter(
+                    Tabla_Afectada='Usuario',
+                    Accion='INSERT',
+                    Registro_ID=str(nuevo_usuario.pk),
+                    Usuario__isnull=True,
+                ).update(Usuario=nuevo_usuario)
 
                 if not paciente_existente:
-                    nuevo_paciente = Paciente.objects.create(
-                        RUN_Paciente=run,
-                        Nombre_Paciente=nombre,
-                        SegNombre_Paciente=seg_nombre,
-                        TerNombre_Paciente=ter_nombre,
-                        ApellidoP=apellido_p,
-                        ApellidoM=apellido_m,
-                        Fecha_Nacimiento=fecha_nacimiento,
-                        CorreoContactoPaciente=correo,
-                        NumeroContactoPaciente=telefono_completo,
-                        Estado='Inactivo',
-                        Usuario=nuevo_usuario
-                    )
+                    with audit_user(nuevo_usuario.pk):
+                        nuevo_paciente = Paciente.objects.create(
+                            RUN_Paciente=run,
+                            Nombre_Paciente=nombre,
+                            SegNombre_Paciente=seg_nombre,
+                            TerNombre_Paciente=ter_nombre,
+                            ApellidoP=apellido_p,
+                            ApellidoM=apellido_m,
+                            Fecha_Nacimiento=fecha_nacimiento,
+                            CorreoContactoPaciente=correo,
+                            NumeroContactoPaciente=telefono_completo,
+                            Estado='Inactivo',
+                            Usuario=nuevo_usuario
+                        )
                     paciente_id_activacion = nuevo_paciente.ID
 
                 pendiente = ActivacionPendiente.objects.create(
@@ -2111,14 +2426,17 @@ def activar_cuenta(request, token):
                                     campos_actualizados.append('Usuario')
                                 if activar_ficha:
                                     campos_actualizados.append('Estado')
-                                paciente.save(update_fields=campos_actualizados)
+                                with audit_user(usuario.pk):
+                                    paciente.save(update_fields=campos_actualizados)
                             ficha_inactiva = paciente.Estado != 'Activo'
                 elif activar_ficha:
-                    Paciente.objects.filter(Usuario=usuario).update(Estado='Activo')
+                    with audit_user(usuario.pk):
+                        Paciente.objects.filter(Usuario=usuario).update(Estado='Activo')
 
                 if activacion_valida:
                     usuario.Estado = 'Activo'
-                    usuario.save(update_fields=['Estado'])
+                    with audit_user(usuario.pk):
+                        usuario.save(update_fields=['Estado'])
                     ActivacionPendiente.objects.filter(Usuario=usuario).delete()
     except (TypeError, ValueError):
         activacion_valida = False
@@ -2223,7 +2541,8 @@ def restablecer_contrasena(request, token):
             try:
                 _validar_password(password, usuario)
                 usuario.Contraseña = make_password(password)
-                usuario.save(update_fields=['Contraseña'])
+                with audit_user(usuario.pk):
+                    usuario.save(update_fields=['Contraseña'])
                 messages.success(request, 'Tu contraseña fue actualizada. Ya puedes iniciar sesión.')
                 return redirect('inicio_sesion')
             except ValidationError as error:
@@ -2236,7 +2555,7 @@ def restablecer_contrasena(request, token):
 @sesion_requerida
 @roles_requeridos(1)
 def verauditoria(request):
-    registros = Auditoria.objects.all().order_by('-ID_Auditoria')
+    registros = Auditoria.objects.select_related('Usuario').order_by('-ID_Auditoria')
     tablas = (
         Auditoria.objects.values_list('Tabla_Afectada', flat=True)
         .distinct()
@@ -2249,14 +2568,17 @@ def verauditoria(request):
     })
 
 
-def _obtener_datos_reportes(fecha_inicio, fecha_fin):
+def _obtener_datos_reportes(fecha_inicio, fecha_fin, fecha=None, orden='reciente'):
     # --- 1. REPORTE DE ATENCIONES POR ESTADO ---
     qs_atenciones = Atencion.objects.select_related('Paciente', 'ID_Medico', 'ID_Horario').all()
-    if fecha_inicio:
-        qs_atenciones = qs_atenciones.filter(Dia__gte=fecha_inicio)
-    if fecha_fin:
-        qs_atenciones = qs_atenciones.filter(Dia__lte=fecha_fin)
-    qs_atenciones = qs_atenciones.order_by('-Dia', 'ID_Horario__Hora_Inicio')
+    if fecha:
+        qs_atenciones = qs_atenciones.filter(Dia=fecha)
+    else:
+        if fecha_inicio:
+            qs_atenciones = qs_atenciones.filter(Dia__gte=fecha_inicio)
+        if fecha_fin:
+            qs_atenciones = qs_atenciones.filter(Dia__lte=fecha_fin)
+    qs_atenciones = _ordenar_atenciones(qs_atenciones, orden)
 
     resumen_estados = list(
         qs_atenciones.values('Estado')
@@ -2267,11 +2589,25 @@ def _obtener_datos_reportes(fecha_inicio, fecha_fin):
 
     # --- 2. REPORTE DE INGRESOS (BOLETAS) ---
     qs_boletas = Boleta.objects.select_related('Atencion', 'Atencion__Paciente', 'Atencion__ID_Medico').all()
-    if fecha_inicio:
-        qs_boletas = qs_boletas.filter(Atencion__Dia__gte=fecha_inicio)
-    if fecha_fin:
-        qs_boletas = qs_boletas.filter(Atencion__Dia__lte=fecha_fin)
-    qs_boletas = qs_boletas.order_by('-Atencion__Dia', '-ID_Boleta')
+    if fecha:
+        qs_boletas = qs_boletas.filter(Atencion__Dia=fecha)
+    else:
+        if fecha_inicio:
+            qs_boletas = qs_boletas.filter(Atencion__Dia__gte=fecha_inicio)
+        if fecha_fin:
+            qs_boletas = qs_boletas.filter(Atencion__Dia__lte=fecha_fin)
+    if orden == 'antigua':
+        qs_boletas = qs_boletas.order_by(
+            'Atencion__Dia',
+            'Atencion__ID_Horario__Hora_Inicio',
+            'ID_Boleta',
+        )
+    else:
+        qs_boletas = qs_boletas.order_by(
+            '-Atencion__Dia',
+            '-Atencion__ID_Horario__Hora_Inicio',
+            '-ID_Boleta',
+        )
 
     totales_ingresos = qs_boletas.aggregate(
         suma_neto=Sum('Monto_Neto'),
@@ -2303,10 +2639,16 @@ def reportes_clinica(request):
     primer_dia_mes = hoy.replace(day=1).strftime('%Y-%m-%d')
     fecha_inicio = request.GET.get('fecha_inicio', primer_dia_mes)
     fecha_fin = request.GET.get('fecha_fin', hoy.strftime('%Y-%m-%d'))
+    fecha_texto = request.GET.get('fecha', '').strip()
+    fecha = parse_date(fecha_texto) if fecha_texto else None
+    orden = 'antigua' if request.GET.get('orden') == 'antigua' else 'reciente'
 
-    datos = _obtener_datos_reportes(fecha_inicio, fecha_fin)
+    datos = _obtener_datos_reportes(fecha_inicio, fecha_fin, fecha, orden)
     datos['fecha_inicio'] = fecha_inicio
     datos['fecha_fin'] = fecha_fin
+    datos['fecha'] = fecha_texto
+    datos['fecha_invalida'] = bool(fecha_texto and fecha is None)
+    datos['orden'] = orden
 
     return render(request, 'Reportes.html', datos)
 
@@ -2319,9 +2661,16 @@ def exportar_reporte(request):
     formato = request.GET.get('formato', 'excel')     # 'excel' o 'pdf'
     fecha_inicio = request.GET.get('fecha_inicio', '')
     fecha_fin = request.GET.get('fecha_fin', '')
+    fecha_texto = request.GET.get('fecha', '').strip()
+    fecha = parse_date(fecha_texto) if fecha_texto else None
+    if fecha_texto and fecha is None:
+        return HttpResponseBadRequest('La fecha ingresada no es válida.')
+    orden = 'antigua' if request.GET.get('orden') == 'antigua' else 'reciente'
 
-    datos = _obtener_datos_reportes(fecha_inicio, fecha_fin)
-    rango_txt = f"{fecha_inicio or 'Inicio'}_a_{fecha_fin or 'Hoy'}"
+    datos = _obtener_datos_reportes(fecha_inicio, fecha_fin, fecha, orden)
+    fecha_inicio_reporte = fecha.isoformat() if fecha else fecha_inicio
+    fecha_fin_reporte = fecha.isoformat() if fecha else fecha_fin
+    rango_txt = f"{fecha_inicio_reporte or 'Inicio'}_a_{fecha_fin_reporte or 'Hoy'}"
 
     # =========================================================================
     # EXPORTACIÓN A EXCEL (.xlsx)
@@ -2336,7 +2685,7 @@ def exportar_reporte(request):
         if tipo == 'atenciones':
             ws.title = "Reporte Atenciones"
             ws.append(["REPORTE DE HORAS Y ESTADOS DE ATENCIÓN - BIOTECHNICA"])
-            ws.append([f"Rango: {fecha_inicio or 'Todos'} hasta {fecha_fin or 'Todos'}"])
+            ws.append([f"Rango: {fecha_inicio_reporte or 'Todos'} hasta {fecha_fin_reporte or 'Todos'}"])
             ws.append([])
 
             # Resumen por Estado
@@ -2375,7 +2724,7 @@ def exportar_reporte(request):
         else:
             ws.title = "Reporte Ingresos"
             ws.append(["REPORTE DE INGRESOS - BIOTECHNICA"])
-            ws.append([f"Rango: {fecha_inicio or 'Todos'} hasta {fecha_fin or 'Todos'}"])
+            ws.append([f"Rango: {fecha_inicio_reporte or 'Todos'} hasta {fecha_fin_reporte or 'Todos'}"])
             ws.append([])
 
             # Resumen Financiero
@@ -2437,7 +2786,7 @@ def exportar_reporte(request):
 
     titulo_texto = "Biotechnica Clínica - Reporte de Atenciones" if tipo == 'atenciones' else "Biotechnica Clínica - Reporte de Ingresos"
     elementos.append(Paragraph(f"<b>{titulo_texto}</b>", styles['Title']))
-    elementos.append(Paragraph(f"Período: {fecha_inicio or 'Inicio'} al {fecha_fin or 'Hoy'} | Emitido: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
+    elementos.append(Paragraph(f"Período: {fecha_inicio_reporte or 'Inicio'} al {fecha_fin_reporte or 'Hoy'} | Emitido: {datetime.now().strftime('%d/%m/%Y %H:%M')}", styles['Normal']))
     elementos.append(Spacer(1, 14))
 
     estilo_tabla = TableStyle([
