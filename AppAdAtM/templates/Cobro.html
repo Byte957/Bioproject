@@ -40,6 +40,7 @@
     }
 
     input[type="text"],
+    input[type="search"],
     input[type="number"],
     select {
       width: 100%;
@@ -144,28 +145,6 @@
       font-style: italic;
     }
 
-    .medication-card {
-      border: 1.5px solid #2e7d32;
-      border-radius: 12px;
-      padding: 14px;
-      background-color: #ffffff;
-      min-height: 80px;
-    }
-
-    .medication-card-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: #2e7d32;
-      margin-bottom: 8px;
-    }
-
-    .medication-card-header .icon-tag {
-      font-size: 0.8rem;
-    }
-
     .alert-msg {
       padding: 12px;
       border-radius: 10px;
@@ -231,15 +210,21 @@
         {% csrf_token %}
 
         <div class="form-group">
+          <label for="buscar-atencion">Buscar paciente por RUN o nombre</label>
+          <input type="search" id="buscar-atencion" placeholder="Ingrese RUN o nombre del paciente" autocomplete="off">
+        </div>
+
+        <div class="form-group">
           <label for="atencion_id">Seleccionar Atención</label>
           <select id="atencion_id" name="atencion_id" required>
             <option value="" disabled selected>Seleccione una atención...</option>
             {% for a in atenciones %}
-              <option value="{{ a.ID_Atencion }}">
+              <option value="{{ a.ID_Atencion }}" data-search="{{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.SegNombre_Paciente }} {{ a.Paciente.TerNombre_Paciente }} {{ a.Paciente.ApellidoP }} {{ a.Paciente.ApellidoM }} {{ a.Paciente.RUN_Paciente }}">
                 #{{ a.ID_Atencion }} | {{ a.Dia|date:'d/m/Y' }} {{ a.ID_Horario.Hora_Inicio|time:'H:i' }} - {{ a.Paciente.Nombre_Paciente }} {{ a.Paciente.ApellidoP }} ({{ a.Paciente.RUN_Paciente }}) [{{ a.Estado }}]
               </option>
             {% endfor %}
           </select>
+          <p id="sin-atenciones" class="description-text" role="status" hidden></p>
         </div>
 
         <div class="form-group">
@@ -313,18 +298,7 @@
         <!-- Información Atención / Descripción -->
         <div class="info-card-block">
           <div class="block-title">Información Atención</div>
-          <p class="description-text" id="detalle-atencion">Descripción de la atención efectuada y servicios a facturar.</p>
-        </div>
-
-        <!-- Bloque Medicamento -->
-        <div class="medication-card">
-          <div class="medication-card-header">
-            <span class="icon-tag">🗂️</span>
-            <span>Medicamentos Recetados</span>
-          </div>
-          <div class="medication-content" id="detalle-medicamentos">
-            <p style="font-size:0.85rem; color:#666;">Detalle de fármacos recetados asociados a la atención.</p>
-          </div>
+          <p class="description-text" id="detalle-atencion">Selecciona una atención para consultar su hora agendada y el motivo de la cita.</p>
         </div>
 
       </div>
@@ -338,6 +312,8 @@
     const ATENCIONES_DATA = JSON.parse(document.getElementById('atenciones-data').textContent);
 
     const selectAtencion = document.getElementById('atencion_id');
+    const buscarAtencion = document.getElementById('buscar-atencion');
+    const mensajeSinAtenciones = document.getElementById('sin-atenciones');
     const selectMetodo = document.getElementById('metodo-pago');
     const inputNeto = document.getElementById('neto');
     const inputIva = document.getElementById('iva');
@@ -351,7 +327,54 @@
     const pMedico = document.getElementById('detalle-medico');
     const pPaciente = document.getElementById('detalle-paciente');
     const pAtencion = document.getElementById('detalle-atencion');
-    const divMedicamentos = document.getElementById('detalle-medicamentos');
+    const opcionesAtencion = Array.from(selectAtencion.querySelectorAll('option[data-search]'));
+
+    function normalizarBusqueda(texto) {
+      return texto.toLocaleLowerCase('es')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '');
+    }
+
+    function limpiarSeleccionAtencion() {
+      selectAtencion.value = '';
+      selectMetodo.selectedIndex = 0;
+      inputNeto.value = '';
+      inputIva.value = '';
+      inputTotal.value = '';
+      inputPaciente.value = '';
+      inputRun.value = '';
+      tituloCobro.textContent = 'Cobro';
+      headerBoleta.textContent = 'Detalle de Atención';
+      btnCobrar.textContent = 'Cobrar';
+      pMedico.textContent = 'Selecciona una atención para ver el médico tratante...';
+      pPaciente.textContent = 'Selecciona una atención para ver los datos del paciente...';
+      pAtencion.textContent = 'Selecciona una atención para consultar su hora agendada y el motivo de la cita.';
+    }
+
+    function filtrarAtenciones() {
+      const filtro = normalizarBusqueda(buscarAtencion.value);
+      let coincidencias = 0;
+
+      opcionesAtencion.forEach((opcion) => {
+        const coincide = normalizarBusqueda(opcion.dataset.search).includes(filtro);
+        opcion.hidden = !coincide;
+        if (coincide) coincidencias += 1;
+      });
+
+      const seleccion = selectAtencion.selectedOptions[0];
+      if (seleccion && seleccion.dataset.search && seleccion.hidden) {
+        limpiarSeleccionAtencion();
+      }
+
+      mensajeSinAtenciones.hidden = coincidencias > 0;
+      mensajeSinAtenciones.textContent = opcionesAtencion.length
+        ? 'No hay atenciones que coincidan con la búsqueda.'
+        : 'No hay atenciones reservadas para hoy.';
+    }
+
+    buscarAtencion.addEventListener('input', filtrarAtenciones);
+    filtrarAtenciones();
 
     // Cálculo automático Neto -> IVA (19%) -> Total
     inputNeto.addEventListener('input', () => {
@@ -390,16 +413,7 @@
 
       pMedico.textContent = data.medico_info;
       pPaciente.textContent = data.paciente_info;
-      pAtencion.textContent = `[${data.fecha_hora}] ${data.descripcion}`;
-
-      // Renderizar medicamentos recetados
-      if (data.medicamentos && data.medicamentos.length > 0) {
-        divMedicamentos.innerHTML = data.medicamentos
-          .map(m => `<p style="font-size:0.84rem; color:#333; margin-bottom:4px;">• ${m}</p>`)
-          .join('');
-      } else {
-        divMedicamentos.innerHTML = '<p style="font-size:0.84rem; color:#666;">Esta atención no tiene receta de medicamentos asociada.</p>';
-      }
+      pAtencion.textContent = `Hora agendada: ${data.hora_agendada} | Motivo: ${data.motivo}`;
 
       // Si ya tenía una Boleta emitida, precargar sus montos
       if (data.boleta) {
@@ -423,21 +437,9 @@
 
     // Botón Cancelar
     document.getElementById('btn-cancelar').addEventListener('click', () => {
-      selectAtencion.selectedIndex = 0;
-      selectMetodo.selectedIndex = 0;
-      inputNeto.value = '';
-      inputIva.value = '';
-      inputTotal.value = '';
-      inputPaciente.value = '';
-      inputRun.value = '';
-      tituloCobro.textContent = 'Cobro';
-      headerBoleta.textContent = 'Detalle de Atención';
-      btnCobrar.textContent = 'Cobrar';
-
-      pMedico.textContent = 'Selecciona una atención para ver el médico tratante...';
-      pPaciente.textContent = 'Selecciona una atención para ver los datos del paciente...';
-      pAtencion.textContent = 'Descripción de la atención efectuada y servicios a facturar.';
-      divMedicamentos.innerHTML = '<p style="font-size:0.85rem; color:#666;">Detalle de fármacos recetados asociados a la atención.</p>';
+      buscarAtencion.value = '';
+      filtrarAtenciones();
+      limpiarSeleccionAtencion();
     });
   </script>
 

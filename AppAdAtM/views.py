@@ -1644,19 +1644,13 @@ def cobro(request):
 
     # --- PETICIÓN GET ---
     atenciones = (
-        Atencion.objects.exclude(Estado=EstadoAtencion.CANCELADA)
+        Atencion.objects.filter(
+            Estado=EstadoAtencion.RESERVADA,
+            Dia=timezone.localdate(),
+        )
         .select_related('Paciente', 'ID_Medico', 'ID_Horario')
-        .order_by('-Dia', 'ID_Horario__Hora_Inicio')
+        .order_by('ID_Horario__Hora_Inicio')
     )
-
-    # Pre-cargar recetas/medicamentos asociados a cada atención
-    medicamentos_por_atencion = {}
-    for rec in Receta.objects.filter(Atencion__in=atenciones).prefetch_related('medicamentoreceta_set__ID_Medicamento'):
-        lista_meds = [
-            f"{mr.ID_Medicamento.Nombre_Medicamento} ({mr.ID_Medicamento.Nombre_Comun}) — {mr.Indicaciones}"
-            for mr in rec.medicamentoreceta_set.all()
-        ]
-        medicamentos_por_atencion[str(rec.Atencion_id)] = lista_meds
 
     # Pre-cargar boletas ya emitidas por si se consulta una atención ya cobrada
     boletas_por_atencion = {}
@@ -1680,9 +1674,9 @@ def cobro(request):
             'medico_info': f"Dr(a). {a.ID_Medico.Nombre_Medico} {a.ID_Medico.ApellidoP_Medico} - {a.ID_Medico.Especializacion or 'Medicina General'} - RUN: {a.ID_Medico.RUN_Medico} / Mat. #{a.ID_Medico.MatriculaProfesional}",
             'paciente_info': f"{a.Paciente.Nombre_Paciente} {a.Paciente.ApellidoP} {a.Paciente.ApellidoM} - RUN: {a.Paciente.RUN_Paciente} - Tel: {a.Paciente.NumeroContactoPaciente}",
             'fecha_hora': f"{a.Dia.strftime('%d/%m/%Y')} {a.ID_Horario.Hora_Inicio.strftime('%H:%M')}",
-            'descripcion': a.Descripcion,
+            'hora_agendada': a.ID_Horario.Hora_Inicio.strftime('%H:%M'),
+            'motivo': a.Descripcion,
             'estado': a.Estado,
-            'medicamentos': medicamentos_por_atencion.get(aid, []),
             'boleta': boletas_por_atencion.get(aid, None),
         }
 

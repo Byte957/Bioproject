@@ -815,6 +815,43 @@ class FlujoAtencionesTests(TestCase):
         atencion.refresh_from_db()
         self.assertEqual(atencion.Estado, EstadoAtencion.FINALIZADA)
 
+    def test_cobro_lists_only_todays_reserved_appointments_and_shows_scheduled_details(self):
+        hoy = timezone.localdate()
+        atencion_hoy = self.crear_atencion(dia=hoy)
+        atencion_futura = self.crear_atencion(dia=hoy + timedelta(days=1))
+        horario_en_espera = Horario.objects.create(
+            Hora_Inicio=time(10, 30),
+            Hora_Fin=time(10, 50),
+        )
+        HorarioMedico.objects.create(
+            ID_Medico=self.medico,
+            ID_Horario=horario_en_espera,
+            Dia=hoy,
+            Estado='Ocupado',
+        )
+        atencion_en_espera = Atencion.objects.create(
+            Paciente=self.paciente,
+            Usuario=self.usuario_paciente,
+            ID_Medico=self.medico,
+            Descripcion='Control de seguimiento',
+            ID_Horario=horario_en_espera,
+            Dia=hoy,
+            Estado=EstadoAtencion.EN_ESPERA,
+        )
+        self.iniciar_sesion_de_prueba(self.recepcionista)
+
+        response = self.client.get(reverse('gestionar_cobros'))
+
+        self.assertContains(response, f'value="{atencion_hoy.ID_Atencion}"')
+        self.assertNotContains(response, f'value="{atencion_futura.ID_Atencion}"')
+        self.assertNotContains(response, f'value="{atencion_en_espera.ID_Atencion}"')
+        self.assertContains(response, 'Buscar paciente por RUN o nombre')
+        self.assertContains(response, 'data-search=')
+        self.assertContains(response, '22.222.222-2')
+        self.assertContains(response, 'Hora agendada:')
+        self.assertContains(response, 'Motivo:')
+        self.assertNotContains(response, 'Medicamentos Recetados')
+
     def test_patient_can_cancel_only_own_reserved_appointment_in_advance(self):
         atencion = self.crear_atencion()
         self.iniciar_sesion_de_prueba(self.usuario_paciente)
