@@ -370,7 +370,7 @@ def registroatencion(request):
             fecha_obj = datetime.strptime(fecha_str, '%Y-%m-%d').date()
             inicio_atencion = timezone.make_aware(datetime.combine(fecha_obj, horario_obj.Hora_Inicio))
             if inicio_atencion <= timezone.now():
-                messages.error(request, 'No se pueden reservar horarios que ya comenzaron.')
+                messages.error(request, 'No se pueden reservar citas en fechas y/u horas pasadas.')
                 return redirect('registrar_atencion')
 
             paciente_obj = Paciente.objects.filter(
@@ -1683,7 +1683,7 @@ def gestionatencion(request):
             fecha_obj = date.fromisoformat(dia_str)
             inicio_atencion = timezone.make_aware(datetime.combine(fecha_obj, horario_obj.Hora_Inicio))
             if inicio_atencion <= timezone.now():
-                messages.error(request, 'No se pueden reservar horarios que ya comenzaron.')
+                messages.error(request, 'No se pueden reservar citas en fechas y/u horas pasadas.')
                 return redirect('gestionar_atencion')
 
             usuario_obj = Usuario.objects.filter(ID_Usuario=usuario_id).first()
@@ -2348,7 +2348,7 @@ def activar_cuenta(request, token):
     try:
         datos = signing.loads(token, salt='AppAdAtM.activacion_cuenta', max_age=60 * 60 * 24)
     except signing.SignatureExpired:
-        messages.error(request, 'El enlace de activación expiró. Solicita uno nuevo.')
+        messages.error(request, 'El enlace de activación expiró. Solicite uno nuevo.')
         return redirect('inicio_sesion')
     except signing.BadSignature:
         messages.error(request, 'El enlace de activación no es válido.')
@@ -2479,7 +2479,7 @@ def solicitar_restauracion_contrasena(request):
                     enviados = send_mail(
                         'Recuperación de contraseña',
                         f'Hola {usuario.Nombre},\n\n'
-                        'Para elegir una nueva contraseña, visita este enlace (válido por una hora):\n'
+                        'Para elegir una nueva contraseña, visita este enlace (válido por 30 minutos):\n'
                         f'{url}\n\n'
                         'Si no solicitaste este cambio, puedes ignorar este correo.',
                         settings.DEFAULT_FROM_EMAIL,
@@ -2506,7 +2506,7 @@ def restablecer_contrasena(request, token):
         datos = signing.loads(
             token,
             salt='AppAdAtM.restaurar_contrasena',
-            max_age=60 * 60,
+            max_age=30 * 60,
         )
     except signing.SignatureExpired:
         messages.error(request, 'El enlace de recuperación expiró. Solicita uno nuevo.')
