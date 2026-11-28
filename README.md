@@ -45,7 +45,7 @@ Aplicación web de gestión clínica desarrollada con Django.
    python manage.py runserver
    ```
 
-   Abre [http://127.0.0.1:8000/](http://127.0.0.1:8000/) en el navegador. Para detener el servidor, pulsa `Ctrl+C` en la terminal.
+   Abra [http://127.0.0.1:8000/](http://127.0.0.1:8000/) en el navegador. Para detener el servidor, pulsa `Ctrl+C` en la terminal.
 
 ### Crear una cuenta administradora (opcional)
 
