@@ -7,6 +7,8 @@ Aplicación web de gestión clínica desarrollada con Django.
 - Python 3.12 o posterior, compatible con Django 6.
 - PowerShell en Windows (los comandos siguientes se ejecutan desde la carpeta raíz del proyecto).
 
+> Si el comando `python` no funciona en PowerShell, use `py` en su lugar en los comandos de esta guía (por ejemplo, `py manage.py runserver`).
+
 ## Preparar y ejecutar el proyecto
 
 1. Abra una terminal en la carpeta del proyecto, donde se encuentran `manage.py` y `requirements.txt`.
