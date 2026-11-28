@@ -260,7 +260,62 @@ def _enviar_confirmacion_atencion(request, atencion):
         messages.warning(request, f'La cita quedó reservada, pero falló el correo de confirmación: {exc}')
 
 
-def _cancelar_atencion_y_liberar_bloque(atencion):
+def _enviar_notificacion_cancelacion_cita(request, atencion):
+    paciente = atencion.Paciente
+    medico = atencion.ID_Medico
+    destinatarios = [
+        (paciente.CorreoContactoPaciente or '').strip(),
+        (medico.CorreoContactoMedico or '').strip(),
+    ]
+    if not destinatarios[0] and paciente.Usuario_id:
+        destinatarios[0] = paciente.Usuario.Correo_Usuario.strip()
+    if not destinatarios[1] and medico.Usuario_id:
+        destinatarios[1] = medico.Usuario.Correo_Usuario.strip()
+
+    destinatarios_unicos = list(dict.fromkeys(
+        correo.lower() for correo in destinatarios if correo
+    ))
+    if not destinatarios_unicos:
+        messages.warning(
+            request,
+            'La cita fue cancelada, pero no se encontraron correos para notificar al paciente y al médico.',
+        )
+        return
+
+    cuerpo = (
+        'Se informa que la siguiente cita médica fue cancelada:\n\n'
+        f'Cita: #{atencion.ID_Atencion}\n'
+        f'Paciente: {paciente.Nombre_Paciente} {paciente.ApellidoP}\n'
+        f'Médico: Dr(a). {medico.Nombre_Medico} {medico.ApellidoP_Medico}\n'
+        f'Fecha: {atencion.Dia.strftime("%d/%m/%Y")}\n'
+        f'Hora: {atencion.ID_Horario.Hora_Inicio.strftime("%H:%M")}\n'
+    )
+    hubo_error = False
+    for destinatario in destinatarios_unicos:
+        try:
+            enviados = send_mail(
+                'Cancelación de cita médica',
+                cuerpo,
+                settings.DEFAULT_FROM_EMAIL,
+                [destinatario],
+                fail_silently=False,
+            )
+            if enviados != 1:
+                hubo_error = True
+        except (OSError, smtplib.SMTPException, ValueError):
+            logger.exception(
+                'No se pudo enviar una notificación de cancelación de cita.',
+            )
+            hubo_error = True
+
+    if hubo_error:
+        messages.warning(
+            request,
+            'La cita fue cancelada, pero no se pudo enviar el correo a todos los destinatarios.',
+        )
+
+
+def _cancelar_atencion_y_liberar_bloque(request, atencion):
     with transaction.atomic():
         atencion.Estado = EstadoAtencion.CANCELADA
         atencion.save(update_fields=['Estado'])
@@ -270,6 +325,7 @@ def _cancelar_atencion_y_liberar_bloque(atencion):
             ID_Horario=atencion.ID_Horario,
             Estado__iexact='Ocupado',
         ).update(Estado='Disponible')
+    _enviar_notificacion_cancelacion_cita(request, atencion)
 
 
 @never_cache
@@ -1565,7 +1621,7 @@ def gestionatencion(request):
                         Paciente=paciente,
                         Estado=EstadoAtencion.EN_ESPERA,
                     )
-                    _cancelar_atencion_y_liberar_bloque(atencion)
+                    _cancelar_atencion_y_liberar_bloque(request, atencion)
                     messages.success(request, f'Abandonaste la espera de la cita #{atencion_id}.')
                 except Atencion.DoesNotExist:
                     messages.error(request, 'La cita no está en espera o no te pertenece.')
@@ -1584,7 +1640,7 @@ def gestionatencion(request):
                 if inicio - timezone.now() < timedelta(hours=24):
                     messages.error(request, 'Solo puedes cancelar una cita con al menos 24 horas de anticipación.')
                 else:
-                    _cancelar_atencion_y_liberar_bloque(atencion)
+                    _cancelar_atencion_y_liberar_bloque(request, atencion)
                     messages.success(request, f'La cita #{atencion_id} fue cancelada.')
             except Atencion.DoesNotExist:
                 messages.error(request, 'La cita no existe, ya no está reservada o no te pertenece.')
@@ -1596,7 +1652,7 @@ def gestionatencion(request):
                     ID_Atencion=atencion_id,
                     Estado=EstadoAtencion.EN_ESPERA,
                 )
-                _cancelar_atencion_y_liberar_bloque(atencion)
+                _cancelar_atencion_y_liberar_bloque(request, atencion)
                 messages.success(request, f'La espera de la cita #{atencion_id} fue abandonada.')
             except Atencion.DoesNotExist:
                 messages.error(request, 'La cita no está en espera.')
@@ -1614,7 +1670,7 @@ def gestionatencion(request):
                     if inicio - timezone.now() < timedelta(hours=24):
                         messages.error(request, 'Solo puedes cancelar una cita con al menos 24 horas de anticipación.')
                     else:
-                        _cancelar_atencion_y_liberar_bloque(atencion)
+                        _cancelar_atencion_y_liberar_bloque(request, atencion)
                         messages.success(request, f'La cita #{atencion_id} fue cancelada.')
                 except Atencion.DoesNotExist:
                     messages.error(request, 'La cita no existe, ya no está reservada o no está asignada a tu agenda.')
@@ -1645,7 +1701,7 @@ def gestionatencion(request):
                 if atencion.Estado != EstadoAtencion.RESERVADA or inicio - timezone.now() < timedelta(hours=24):
                     messages.error(request, 'Solo puedes cancelar una cita reservada con al menos 24 horas de anticipación.')
                 else:
-                    _cancelar_atencion_y_liberar_bloque(atencion)
+                    _cancelar_atencion_y_liberar_bloque(request, atencion)
                     messages.success(request, f'La cita #{atencion_id} fue cancelada.')
             except Atencion.DoesNotExist:
                 messages.error(request, 'La cita que intentas cancelar no existe.')

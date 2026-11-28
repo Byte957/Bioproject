@@ -549,6 +549,10 @@ class RecuperacionContrasenaTests(TestCase):
         self.assertFalse(Usuario.objects.filter(Correo_Usuario='ana@example.com').exists())
 
 
+@override_settings(
+    EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend',
+    DEFAULT_FROM_EMAIL='noreply@example.com',
+)
 class FlujoAtencionesTests(TestCase):
     def setUp(self):
         self.rol_admin, _ = Rol.objects.get_or_create(
@@ -1030,6 +1034,54 @@ class FlujoAtencionesTests(TestCase):
             HorarioMedico.objects.get(ID_Medico=self.medico, Dia=atencion.Dia).Estado,
             'Disponible',
         )
+
+    def test_patient_and_reception_cancellations_notify_both_parties(self):
+        dias = [
+            date.today() + timedelta(days=2),
+            date.today() + timedelta(days=3),
+        ]
+        atenciones = [self.crear_atencion(dia=dia) for dia in dias]
+        canceladores = (
+            (self.usuario_paciente, atenciones[0]),
+            (self.recepcionista, atenciones[1]),
+        )
+
+        for usuario, atencion in canceladores:
+            self.iniciar_sesion_de_prueba(usuario)
+            response = self.client.post(reverse('gestionar_atencion'), {
+                'accion': 'cancelar',
+                'atencion_id': str(atencion.ID_Atencion),
+            }, follow=True)
+            atencion.refresh_from_db()
+            self.assertEqual(
+                atencion.Estado,
+                EstadoAtencion.CANCELADA,
+                f'Rol {usuario.Rol_id}: {[str(mensaje) for mensaje in response.context["messages"]]}',
+            )
+
+        self.assertEqual(len(mail.outbox), 4)
+        for indice, atencion in enumerate(atenciones):
+            correo_paciente, correo_medico = mail.outbox[indice * 2:indice * 2 + 2]
+            self.assertEqual(correo_paciente.to, ['paciente@example.com'])
+            self.assertEqual(correo_medico.to, ['medico@example.com'])
+            self.assertEqual(correo_paciente.subject, 'Cancelación de cita médica')
+            self.assertIn(f'Cita: #{atencion.ID_Atencion}', correo_paciente.body)
+            self.assertIn(f'Cita: #{atencion.ID_Atencion}', correo_medico.body)
+
+    @patch('AppAdAtM.views.send_mail', side_effect=OSError('SMTP unavailable'))
+    def test_email_failure_does_not_prevent_cancellation(self, send_mail_mock):
+        atencion = self.crear_atencion()
+        self.iniciar_sesion_de_prueba(self.usuario_paciente)
+
+        response = self.client.post(reverse('gestionar_atencion'), {
+            'accion': 'cancelar',
+            'atencion_id': str(atencion.ID_Atencion),
+        }, follow=True)
+
+        atencion.refresh_from_db()
+        self.assertEqual(atencion.Estado, EstadoAtencion.CANCELADA)
+        self.assertEqual(send_mail_mock.call_count, 2)
+        self.assertContains(response, 'no se pudo enviar el correo a todos los destinatarios')
 
     def test_patient_cancellation_requires_at_least_24_hours(self):
         manana = date(2026, 11, 26)
